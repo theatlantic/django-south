@@ -1,0 +1,79 @@
+This is South, a Django application to provide migrations in a sane way.
+
+By sane, we mean that the status of every migration is tracked individually,
+rather than just the number of the top migration reached; this means South
+can detect when you have an unapplied migration that's sitting in the middle
+of a whole load of applied ones, and will let you apply it straight off,
+or let you roll back to it, and apply from there forward.
+
+You'll interact with South in two main ways; via manage.py, and through
+app migrations.
+
+ manage.py
+ ---------
+ 
+ South has three commands in manage.py:
+ 
+  syncdb - This is a modified version of the original Django syncdb, that
+           only does the usual syncdb on apps without migrations (i.e. without
+           a migrations/ python package in their app directory).
+           This means you can still use syncdb's magic creation for things like
+           Django auth, but use migrations for your own app.
+
+  migrate - Allows you to migrate forwards or backwards. With no arguments,
+            will migrate forwards as far as it can (i.e. perform all migrations).
+            If you provide an argument, it will attempt to migrate forwards
+            or backwards until it reaches the state where it would have just
+            performed the named migration (e.g. ./manage.py migrate 0002_test)
+            
+            This argument does not end in .py, and you can use the special
+            argument 'zero' to undo every single migration.
+            
+            If there is a consistency error - that is, South finds a migration
+            which is unapplied, but before a migration that is already applied -
+            it will tell you what migrations are wrong and refuse to continue.
+            
+            In this situation, you need to provide one of these command-line
+            switches:
+            
+             --skip will ignore any warnings and just continue applying
+                    or undoing migrations.
+             --merge will run the missing migrations straight away, and then
+                     continue, if you are trying to progress forwards. If you
+                     are trying to migrate backwards, it behaves like --skip.
+            
+            Generally, a sensible thing to do is either --merge, or perform
+            a rollback to the offending migration and then roll forwards.
+            For example, if 0003_addedlater is the unapplied migration:
+            
+              ./manage.py migrate --skip 0002_test
+              ./manage.py migrate
+            
+            Here, we roll back past where 0003 would have been applied and
+            then roll forwards, applying it in the process.
+
+  startmigration - Provide this command with an app name and optional migration
+                   name and it will create a new stub migration for you.
+                   If the app currently has no migration directory, it will
+                   also create that.
+
+
+ Migrations
+ ----------
+ 
+ Migrations are found in the migrations/ directory under an app. They are always
+ executed in ASCII sort order, so 11_foo.py would be executed before 2_bar.py
+ (you can get around this by naming files like 0002_bar.py; this is what
+ ./manage.py startmigration does).
+ 
+ Inside a migration file, there should be a Migration class with forward() and
+ backward() methods. These will be called when the migration needs to be executed
+ in the respective directions.
+ 
+ You can do anything inside these two functions; you can use the Django ORM
+ to change data, or django.db.connection to execute raw SQL, for example.
+ However, as raw SQL isn't very portable, there's also a thin database actions
+ abstraction layer called south.db.db, which provides database-agnostic
+ methods like create_table, add_column, rename_column, and so on.
+ 
+ Documentation for south.db can be found in its own file, for now.
