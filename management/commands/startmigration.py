@@ -26,7 +26,6 @@ class Command(BaseCommand):
         if model:
             try:
                 model = getattr(app_module.models, model)
-                print model
             except AttributeError:
                 print "The specified model '%s' doesn't seem to exist." % model
         # Make the migrations directory if it's not there
@@ -104,6 +103,7 @@ class Migration:
         %s
 """ % (app, forwards, backwards))
         fp.close()
+        print "Created %s." % new_filename
 
 
 def genericify_type(typestr):
