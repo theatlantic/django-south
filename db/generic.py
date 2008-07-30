@@ -81,21 +81,26 @@ class DatabaseOperations(object):
         """
         qn = connection.ops.quote_name
         defaults = tuple(self.get_column_value(column, "default") for column in columns)
+        columns = [
+            self.column_sql(
+                column_name = self.get_column_value(column, "name"),
+                type_name = self.get_column_value(column, "type"),
+                type_param = self.get_column_value(column, "type_param"),
+                unique = self.get_column_value(column, "unique"),
+                null = self.get_column_value(column, "null"),
+                related_to = self.get_column_value(column, "related_to"),
+                default = self.get_column_value(column, "default"),
+            )
+            for column in columns
+        ]
+        sqlparams = tuple()
+        for s, p in columns:
+            sqlparams += p
         params = (
             qn(table_name),
-            ", ".join([
-                self.column_sql(
-                    column_name = self.get_column_value(column, "name"),
-                    type_name = self.get_column_value(column, "type"),
-                    type_param = self.get_column_value(column, "type_param"),
-                    unique = self.get_column_value(column, "unique"),
-                    null = self.get_column_value(column, "null"),
-                    related_to = self.get_column_value(column, "related_to"),
-                )
-                for column in columns
-            ]),
+            ", ".join([s for s,p in columns]),
         )
-        self.execute('CREATE TABLE %s (%s);' % params, defaults)
+        self.execute('CREATE TABLE %s (%s);' % params, sqlparams)
 
 
     def rename_table(self, old_table_name, table_name):
@@ -134,19 +139,24 @@ class DatabaseOperations(object):
         @param related_to: A tuple of (table_name, column_name) for the column this references if it is a ForeignKey.
         """
         qn = connection.ops.quote_name
+        sql, sqlparams = self.column_sql(column_name, type_name, type_param, unique, null, related_to)
         params = (
             qn(table_name),
-            self.column_sql(column_name, type_name, type_param, unique, null, related_to),
+            sql,
         )
         sql = 'ALTER TABLE %s ADD COLUMN %s;' % params
-        self.execute(sql, (default,))
+        self.execute(sql, sqlparams)
 
 
-    def column_sql(self, column_name, type_name, type_param=None, unique=False, null=True, related_to=None):
+    def column_sql(self, column_name, type_name, type_param=None, unique=False, null=True, related_to=None, default=None):
         """
         Creates the SQL snippet for a column. Used by add_column and add_table.
         """
         qn = connection.ops.quote_name
+        no_default = (not default)
+        if type_name == "serial":
+            no_default = True
+            null = False
         params = (
             qn(column_name),
             self.get_type(type_name, type_param),
@@ -156,9 +166,10 @@ class DatabaseOperations(object):
                 related_to[1],  # Column name
                 connection.ops.deferrable_sql(), # Django knows this
             )) or "",
-            "DEFAULT %s",
+            not no_default and "DEFAULT %s" or "",
         )
-        return '%s %s %s %s %s' % params
+        sqlparams = not no_default and (default,) or tuple() 
+        return '%s %s %s %s %s' % params, sqlparams
 
 
     def delete_column(self, table_name, column_name):
