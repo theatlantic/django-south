@@ -107,6 +107,15 @@ def migrate_app(migration_module, target_name=None, resolve_mode=None):
             missing.append(migration)
             offset += 1
     
+    # Make sure the database doesn't have nonexistent migrations in it
+    ghost_migrations = [m for m in current_migrations if m not in migrations]
+    if ghost_migrations:
+        print " ! These migrations are in the database but not on disk:"
+        print "   - " + "\n   - ".join(ghost_migrations)
+        print " ! I'm not trusting myself; fix this yourself by fiddling"
+        print " ! with the south_migrationhistory table."
+        return
+    
     if offset:
         current += offset
     
