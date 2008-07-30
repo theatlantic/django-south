@@ -55,6 +55,7 @@ class DatabaseOperations(object):
             "null": True,
             "related_to": None,
             "default": None,
+            "primary": False,
         }
         if isinstance(column, (list, tuple)):
             try:
@@ -66,6 +67,7 @@ class DatabaseOperations(object):
                     "null": 4,
                     "related_to": 5,
                     "default": 6,
+                    "primary": 7,
                 }[name]]
             except IndexError:
                 return defaults[name]
@@ -124,7 +126,7 @@ class DatabaseOperations(object):
         self.execute('DROP TABLE %s;' % params)
 
 
-    def add_column(self, table_name, column_name, type_name, type_param=None, unique=False, null=True, related_to=None, default=None):
+    def add_column(self, table_name, column_name, type_name, type_param=None, unique=False, null=True, related_to=None, default=None, primary=False):
         """
         Adds the column 'column_name' to the table 'table_name'.
         The column will have type 'type_name', which is one of the generic
@@ -137,6 +139,7 @@ class DatabaseOperations(object):
         @param unique: Whether this column has UNIQUE set. Defaults to False.
         @param null: If this column will be allowed to contain NULL values. Defaults to True.
         @param related_to: A tuple of (table_name, column_name) for the column this references if it is a ForeignKey.
+        @param primary: If this is the primary key column
         """
         qn = connection.ops.quote_name
         sql, sqlparams = self.column_sql(column_name, type_name, type_param, unique, null, related_to)
@@ -148,7 +151,7 @@ class DatabaseOperations(object):
         self.execute(sql, sqlparams)
 
 
-    def column_sql(self, column_name, type_name, type_param=None, unique=False, null=True, related_to=None, default=None):
+    def column_sql(self, column_name, type_name, type_param=None, unique=False, null=True, related_to=None, default=None, primary=False):
         """
         Creates the SQL snippet for a column. Used by add_column and add_table.
         """
