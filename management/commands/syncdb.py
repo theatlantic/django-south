@@ -1,9 +1,12 @@
 from django.core.management.base import NoArgsCommand
 from django.core.management.color import no_style
+from django.utils.datastructures import SortedDict
 from optparse import make_option
 from south import migration
 from django.core.management.commands import syncdb
 from django.conf import settings
+from django.db import models
+from django.db.models.loading import cache
 import sys
 
 class Command(NoArgsCommand):
@@ -17,7 +20,6 @@ class Command(NoArgsCommand):
     help = "Create the database tables for all apps in INSTALLED_APPS whose tables haven't already been created, except those which use migrations."
 
     def handle_noargs(self, **options):
-        from django.db import models
         # Work out what uses migrations and so doesn't need syncing
         apps_needing_sync = []
         apps_migrated = []
@@ -31,8 +33,13 @@ class Command(NoArgsCommand):
                 apps_migrated.append(app_name)
         # Run syncdb on only the ones needed
         old_installed, settings.INSTALLED_APPS = settings.INSTALLED_APPS, apps_needing_sync
+        old_app_store, cache.app_store = cache.app_store, SortedDict([
+            (k, v) for (k, v) in cache.app_store.items()
+            if k in apps_needing_sync
+        ])
         syncdb.Command().execute(**options)
         settings.INSTALLED_APPS = old_installed
+        cache.app_store = old_app_store
         # Be obvious about what we did
         print "\nSynced:\n > %s" % "\n > ".join(apps_needing_sync)
         print "\nNot synced (use migrations):\n - %s" % "\n - ".join(apps_migrated)

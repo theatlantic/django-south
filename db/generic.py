@@ -12,6 +12,8 @@ class DatabaseOperations(object):
         "varchar": "VARCHAR",
         "text": "TEXT",
         "integer": "INT",
+        "boolean": "BOOLEAN",
+        "serial": "SERIAL",
     }
 
     def __init__(self):
@@ -38,8 +40,37 @@ class DatabaseOperations(object):
         """
         cursor = connection.cursor()
         if self.debug:
-            print "   = %s" % sql
+            print "   = %s" % sql, params
         return cursor.execute(sql, params)
+
+
+    def get_column_value(self, column, name):
+        """
+        Gets a column's something value from either a list or dict.
+        Useful for when both are passed into create_table in the column list.
+        """
+        defaults = {
+            "type_param": 0,
+            "unique": False,
+            "null": True,
+            "related_to": None,
+            "default": None,
+        }
+        if isinstance(column, (list, tuple)):
+            try:
+                return column[{
+                    "name": 0,
+                    "type": 1,
+                    "type_param": 2,
+                    "unique": 3,
+                    "null": 4,
+                    "related_to": 5,
+                    "default": 6,
+                }[name]]
+            except IndexError:
+                return defaults[name]
+        else:
+            return column.get(name, defaults.get(name, None))
 
 
     def create_table(self, table_name, columns):
@@ -49,14 +80,22 @@ class DatabaseOperations(object):
         positional arguments).
         """
         qn = connection.ops.quote_name
+        defaults = tuple(self.get_column_value(column, "default") for column in columns)
         params = (
             qn(table_name),
             ", ".join([
-                self.column_sql(*column)
+                self.column_sql(
+                    column_name = self.get_column_value(column, "name"),
+                    type_name = self.get_column_value(column, "type"),
+                    type_param = self.get_column_value(column, "type_param"),
+                    unique = self.get_column_value(column, "unique"),
+                    null = self.get_column_value(column, "null"),
+                    related_to = self.get_column_value(column, "related_to"),
+                )
                 for column in columns
             ]),
         )
-        self.execute('CREATE TABLE %s (%s);' % params)
+        self.execute('CREATE TABLE %s (%s);' % params, defaults)
 
 
     def rename_table(self, old_table_name, table_name):
@@ -80,7 +119,7 @@ class DatabaseOperations(object):
         self.execute('DROP TABLE %s;' % params)
 
 
-    def add_column(self, table_name, column_name, type_name, type_param=None, unique=False, null=True, related_to=None):
+    def add_column(self, table_name, column_name, type_name, type_param=None, unique=False, null=True, related_to=None, default=None):
         """
         Adds the column 'column_name' to the table 'table_name'.
         The column will have type 'type_name', which is one of the generic
@@ -100,7 +139,7 @@ class DatabaseOperations(object):
             self.column_sql(column_name, type_name, type_param, unique, null, related_to),
         )
         sql = 'ALTER TABLE %s ADD COLUMN %s;' % params
-        self.execute(sql)
+        self.execute(sql, (default,))
 
 
     def column_sql(self, column_name, type_name, type_param=None, unique=False, null=True, related_to=None):
@@ -117,8 +156,9 @@ class DatabaseOperations(object):
                 related_to[1],  # Column name
                 connection.ops.deferrable_sql(), # Django knows this
             )) or "",
+            "DEFAULT %s",
         )
-        return '%s %s %s %s' % params
+        return '%s %s %s %s %s' % params
 
 
     def delete_column(self, table_name, column_name):
