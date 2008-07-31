@@ -59,13 +59,13 @@ class Command(BaseCommand):
             fields = []
             for f in model._meta.local_fields:
                 # We use a list of tuples to get nice ordering
+                type, type_param = genericify_type(f.db_type())
                 field = [
                     ("name", f.column),
+                    ("type", type),
+                    ("type_param", type_param),
                     ("null", f.null),
                 ]
-                type, type_param = genericify_type(f.db_type())
-                field.append(("type", type))
-                field.append(("type_param", type_param))
                 if f.primary_key:
                     field.append(('primary', True))
                 if f.unique:
