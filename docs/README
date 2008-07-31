@@ -56,6 +56,14 @@ app migrations.
                    name and it will create a new stub migration for you.
                    If the app currently has no migration directory, it will
                    also create that.
+                   
+                   If you also provide a model name for the app as a third
+                   argument, it will scan that model and automatically generate
+                   a migration to create it as it currently is; this hopefully
+                   will ease the loss of syncdb. Be aware you may have to make
+                   sure the migrations are manually in the correct order if your
+                   database enforces foreign key dependencies strongly (although
+                   they should generally work, as they're deferred by default)
 
 
  Migrations
