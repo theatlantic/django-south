@@ -13,10 +13,12 @@ class Command(BaseCommand):
             help='Will run out-of-order missing migrations as they are - no rollbacks.'),
         make_option('--only', action='store_true', dest='only', default=False,
             help='Only runs or rolls back the migration specified, and none around it.'),
+        make_option('--fake', action='store_true', dest='fake', default=False,
+            help="Pretends to do the migrations, but doesn't actually execute them."),
     )
     help = "Runs migrations for all apps."
 
-    def handle(self, target=None, skip=False, merge=False, only=False, backwards=False, **options):
+    def handle(self, target=None, skip=False, merge=False, only=False, backwards=False, fake=False, **options):
         # Work out what the resolve mode is
         resolve_mode = merge and "merge" or (skip and "skip" or None)
         # Turn on db debugging
@@ -30,5 +32,6 @@ class Command(BaseCommand):
                     migrations,
                     resolve_mode = resolve_mode,
                     target_name = target,
+                    fake = fake,
                 )
                 continue

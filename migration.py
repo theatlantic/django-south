@@ -40,7 +40,7 @@ def get_migration(app_name, name):
     return getattr(module.migrations, name).Migration
 
 
-def run_forwards(app_name, migrations):
+def run_forwards(app_name, migrations, fake=False):
     """
     Runs the specified migrations forwards, in order.
     """
@@ -57,7 +57,7 @@ def run_forwards(app_name, migrations):
         record.save()
 
 
-def run_backwards(app_name, migrations, ignore=[]):
+def run_backwards(app_name, migrations, ignore=[], fake=False):
     """
     Runs the specified migrations backwards, in order, skipping those
     migrations in 'ignore'.
@@ -171,7 +171,7 @@ def migrate_app(migration_module, target_name=None, resolve_mode=None, fake=Fals
     # If we're using merge, and going forwards, merge
     if target >= current and resolve_mode == "merge" and missing:
         print " - Merging..."
-        run_forwards(app_name, missing)
+        run_forwards(app_name, missing, fake=fake)
     
     # Now do the right direction.
     if target == current:
@@ -179,7 +179,7 @@ def migrate_app(migration_module, target_name=None, resolve_mode=None, fake=Fals
     elif target < current:
         # Rollback
         print " - Rolling back..."
-        run_backwards(app_name, reversed(current_migrations[target:current]))
+        run_backwards(app_name, reversed(current_migrations[target:current]), fake=fake)
     else:
         print " - Migrating..."
-        run_forwards(app_name, migrations[current:target])
+        run_forwards(app_name, migrations[current:target], fake=fake)
