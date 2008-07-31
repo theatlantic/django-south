@@ -47,7 +47,10 @@ def run_forwards(app_name, migrations):
     for migration in migrations:
         print " > %s" % migration
         klass = get_migration(app_name, migration)
-        klass().forwards()
+        if fake:
+            print "   (faked)"
+        else:
+            klass().forwards()
         # Record us as having done this
         record = MigrationHistory.for_migration(app_name, migration)
         record.applied = datetime.datetime.utcnow()
@@ -63,13 +66,16 @@ def run_backwards(app_name, migrations, ignore=[]):
         if migration not in ignore:
             print " < %s" % migration
             klass = get_migration(app_name, migration)
-            klass().backwards()
+            if fake:
+                print "   (faked)"
+            else:
+                klass().backwards()
             # Record us as having not done this
             record = MigrationHistory.for_migration(app_name, migration)
             record.delete()
 
 
-def migrate_app(migration_module, target_name=None, resolve_mode=None):
+def migrate_app(migration_module, target_name=None, resolve_mode=None, fake=False):
     
     # Work out exactly what we're working on
     app_name = os.path.splitext(migration_module.__name__)[0]

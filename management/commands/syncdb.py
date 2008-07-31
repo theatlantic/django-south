@@ -9,6 +9,9 @@ from django.db import models
 from django.db.models.loading import cache
 import sys
 
+def get_app_name(app):
+    return '.'.join( app.__name__.split('.')[0:-1] )
+
 class Command(NoArgsCommand):
     option_list = NoArgsCommand.option_list + (
         make_option('--verbosity', action='store', dest='verbosity', default='1',
@@ -24,7 +27,7 @@ class Command(NoArgsCommand):
         apps_needing_sync = []
         apps_migrated = []
         for app in models.get_apps():
-            app_name = '.'.join( app.__name__.split('.')[0:-1] )
+            app_name = get_app_name(app)
             migrations = migration.get_migrations(app)
             if migrations is None:
                 apps_needing_sync.append(app_name)
@@ -35,7 +38,7 @@ class Command(NoArgsCommand):
         old_installed, settings.INSTALLED_APPS = settings.INSTALLED_APPS, apps_needing_sync
         old_app_store, cache.app_store = cache.app_store, SortedDict([
             (k, v) for (k, v) in cache.app_store.items()
-            if k in apps_needing_sync
+            if get_app_name(k) in apps_needing_sync
         ])
         syncdb.Command().execute(**options)
         settings.INSTALLED_APPS = old_installed
