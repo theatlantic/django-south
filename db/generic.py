@@ -14,6 +14,7 @@ class DatabaseOperations(object):
         "integer": "INT",
         "boolean": "BOOLEAN",
         "serial": "SERIAL",
+        "datetime": "TIMESTAMP WITH TIME ZONE",
     }
 
     def __init__(self):
@@ -126,7 +127,7 @@ class DatabaseOperations(object):
         self.execute('DROP TABLE %s;' % params)
 
 
-    def add_column(self, table_name, column_name, type_name, type_param=None, unique=False, null=True, related_to=None, default=None, primary=False):
+    def add_column(self, table_name, name, type, type_param=None, unique=False, null=True, related_to=None, default=None, primary=False):
         """
         Adds the column 'column_name' to the table 'table_name'.
         The column will have type 'type_name', which is one of the generic
@@ -142,7 +143,7 @@ class DatabaseOperations(object):
         @param primary: If this is the primary key column
         """
         qn = connection.ops.quote_name
-        sql, sqlparams = self.column_sql(column_name, type_name, type_param, unique, null, related_to)
+        sql, sqlparams = self.column_sql(name, type, type_param, unique, null, related_to)
         params = (
             qn(table_name),
             sql,
