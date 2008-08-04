@@ -117,5 +117,6 @@ def genericify_type(typestr):
     type = {
         "varchar": "string",
         "timestamp with time zone": "datetime",
+        "double precision": "float",
     }.get(type, type)
     return type, param
