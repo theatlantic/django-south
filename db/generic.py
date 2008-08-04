@@ -15,6 +15,7 @@ class DatabaseOperations(object):
         "boolean": "BOOLEAN",
         "serial": "SERIAL",
         "datetime": "TIMESTAMP WITH TIME ZONE",
+        "float": "DOUBLE PRECISION",
     }
 
     def __init__(self):

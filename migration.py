@@ -136,8 +136,20 @@ def migrate_app(migration_module, target_name=None, resolve_mode=None, fake=Fals
             try:
                 target = migrations.index(target_name) + 1
             except ValueError:
-                print " ! '%s' is not a migration." % target_name
-                return
+                matches = [x for x in migrations if x.startswith(target_name)]
+                if len(matches) == 1:
+                    target = migrations.index(matches[0]) + 1
+                    print " - Soft matched migration %s to %s." % (
+                        target_name,
+                        matches[0]
+                    )
+                elif len(matches) > 1:
+                    print " - Prefix %s matches more than one migration:" % target_name
+                    print "     " + "\n     ".join(matches)
+                    return
+                else:
+                    print " ! '%s' is not a migration." % target_name
+                    return
     
     def describe_index(i):
         if i == 0:
