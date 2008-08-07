@@ -187,7 +187,7 @@ class DatabaseOperations(object):
         Deletes the column 'column_name' from the table 'table_name'.
         """
         qn = connection.ops.quote_name
-        params = (qn(mtable_name), qn(name))
+        params = (qn(table_name), qn(column_name))
         return ['ALTER TABLE %s DROP COLUMN %s CASCADE;' % params]
 
 
