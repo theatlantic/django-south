@@ -17,8 +17,8 @@ class DatabaseOperations(generic.DatabaseOperations):
         
         qn = connection.ops.quote_name
         
-        params = (qn(table_namee), qn(old), qn(new))
-        return ['ALTER TABLE %s CHANGE COLUMN %s %s;' % params]
+        params = (qn(table_name), qn(old), qn(new))
+        self.execute('ALTER TABLE %s CHANGE COLUMN %s %s;' % params)
 
 
     def rename_table(self, old_table_name, table_name):

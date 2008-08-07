@@ -30,8 +30,8 @@ class TestOperations(unittest.TestCase):
         # It needs to take at least 2 args
         self.assertRaises(TypeError, db.create_table)
         self.assertRaises(TypeError, db.create_table, "test1")
-        # Empty tables (i.e. no columns) are fine
-        db.create_table("test1", [])
+        # Empty tables (i.e. no columns) are not fine, so make at least 1
+        db.create_table("test1", [("col", "text")])
         db.commit_transaction()
         # And should exist
         cursor.execute("SELECT * FROM test1")
@@ -57,5 +57,23 @@ class TestOperations(unittest.TestCase):
         try:
             db.delete_table("nottheretest1")
             self.fail("Non-existent table could be deleted!")
+        except:
+            pass
+    
+    def test_rename(self):
+        """
+        Test column renaming
+        """
+        cursor = connection.cursor()
+        db.create_table("test2", [("spam", "text")])
+        db.commit_transaction()
+        # Make sure we can select the column
+        cursor.execute("SELECT spam FROM test2")
+        # Rename it
+        db.rename_column("test2", "spam", "eggs")
+        cursor.execute("SELECT eggs FROM test2")
+        try:
+            cursor.execute("SELECT spam FROM test2")
+            self.fail("Just-renamed column could be selected!")
         except:
             pass
