@@ -105,6 +105,8 @@ class DatabaseOperations(object):
             ", ".join([s for s,p in columns]),
         )
         self.execute('CREATE TABLE %s (%s);' % params, sqlparams)
+    
+    add_table = create_table # Alias for consistency's sake
 
 
     def rename_table(self, old_table_name, table_name):
@@ -126,6 +128,8 @@ class DatabaseOperations(object):
         qn = connection.ops.quote_name
         params = (qn(table_name), )
         self.execute('DROP TABLE %s;' % params)
+    
+    drop_table = delete_table
 
 
     def add_column(self, table_name, name, type, type_param=None, unique=False, null=True, related_to=None, default=None, primary=False):
@@ -141,10 +145,11 @@ class DatabaseOperations(object):
         @param unique: Whether this column has UNIQUE set. Defaults to False.
         @param null: If this column will be allowed to contain NULL values. Defaults to True.
         @param related_to: A tuple of (table_name, column_name) for the column this references if it is a ForeignKey.
-        @param primary: If this is the primary key column
+        @param default: The default value for this column.
+        @param primary: If this is the primary key column.
         """
         qn = connection.ops.quote_name
-        sql, sqlparams = self.column_sql(name, type, type_param, unique, null, related_to)
+        sql, sqlparams = self.column_sql(name, type, type_param, unique, null, related_to, default, primary)
         params = (
             qn(table_name),
             sql,
@@ -177,12 +182,12 @@ class DatabaseOperations(object):
         return '%s %s %s %s %s' % params, sqlparams
 
 
-    def delete_column(self, table_name, column_name):
+    def delete_column(self, table_name, name):
         """
         Deletes the column 'column_name' from the table 'table_name'.
         """
         qn = connection.ops.quote_name
-        params = (qn(mtable_name), qn(column_name))
+        params = (qn(mtable_name), qn(name))
         return ['ALTER TABLE %s DROP COLUMN %s CASCADE;' % params]
 
 
