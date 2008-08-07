@@ -1,0 +1,11 @@
+
+Contributing to South
+---------------------
+
+Contributions to South are very welcome.
+Send your patches to andrew at aeracode.org; if you send in a couple of good
+patches, you'll get write access to the subversion repository.
+
+The main area that needs work is the expansion of the database abstraction
+layer to cover more databases and more commands, although of course any other
+areas are welcome!

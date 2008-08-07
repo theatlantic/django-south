@@ -1,0 +1,112 @@
+
+The South Database Abstraction Layer
+------------------------------------
+
+In order to fill the gap between raw SQL (not entirely database-agnostic) and
+the Django ORM (which only allows for data-level operations, not column addition
+or renaming, for example) South comes with a small database abstraction layer
+that provides a common interface to functions like table and column creation,
+renaming, and deletion.
+
+These functions are all methods on the south.db.db object, which is dynamically
+loaded at runtime to be the right module for the database defined by Django's
+DATABASE_ENGINE setting.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+add_column(
+    table_name,
+    name,
+    type,
+    type_param=None,
+    unique=False,
+    null=True,
+    related_to=None,
+    default=None,
+    primary=False,
+)
+
+Adds the column with name 'name' to the table 'table_name'. The column will
+have type 'type', which is one of the generic types listed in the
+'Generic Types' section below.
+
+Optional parameters:
+
+ type_param: The parameter to the type. For example, 255 if you have
+             type='string' will end up with something like VARCHAR(255) in most
+             databases.
+
+ unique: If this is True, tells the database this column must have a unique
+         value for each row.
+
+ null: If this is True, NULL values will be allowed in the column.
+
+ related_to: Provide a tuple of (table_name, column_name) to specify that
+             this column is a foreign key to some other table.
+
+ default: The default value for this column. Note that this only really takes
+          effect for existing rows; the Django ORM generally applies the default
+          on the field before it hits the database.
+
+ primary: If True, this field will be specified as the table's primary key.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+rename_column(table_name, old, new)
+
+Renames column 'old' on 'table_name' to the name 'new'.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+delete_column(table_name, name)
+
+Deletes the column 'name' on table 'table_name'.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create_table(table_name, columns)
+
+Creates the table 'table_name' with the given list of columns 'columns'.
+
+'columns' is a list of dicts, where the dict keys follow the same scheme as the
+arguments to add_column, without the table_name
+ (and the same optionality; thus, you always need to at least have 'name' and
+ 'type' as keys in your dict).
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+rename_table(old_table_name, table_name)
+
+Renames 'old_table_name' to 'table_name'.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+delete_table(table_name)
+
+Deletes the table 'table_name'.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+execute(sql, params=[])
+
+Executes the given raw SQL, optionally using the given parameters.
+You should try to avoid using this, as it defeats the point of database
+abstraction; if you find yourself using it a lot, consider adding a method to
+this API (see CONTRIBUTING for more info).
+
+
+
+Generic types
+=============
+
+This is a list of the currently-supported generic types:
+
+ Type        Parameterised?    Example
+ ----------------------------------------------------------------------
+ string      Optional          string -> TEXT
+                               string, 255 -> VARCHAR(255)
+ float       No                float -> DOUBLE PRECISION
+ integer     No                integer -> INT
+ boolean     No                boolean -> BOOLEAN
+ datetime    No                datetime -> TIMESTAMP WITH TIME ZONE
+ serial      No                serial -> SERIAL (auto-incrementing int)
