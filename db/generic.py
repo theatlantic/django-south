@@ -43,7 +43,8 @@ class DatabaseOperations(object):
         cursor = connection.cursor()
         if self.debug:
             print "   = %s" % sql, params
-        return cursor.execute(sql, params)
+        cursor.execute(sql, params)
+        return cursor.fetchall()
 
 
     def get_column_value(self, column, name):
