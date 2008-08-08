@@ -17,8 +17,24 @@ class DatabaseOperations(generic.DatabaseOperations):
         
         qn = connection.ops.quote_name
         
-        params = (qn(table_name), qn(old), qn(new))
-        self.execute('ALTER TABLE %s CHANGE COLUMN %s %s;' % params)
+        rows = [x for x in self.execute('DESCRIBE %s' % (qn(table_name),)) if x[0] == old]
+        
+        if not rows:
+            raise ValueError("No column '%s' in '%s'." % (old, table_name))
+        
+        params = (
+            qn(table_name),
+            qn(old),
+            qn(new),
+            "%s %s %s %s %s" % (
+                rows[0][1],
+                rows[0][2] == "YES" and "NULL" or "NOT NULL",
+                rows[0][3] == "PRI" and "PRIMARY KEY" or "",
+                rows[0][4] and "DEFAULT %s" % rows[0][4] or "",
+                rows[0][5] or "",
+            ),
+        )
+        self.execute('ALTER TABLE %s CHANGE COLUMN %s %s %s;' % params)
 
 
     def rename_table(self, old_table_name, table_name):
