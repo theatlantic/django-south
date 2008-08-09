@@ -13,6 +13,10 @@ If you have any problems with South not addressed in this documentation, or
 would like to request a feature, please get in touch with me at
 andrew at aeracode dot org.
 
+More up-to-date news and docs on South can be found at
+
+http://aeracode.org/projects/south/
+
 
 Installation
 ------------
@@ -105,7 +109,11 @@ app migrations.
                    will ease the loss of syncdb. Be aware you may have to make
                    sure the migrations are manually in the correct order if your
                    database enforces foreign key dependencies strongly (although
-                   they should generally work, as they're deferred by default)
+                   they should generally work, as they're deferred by default).
+                   
+                   If you pass the commandline switch --all with no migration or
+                   model name it will create migrations for each model in the
+                   given app (this should be used for kickstarting new projects)
 
 
  Migrations
