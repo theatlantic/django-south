@@ -6,6 +6,14 @@ can detect when you have an unapplied migration that's sitting in the middle
 of a whole load of applied ones, and will let you apply it straight off,
 or let you roll back to it, and apply from there forward.
 
+Contact
+-------
+
+If you have any problems with South not addressed in this documentation, or
+would like to request a feature, please get in touch with me at
+andrew at aeracode dot org.
+
+
 Installation
 ------------
 
