@@ -36,8 +36,8 @@ def get_migration(app_name, name):
     """
     Returns the migration class implied by 'name'.
     """
-    module = __import__(app_name + ".migrations." + name, locals(), globals())
-    return getattr(module.migrations, name).Migration
+    module = __import__(app_name + ".migrations." + name, '', '', [''])
+    return module.Migration
 
 
 def run_forwards(app_name, migrations, fake=False):
