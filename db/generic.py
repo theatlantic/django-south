@@ -44,7 +44,10 @@ class DatabaseOperations(object):
         if self.debug:
             print "   = %s" % sql, params
         cursor.execute(sql, params)
-        return cursor.fetchall()
+        try:
+            return cursor.fetchall()
+        except:
+            return []
 
 
     def get_column_value(self, column, name):
