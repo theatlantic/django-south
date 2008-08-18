@@ -174,7 +174,7 @@ class DatabaseOperations(object):
         params = (
             qn(column_name),
             self.get_type(type_name, type_param),
-            (unique and "UNIQUE " or "") + (null and "NULL" or ""),
+            (unique and "UNIQUE " or "") + (null and "NULL" or "NOT NULL"),
             related_to and ("REFERENCES %s (%s) %s" % (
                 related_to[0],  # Table name
                 related_to[1],  # Column name
