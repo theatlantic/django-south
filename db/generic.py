@@ -193,7 +193,7 @@ class DatabaseOperations(object):
         """
         qn = connection.ops.quote_name
         params = (qn(table_name), qn(name))
-        return ['ALTER TABLE %s DROP COLUMN %s CASCADE;' % params]
+        self.execute('ALTER TABLE %s DROP COLUMN %s CASCADE;' % params, [])
 
 
     def rename_column(self, table_name, old, new):
@@ -203,19 +203,34 @@ class DatabaseOperations(object):
         raise NotImplementedError("rename_column has no generic SQL syntax")
 
 
+    def start_transaction(self):
+        """
+        Makes sure the following commands are inside a transaction.
+        Must be followed by a (commit|rollback)_transaction call.
+        """
+        transaction.commit_unless_managed()
+        transaction.enter_transaction_management()
+        transaction.managed(True)
+
+
     def commit_transaction(self):
         """
         Commits the current transaction.
+        Must be preceded by a start_transaction call.
         """
         transaction.commit()
+        transaction.leave_transaction_management()
 
 
     def rollback_transaction(self):
         """
         Rolls back the current transaction.
+        Must be preceded by a start_transaction call.
         """
         transaction.rollback()
-        
+        transaction.leave_transaction_management()
+    
+    
     def send_create_signal(self, app_label, model_names):
         """
         Sends a post_syncdb signal for the model specified.

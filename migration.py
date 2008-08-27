@@ -4,6 +4,7 @@ import os
 import sys
 from django.conf import settings
 from models import MigrationHistory
+from south.db import db
 
 
 def get_migrations(app):
@@ -50,7 +51,14 @@ def run_forwards(app_name, migrations, fake=False):
         if fake:
             print "   (faked)"
         else:
-            klass().forwards()
+            db.start_transaction()
+            try:
+                klass().forwards()
+            except:
+                db.rollback_transaction()
+                raise
+            else:
+                db.commit_transaction()
         # Record us as having done this
         record = MigrationHistory.for_migration(app_name, migration)
         record.applied = datetime.datetime.utcnow()
@@ -69,7 +77,14 @@ def run_backwards(app_name, migrations, ignore=[], fake=False):
             if fake:
                 print "   (faked)"
             else:
-                klass().backwards()
+                db.start_transaction()
+                try:
+                    klass().backwards()
+                except:
+                    db.rollback_transaction()
+                    raise
+                else:
+                    db.commit_transaction()
             # Record us as having not done this
             record = MigrationHistory.for_migration(app_name, migration)
             record.delete()
