@@ -1,5 +1,6 @@
 
-from django.db import connection, transaction
+from django.db import connection, transaction, models
+from django.dispatch import dispatcher
 
 class DatabaseOperations(object):
 
@@ -214,3 +215,34 @@ class DatabaseOperations(object):
         Rolls back the current transaction.
         """
         transaction.rollback()
+        
+    def send_create_signal(self, app_label, model_names):
+        """
+        Sends a post_syncdb signal for the model specified.
+        
+        If the model is not found (perhaps it's been deleted?),
+        no signal is sent.
+        
+        TODO: The behavior of django.contrib.* apps seems flawed in that
+        they don't respect created_models.  Rather, they blindly execute
+        over all models within the app sending the signal.  This is a
+        patch we should push Django to make  For now, this should work.
+        """
+        app = models.get_app(app_label)
+        if not app:
+            return
+            
+        created_models = []
+        for model_name in model_names:
+            model = models.get_model(app_label, model_name)
+            if model:
+                created_models.append(model)
+                
+        if created_models:
+            # syncdb defaults -- perhaps take these as options?
+            verbosity = 1
+            interactive = True
+            dispatcher.send(signal=models.signals.post_syncdb, sender=app,
+                app=app, created_models=created_models,
+                verbosity=verbosity, interactive=interactive)
+            
