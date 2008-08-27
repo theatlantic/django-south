@@ -121,6 +121,11 @@ class Command(BaseCommand):
                 )
                 backwards += '''
         db.delete_table("%s")''' % m.m2m_db_table()
+                
+            forwards += '''
+        
+        db.send_create_signal('%s', ['%s'])''' % (model._meta.app_label, model._meta.object_name)
+        
         else:
             forwards = '"Write your forwards migration here"'
             backwards = '"Write your backwards migration here"'
