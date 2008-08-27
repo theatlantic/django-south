@@ -109,7 +109,7 @@ class Command(BaseCommand):
             {"name": "id", "type": "serial", "null": False, "unique": True},
             {"name": "%s", "type": "integer", "null": False, "related_to": ("%s", "%s")},
             {"name": "%s", "type": "integer", "null": False, "related_to": ("%s", "%s")},
-        ) ''' % (
+        ]) ''' % (
                     m.name,
                     m.m2m_db_table(),
                     m.m2m_column_name(),
