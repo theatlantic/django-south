@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.core.management.color import no_style
+from django.conf import settings
 from django.db import models
 from optparse import make_option
 from south import migration
@@ -24,6 +25,21 @@ class Command(BaseCommand):
         # Turn on db debugging
         from south.db import db
         db.debug = True
+        
+        # NOTE: THIS IS DUPLICATED FROM django.core.management.commands.syncdb
+        # This code imports any module named 'management' in INSTALLED_APPS.
+        # The 'management' module is the preferred way of listening to post_syncdb
+        # signals, and since we're sending those out with create_table migrations,
+        # we need apps to behave correctly.
+        for app_name in settings.INSTALLED_APPS:
+            try:
+                __import__(app_name + '.management', {}, {}, [''])
+            except ImportError, exc:
+                msg = exc.args[0]
+                if not msg.startswith('No module named') or 'management' not in msg:
+                    raise
+        # END DJANGO DUPE CODE
+        
         # Migrate each app
         for app in models.get_apps():
             migrations = migration.get_migrations(app)
