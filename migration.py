@@ -54,6 +54,7 @@ def run_forwards(app_name, migrations, fake=False):
             db.start_transaction()
             try:
                 klass().forwards()
+                db.execute_deferred_sql()
             except:
                 db.rollback_transaction()
                 raise
