@@ -17,38 +17,11 @@ DATABASE_ENGINE setting.
 add_column(
     table_name,
     name,
-    type,
-    type_param=None,
-    unique=False,
-    null=True,
-    related_to=None,
-    default=None,
-    primary=False,
+    field,
 )
 
-Adds the column with name 'name' to the table 'table_name'. The column will
-have type 'type', which is one of the generic types listed in the
-'Generic Types' section below.
-
-Optional parameters:
-
- type_param: The parameter to the type. For example, 255 if you have
-             type='string' will end up with something like VARCHAR(255) in most
-             databases.
-
- unique: If this is True, tells the database this column must have a unique
-         value for each row.
-
- null: If this is True, NULL values will be allowed in the column.
-
- related_to: Provide a tuple of (table_name, column_name) to specify that
-             this column is a foreign key to some other table.
-
- default: The default value for this column. Note that this only really takes
-          effect for existing rows; the Django ORM generally applies the default
-          on the field before it hits the database.
-
- primary: If True, this field will be specified as the table's primary key.
+Adds the column with name 'name' to the table 'table_name'. Uses the
+'field' instance to determine the type and other options for the column.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -64,14 +37,12 @@ Deletes the column 'name' on table 'table_name'.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-create_table(table_name, columns)
+create_table(table_name, fields)
 
-Creates the table 'table_name' with the given list of columns 'columns'.
+Creates the table 'table_name' with the given list of columns 'fields'.
 
-'columns' is a list of dicts, where the dict keys follow the same scheme as the
-arguments to add_column, without the table_name
- (and the same optionality; thus, you always need to at least have 'name' and
- 'type' as keys in your dict).
+'fields' is a list of 2-part tuples, where the first part is the field name,
+and the second part is a valid django.db.models.fields.Field instance.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -96,17 +67,45 @@ this API (see CONTRIBUTING for more info).
 
 
 
-Generic types
-=============
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+EXAMPLES:
 
-This is a list of the currently-supported generic types:
+Adding a new table:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+from django.db import models
+from south.db import db
+from mysite.myapp.models import *
+from mysite.anotherapp.models import Image
 
- Type        Parameterised?    Example
- ----------------------------------------------------------------------
- string      Optional          string -> TEXT
-                               string, 255 -> VARCHAR(255)
- float       No                float -> DOUBLE PRECISION
- integer     No                integer -> INT
- boolean     No                boolean -> BOOLEAN
- datetime    No                datetime -> TIMESTAMP WITH TIME ZONE
- serial      No                serial -> SERIAL (auto-incrementing int)
+class Migration:
+    
+    def forwards(self):
+        db.create_table('myapp_foobar', (
+            ('name' , models.CharField(max_length=256)),
+            ('sort_name' , models.CharField(max_length=256, blank=True)),
+            ('description' , models.TextField(blank=True)),
+            ('image' , models.ForeignKey(Image, related_name="foobar_images")),
+            ('date_added' , models.DateTimeField(auto_now_add=True)),
+            ('date_last_updated' , models.DateTimeField(auto_now=True)),
+        ))
+    
+    def backwards(self):
+        db.delete_table('myapp_foobar')
+
+
+Adding a new column to the myapp_foobar table:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+from django.db import models
+from south.db import db
+from mysite.myapp.models import *
+
+class Migration:
+    
+    def forwards(self):
+        db.add_column('myapp_foobar', 'bar', 
+            models.ForeignKey(AnotherModelInMyApp, related_name='awesome_foobars', null=True))
+    
+    def backwards(self):
+        db.delete_column('myapp_foobar', 'bar_id')
+
+
