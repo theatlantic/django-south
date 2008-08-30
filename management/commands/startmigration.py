@@ -20,7 +20,11 @@ class Command(BaseCommand):
     )
     help = "Creates a new template migration for the given app"
     
-    def handle(self, app=None, name="", model_list=[], initial=False, **options):
+    def handle(self, app=None, name="", model_list=None, initial=False, **options):
+        
+        # If model_list is None, then it's an empty list
+        model_list = model_list or []
+        
         # make sure --model and --all aren't both specified
         if initial and model_list:
             print "You cannot use --initial and other options together"
