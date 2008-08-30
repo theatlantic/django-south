@@ -200,10 +200,15 @@ def generate_field_definition(model, field):
             field_pieces.append(match.groups()[0])
             if test_field(' '.join(field_pieces)):
                 return ' '.join(field_pieces)
-                
+    
+    # TODO:
+    # If field definition isn't found, try looking in models parents.
+    # This should most likely work with just a recursive call to generate_field_definition
+    # supplying the models parents and the current field
+    
     # the 'id' field never gets defined, so return what django does by default
     # django.db.models.options::_prepare
-    if field.name == 'id' and isinstance(field, models.AutoField):
+    if field.name == 'id' and field.__class__ == models.AutoField:
         return "models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)"
             
     raise Exception("Couldn't find field definition for field: '%s' on model: '%s'" % (
