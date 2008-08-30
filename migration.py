@@ -192,8 +192,8 @@ def migrate_app(migration_module, target_name=None, resolve_mode=None, fake=Fals
             print "   --merge: Just apply the missing migrations out of order"
             print "   If you want to roll back to the first of these migrations"
             print "   and then roll forward, do:"
-            print "     ./manage.py migrate --skip %s" % one_before(missing[0])
-            print "     ./manage.py migrate"
+            print "     ./manage.py migrate %s --skip %s" % (app_name, one_before(missing[0]))
+            print "     ./manage.py migrate %s" % app_name
             return
     
     # If we're using merge, and going forwards, merge

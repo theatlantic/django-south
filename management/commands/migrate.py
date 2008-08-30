@@ -19,7 +19,8 @@ class Command(BaseCommand):
     )
     help = "Runs migrations for all apps."
 
-    def handle(self, target=None, skip=False, merge=False, only=False, backwards=False, fake=False, **options):
+    def handle(self, app=None, target=None, skip=False, merge=False, only=False, backwards=False, fake=False, **options):
+        
         # Work out what the resolve mode is
         resolve_mode = merge and "merge" or (skip and "skip" or None)
         # Turn on db debugging
@@ -41,7 +42,11 @@ class Command(BaseCommand):
         # END DJANGO DUPE CODE
         
         # Migrate each app
-        for app in models.get_apps():
+        if app:
+            apps = [models.get_app(app)]
+        else:
+            apps = models.get_apps()
+        for app in apps:
             migrations = migration.get_migrations(app)
             if migrations is not None:
                 migration.migrate_app(
