@@ -174,12 +174,12 @@ class DatabaseOperations(object):
             connection.ops.deferrable_sql() # Django knows this
         )
         
-    def create_index_sql(self, table_name, field_names, db_tablespace=''):
+    def create_index_sql(self, table_name, column_names, db_tablespace=''):
         """
-        Generates a create index statement on 'table_name' for a list of 'fields'
+        Generates a create index statement on 'table_name' for a list of 'column_names'
         """
-        if not field_names:
-            print "No fields found to create an index for"
+        if not column_names:
+            print "No column names supplied on which to create an index"
             return ''
             
         if db_tablespace and connection.features.supports_tablespaces:
@@ -188,15 +188,15 @@ class DatabaseOperations(object):
             tablespace_sql = ''
         
         index_unique_name = ''
-        if len(field_names) > 1:
-            index_unique_name = '_%x' % abs(hash((table_name, ','.join(field_names))))
+        if len(column_names) > 1:
+            index_unique_name = '_%x' % abs(hash((table_name, ','.join(column_names))))
             
-        index_name = '%s_%s%s' % (table_name, field_names[0], index_unique_name)
+        index_name = '%s_%s%s' % (table_name, column_names[0], index_unique_name)
         qn = connection.ops.quote_name
         return 'CREATE INDEX %s ON %s (%s)%s;' % (
             index_name,
             table_name,
-            ','.join([qn(field) for field in field_names]),
+            ','.join([qn(field) for field in column_names]),
             tablespace_sql
             )
         
