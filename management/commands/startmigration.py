@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.core.management.color import no_style
 from django.db import models
+from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
 from optparse import make_option
 from south import migration
 import sys
@@ -84,7 +85,7 @@ class Command(BaseCommand):
             # Touch the init py file
             open(os.path.join(migrations_dir, "__init__.py"), "w").close()
         # See what filename is next in line. We assume they use numbers.
-        migrations = migration.get_migration_files(app)
+        migrations = migration.get_migration_files('.'.join(app_module_path))
         highest_number = 0
         for migration_name in migrations:
             try:
@@ -103,11 +104,29 @@ class Command(BaseCommand):
         if models_to_migrate:
             for model in models_to_migrate:
                 table_name = model._meta.db_table
+                mock_models = []
                 fields = []
                 for f in model._meta.local_fields:
-                    # We use a list of tuples to get nice ordering
+                    # look up the field definition to see how this was created
                     field_definition = generate_field_definition(model, f)
+                    
+                    if isinstance(f, models.ForeignKey):
+                        mock_models.append(create_mock_model(f.rel.to))
+                        field_definition = related_field_definition(f, field_definition)
+                        
+                    # give field subclasses a chance to do anything tricky
+                    # with the field definition
+                    if hasattr(f, 'south_field_definition'):
+                        field_definition = f.south_field_definition(field_definition)
+                        
                     fields.append((f.name, field_definition))
+                    
+                if mock_models:
+                    forwards += '''
+        # Mock Models
+        %s
+        ''' % "\n        ".join(mock_models)
+        
                 forwards += '''
         # Model '%s'
         db.create_table("%s", (
@@ -214,7 +233,56 @@ def generate_field_definition(model, field):
     # django.db.models.options::_prepare
     if field.name == 'id' and field.__class__ == models.AutoField:
         return "models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)"
+    
+    print "Warning: Could not generate field definition for %s.%s, manual editing of migration required." % \
+        (model._meta.object_name, field.name)
+        
+    return '<<< REPLACE THIS WITH FIELD DEFINITION FOR %s.%s >>>' % (model._meta.object_name, field.name)
+    
+def replace_model_string(field_definition, search_string, model_name):
+    # wrap 'search_string' in both ' and " chars when searching
+    quotes = ["'", '"']
+    for quote in quotes:
+        test = "%s%s%s" % (quote, search_string, quote)
+        if test in field_definition:
+            return field_definition.replace(test, model_name)
             
-    raise Exception("Couldn't find field definition for field: '%s' on model: '%s'" % (
-        field.name, model))
+    return None
+        
+def related_field_definition(field, field_definition):
+    # if the field definition contains any of the following strings,
+    # replace them with the model definition:
+    #   applabel.modelname
+    #   modelname
+    #   django.db.models.fields.related.RECURSIVE_RELATIONSHIP_CONSTANT
+    strings = [
+        '%s.%s' % (field.rel.to._meta.app_label, field.rel.to._meta.object_name),
+        '%s' % field.rel.to._meta.object_name,
+        RECURSIVE_RELATIONSHIP_CONSTANT
+    ]
+    
+    for test in strings:
+        fd = replace_model_string(field_definition, test, field.rel.to._meta.object_name)
+        if fd:
+            return fd
+    
+    return field_definition
 
+def create_mock_model(model):
+    # produce a string representing the python syntax necessary for creating
+    # a mock model using the supplied real model
+    if model._meta.pk.__class__.__module__ != 'django.db.models.fields':
+        # we can fix this with some clever imports, but it doesn't seem necessary to
+        # spend time on just yet
+        print "Can't generate a mock model for %s because it's primary key isn't a default django field" % model
+        sys.exit()
+    
+    return "%s = db.mock_model(model_name='%s', db_table='%s', db_tablespace='%s', pk_field_name='%s', pk_field_type=models.%s)" % \
+        (
+        model._meta.object_name,
+        model._meta.object_name,
+        model._meta.db_table,
+        model._meta.db_tablespace,
+        model._meta.pk.name,
+        model._meta.pk.__class__.__name__
+        )

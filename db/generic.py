@@ -2,6 +2,7 @@
 from django.db import connection, transaction, models
 from django.db.backends.util import truncate_name
 from django.dispatch import dispatcher
+from django.conf import settings
 
 class DatabaseOperations(object):
 
@@ -240,4 +241,43 @@ class DatabaseOperations(object):
             dispatcher.send(signal=models.signals.post_syncdb, sender=app,
                 app=app, created_models=created_models,
                 verbosity=verbosity, interactive=interactive)
-            
+                
+    def mock_model(self, model_name, db_table, db_tablespace='', 
+                    pk_field_name='id', pk_field_type=models.AutoField,
+                    pk_field_kwargs={}):
+        """
+        Generates a MockModel class that provides enough information
+        to be used by a foreign key/many-to-many relationship.
+        
+        Migrations should prefer to use these rather than actual models
+        as models could get deleted over time, but these can remain in
+        migration files forever.
+        """
+        class MockOptions(object):
+            def __init__(self):
+                self.db_table = db_table
+                self.db_tablespace = db_tablespace or settings.DEFAULT_TABLESPACE
+                self.object_name = model_name
+                self.module_name = model_name.lower()
+
+                if pk_field_type == models.AutoField:
+                    pk_field_kwargs['primary_key'] = True
+
+                self.pk = pk_field_type(**pk_field_kwargs)
+                self.pk.set_attributes_from_name(pk_field_name)
+
+            def get_field_by_name(self, field_name):
+                # we only care about the pk field
+                return (self.pk, self.model, True, False)
+
+            def get_field(self, name):
+                # we only care about the pk field
+                return self.pk
+
+        class MockModel(object):
+            _meta = None
+
+        # We need to return an actual class object here, not an instance
+        MockModel._meta = MockOptions()
+        MockModel._meta.model = MockModel
+        return MockModel
