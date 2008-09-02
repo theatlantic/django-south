@@ -155,6 +155,9 @@ class DatabaseOperations(object):
                 )
             )
             
+        if field.db_index:
+            self.add_deferred_sql(self.create_index_sql(table_name, [field.column]))
+            
         return sql % sqlparams
         
     def foreign_key_sql(self, from_table_name, from_column_name, to_table_name, to_column_name):
@@ -170,6 +173,32 @@ class DatabaseOperations(object):
             to_column_name,
             connection.ops.deferrable_sql() # Django knows this
         )
+        
+    def create_index_sql(self, table_name, field_names, db_tablespace=''):
+        """
+        Generates a create index statement on 'table_name' for a list of 'fields'
+        """
+        if not field_names:
+            print "No fields found to create an index for"
+            return ''
+            
+        if db_tablespace and connection.features.supports_tablespaces:
+            tablespace_sql = ' ' + connection.ops.tablespace_sql(db_tablespace)
+        else:
+            tablespace_sql = ''
+        
+        index_unique_name = ''
+        if len(field_names) > 1:
+            index_unique_name = '_%x' % abs(hash((table_name, ','.join(field_names))))
+            
+        index_name = '%s_%s%s' % (table_name, field_names[0], index_unique_name)
+        qn = connection.ops.quote_name
+        return 'CREATE INDEX %s ON %s (%s)%s;' % (
+            index_name,
+            table_name,
+            ','.join([qn(field) for field in field_names]),
+            tablespace_sql
+            )
         
 
 
