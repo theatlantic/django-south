@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from django.core.management.color import no_style
 from django.db import models
 from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
+from django.contrib.contenttypes.generic import GenericRelation
 from optparse import make_option
 from south import migration
 import sys
@@ -129,7 +130,7 @@ class Command(BaseCommand):
         
                 forwards += '''
         # Model '%s'
-        db.create_table("%s", (
+        db.create_table('%s', (
             %s
         ))''' % (
                     model._meta.object_name,
@@ -138,28 +139,43 @@ class Command(BaseCommand):
                 )
 
                 backwards += '''
-        db.delete_table("%s")''' % table_name
+        db.delete_table('%s')''' % table_name
+        
                 # Now go through local M2Ms and add extra stuff for them
-        #         for m in model._meta.local_many_to_many:
-        #             forwards += '''
-        # # M2M field '%s'
-        # db.create_table("%s", [
-        #     {"name": "id", "type": "serial", "null": False, "unique": True},
-        #     {"name": "%s", "type": "integer", "null": False, "related_to": ("%s", "%s")},
-        #     {"name": "%s", "type": "integer", "null": False, "related_to": ("%s", "%s")},
-        # ]) ''' % (
-        #                 m.name,
-        #                 m.m2m_db_table(),
-        #                 m.m2m_column_name(),
-        #                 table_name,
-        #                 "id",
-        #                 m.m2m_reverse_name(),
-        #                 m.rel.to._meta.db_table,
-        #                 "id",
-        #         )
-        #         
-        #             backwards += '''
-        # db.delete_table("%s")''' % m.m2m_db_table()
+                for m in model._meta.local_many_to_many:
+                    # ignore generic relations
+                    if isinstance(m, GenericRelation):
+                        continue
+
+                    # if the 'through' option is specified, the table will
+                    # be created through the normal model creation above.
+                    if m.rel.through:
+                        continue
+                        
+                    mock_models = [create_mock_model(model), create_mock_model(m.rel.to)]
+                    
+                    forwards += '''
+        # Mock Models
+        %s
+        
+        # M2M field '%s.%s'
+        db.create_table('%s', (
+            ('id', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)),
+            ('%s', models.ForeignKey(%s, null=False)),
+            ('%s', models.ForeignKey(%s, null=False))
+        )) ''' % (
+                        "\n        ".join(mock_models),
+                        model._meta.object_name,
+                        m.name,
+                        m.m2m_db_table(),
+                        m.m2m_column_name()[:-3], # strip off the '_id' at the end
+                        model._meta.object_name,
+                        m.m2m_reverse_name()[:-3], # strip off the '_id' at the ned
+                        m.rel.to._meta.object_name
+                )
+                
+                    backwards += '''
+        db.delete_table('%s')''' % m.m2m_db_table()
                 
             forwards += '''
         
