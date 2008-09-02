@@ -115,6 +115,11 @@ class DatabaseOperations(object):
         """
         qn = connection.ops.quote_name
         field.set_attributes_from_name(field_name)
+        
+        # hook for the field to do any resolution prior to it's attributes being queried
+        if hasattr(field, 'south_init'):
+            field.south_init()
+        
         sql = field.db_type()
         if not sql:
             return None
