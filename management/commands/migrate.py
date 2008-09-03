@@ -43,16 +43,13 @@ class Command(BaseCommand):
         
         # Migrate each app
         if app:
-            apps = [models.get_app(app)]
+            apps = [migration.get_app(app)]
         else:
-            apps = models.get_apps()
+            apps = migration.get_migrated_apps()
         for app in apps:
-            migrations = migration.get_migration_package(app)
-            if migrations is not None:
-                migration.migrate_app(
-                    app,
-                    resolve_mode = resolve_mode,
-                    target_name = target,
-                    fake = fake,
-                )
-                continue
+            migration.migrate_app(
+                app,
+                resolve_mode = resolve_mode,
+                target_name = target,
+                fake = fake,
+            )
