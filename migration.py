@@ -3,42 +3,194 @@ import datetime
 import os
 import sys
 from django.conf import settings
+from django.db import models
 from models import MigrationHistory
 from south.db import db
 
 
-def get_migrations(app):
+def get_migrated_apps():
+    for app in models.get_apps():
+        if get_migration_package(app):
+            yield app
+
+
+def get_app_name(app):
     """
-    Returns the list of migration modules for the given app, or None
+    Returns the _internal_ app name for the given app models module.
+    i.e. for <module django.contrib.auth.models> will return 'auth'
+    """
+    if isinstance(app, (str, unicode)):
+        # If it's a string, use the models module
+        app = models.get_app(app)
+    return app.__name__.split('.')[-2]
+
+
+def short_from_long(app):
+    return app.split(".")[-1]
+
+
+def get_migration_package(app):
+    """
+    Returns the migrations module for the given app, or None
     if it does not use migrations.
     """
-    app_name = app.__name__
-    app_name = '.'.join( app_name.split('.')[0:-1] )
+    if isinstance(app, (str, unicode)):
+        # If it's a string, use the models module
+        app = models.get_app(app)
+    app_name = '.'.join( app.__name__.split('.')[0:-1] )
     mod = __import__(app_name, {}, {}, ['migrations'])
     if hasattr(mod, 'migrations'):
         return getattr(mod, 'migrations')
 
 
-def get_migration_files(app):
+def get_migration_names(app):
     """
     Returns a list of migration file names for the given app.
     """
     return sorted([
         filename[:-3]
-        for filename in os.listdir(os.path.join(
-            os.path.dirname(__import__(app,{},{},['migrations']).__file__),
-            "migrations",
-        ))
+        for filename in os.listdir(os.path.dirname(get_migration_package(app).__file__))
         if filename.endswith(".py") and filename != "__init__.py"
     ])
 
 
-def get_migration(app_name, name):
+def get_migration_classes(app):
+    """
+    Returns a list of migration classes (one for each migration) for the app.
+    """
+    for name in get_migration_names(app):
+        yield get_migration(app, name)
+
+
+def get_migration(app, name):
     """
     Returns the migration class implied by 'name'.
     """
-    module = __import__(app_name + ".migrations." + name, '', '', [''])
+    if not isinstance(app, (str, unicode)):
+        app = get_app_name(app)
+    module = __import__(app + ".migrations." + name, '', '', ['Migration'])
     return module.Migration
+
+
+def all_migrations():
+    return dict([
+        (app, dict([(name, get_migration(app, name)) for name in get_migration_names(app)]))
+        for app in get_migrated_apps()
+    ])
+
+
+def dependency_tree():
+    tree = all_migrations()
+    
+    # Annotate tree with 'backwards edges'
+    for app, classes in tree.items():
+        for name, cls in classes.items():
+            cls.needs = []
+            if not hasattr(cls, "needed_by"):
+                cls.needed_by = []
+            if hasattr(cls, "depends_on"):
+                for dapp, dname in cls.depends_on:
+                    dapp = models.get_app(dapp)
+                    if dapp not in tree:
+                        print "Migration %s in app %s depends on unmigrated app %s." % (
+                            name,
+                            get_app_name(app),
+                            dapp,
+                        )
+                        sys.exit(1)
+                    if dname not in tree[dapp]:
+                        print "Migration %s in app %s depends on nonexistent migration %s in app %s." % (
+                            name,
+                            get_app_name(app),
+                            dname,
+                            get_app_name(dapp),
+                        )
+                        sys.exit(1)
+                    cls.needs.append((dapp, dname))
+                    if not hasattr(tree[dapp][dname], "needed_by"):
+                        tree[dapp][dname].needed_by = []
+                    tree[dapp][dname].needed_by.append((app, name))
+    
+    # Sanity check whole tree
+    for app, classes in tree.items():
+        for name, cls in classes.items():
+            cls.dependencies = dependencies(tree, app, name)
+    
+    return tree
+
+
+def nice_trace(trace):
+    return " -> ".join([str((get_app_name(a), n)) for a, n in trace])
+
+
+def dependencies(tree, app, name, trace=[]):
+    # Copy trace to stop pass-by-ref problems
+    trace = trace[:]
+    # Sanity check
+    for papp, pname in trace:
+        if app == papp:
+            if pname == name:
+                print "Found circular dependency: %s" % nice_trace(trace + [(app,name)])
+                sys.exit(1)
+            else:
+                # See if they depend in the same app the wrong way
+                migrations = get_migration_names(app)
+                if migrations.index(name) > migrations.index(pname):
+                    print "Found a lower migration (%s) depending on a higher migration (%s) in the same app (%s)." % (pname, name, get_app_name(app))
+                    print "Path: %s" % nice_trace(trace + [(app,name)])
+                    sys.exit(1)
+    # Get the dependencies of a migration
+    deps = []
+    migration = tree[app][name]
+    for dapp, dname in migration.needs:
+        deps.extend(
+            dependencies(tree, dapp, dname, trace+[(app,name)])
+        )
+    return deps
+
+
+def remove_duplicates(l):
+    m = []
+    for x in l:
+        if x not in m:
+            m.append(x)
+    return m
+
+
+def needed_before_forwards(tree, app, name, sameapp=True):
+    """
+    Returns a list of migrations that must be applied before (app, name),
+    in the order they should be applied.
+    Used to make sure a migration can be applied (and to help apply up to it).
+    """
+    app_migrations = get_migration_names(app)
+    needed = []
+    if sameapp:
+        for aname in app_migrations[:app_migrations.index(name)]:
+            needed += needed_before_forwards(tree, app, aname, False)
+            needed += [(app, aname)]
+    for dapp, dname in tree[app][name].needs:
+        needed += needed_before_forwards(tree, dapp, dname)
+        needed += [(dapp, dname)]
+    return remove_duplicates(needed)
+
+
+def needed_before_backwards(tree, app, name, sameapp=True):
+    """
+    Returns a list of migrations that must be unapplied before (app, name) is,
+    in the order they should be unapplied.
+    Used to make sure a migration can be unapplied (and to help unapply up to it).
+    """
+    app_migrations = get_migration_names(app)
+    needed = []
+    if sameapp:
+        for aname in reversed(app_migrations[app_migrations.index(name)+1:]):
+            needed += needed_before_backwards(tree, app, aname, False)
+            needed += [(app, aname)]
+    for dapp, dname in tree[app][name].needed_by:
+        needed += needed_before_backwards(tree, dapp, dname)
+        needed += [(dapp, dname)]
+    return remove_duplicates(needed)
 
 
 def run_forwards(app_name, migrations, fake=False):
@@ -46,7 +198,7 @@ def run_forwards(app_name, migrations, fake=False):
     Runs the specified migrations forwards, in order.
     """
     for migration in migrations:
-        print " > %s" % migration
+        print " > %s: %s" % (app_name, migration)
         klass = get_migration(app_name, migration)
         if fake:
             print "   (faked)"
@@ -73,7 +225,7 @@ def run_backwards(app_name, migrations, ignore=[], fake=False):
     """
     for migration in migrations:
         if migration not in ignore:
-            print " < %s" % migration
+            print " < %s: %s" % (app_name, migration)
             klass = get_migration(app_name, migration)
             if fake:
                 print "   (faked)"
@@ -91,123 +243,144 @@ def run_backwards(app_name, migrations, ignore=[], fake=False):
             record.delete()
 
 
-def migrate_app(migration_module, target_name=None, resolve_mode=None, fake=False):
+def right_side_of(x, y):
+    return left_side_of(reversed(x), reversed(y))
+
+
+def left_side_of(x, y):
+    return list(y)[:len(x)] == list(x)
+
+
+def forwards_problems(tree, forwards, done):
+    problems = []
+    for app, name in forwards:
+        if (app, name) not in done:
+            for dapp, dname in needed_before_backwards(tree, app, name):
+                if (dapp, dname) in done:
+                    print "Migration (%s, %s) should not have been applied before (%s, %s) but was." % (get_app_name(app), name, get_app_name(dapp), dname)
+                    problems.append(((app, name), (dapp, dname)))
+    return problems
+
+
+
+def backwards_problems(tree, backwards, done):
+    problems = []
+    for app, name in backwards:
+        if (app, name) in done:
+            for dapp, dname in needed_before_forwards(tree, app, name):
+                if (dapp, dname) not in done:
+                    print "Migration (%s, %s) should have been applied before (%s, %s) but wasn't." % (get_app_name(dapp), dname, get_app_name(app), name)
+                    problems.append(((app, name), (dapp, dname)))
+    return problems
+
+
+def migrate_app(app, target_name=None, resolve_mode=None, fake=False):
     
-    # Work out exactly what we're working on
-    app_name = os.path.splitext(migration_module.__name__)[0]
+    migration_package = get_migration_package(app)
+    app_name = get_app_name(app)
+    
+    # If any of their app names in the DB contain a ., they're 0.2 or below, so migrate em
+    longuns = MigrationHistory.objects.filter(app_name__contains=".")
+    if longuns:
+        for mh in longuns:
+            mh.app_name = short_from_long(mh.app_name)
+            mh.save()
+        print "- Updated your South 0.2 database."
     
     # Find out what delightful migrations we have
-    migrations = sorted([
-        filename[:-3]
-        for filename in os.listdir(os.path.dirname(migration_module.__file__))
-        if filename.endswith(".py") and filename != "__init__.py"
-    ])
+    tree = dependency_tree()
+    migrations = get_migration_names(app)
     
-    # Find out what's already applied
-    current_migrations = [m.migration for m in MigrationHistory.objects.filter(
-        app_name = app_name,
-        applied__isnull = False,
-    )]
-    current_migrations.sort()
+    if target_name not in migrations and target_name not in ["zero", None]:
+        matches = [x for x in migrations if x.startswith(target_name)]
+        if len(matches) == 1:
+            target = migrations.index(matches[0]) + 1
+            print " - Soft matched migration %s to %s." % (
+                target_name,
+                matches[0]
+            )
+            target_name = matches[0]
+        elif len(matches) > 1:
+            print " - Prefix %s matches more than one migration:" % target_name
+            print "     " + "\n     ".join(matches)
+            return
+        else:
+            print " ! '%s' is not a migration." % target_name
+            return
     
-    # Say what we're doing
-    print "Running migrations for %s:" % app_name
-    
-    missing = []   # Migrations that should be there but aren't
-    offset = 0     # To keep the lists in sync when missing ones crop up
-    first = None   # The first missing migration (for rollback)
-    current = len(migrations)  # The apparent latest migration.
-    
-    # Work out the missing migrations
-    for i, migration in enumerate(migrations):
-        if i >= len(current_migrations):
-            current = i
-            break
-        elif current_migrations[i-offset] != migration:
-            if not first:
-                first = i
-            missing.append(migration)
-            offset += 1
-    
-    # Make sure the database doesn't have nonexistent migrations in it
-    ghost_migrations = [m for m in current_migrations if m not in migrations]
+    # Check there's no strange ones in the database
+    ghost_migrations = [m for m in MigrationHistory.objects.filter(applied__isnull = False) if models.get_app(m.app_name) not in tree or m.migration not in tree[models.get_app(m.app_name)]]
     if ghost_migrations:
         print " ! These migrations are in the database but not on disk:"
-        print "   - " + "\n   - ".join(ghost_migrations)
+        print "   - " + "\n   - ".join(["%s: %s" % (x.app_name, x.migration) for x in ghost_migrations])
         print " ! I'm not trusting myself; fix this yourself by fiddling"
         print " ! with the south_migrationhistory table."
         return
     
-    if offset:
-        current += offset
+    # Say what we're doing
+    print "Running migrations for %s:" % app_name
     
-    # Work out what they want us to go to.
-    # Target (and current) are relative to migrations, not current_migrations
-    if not target_name:
-        target = len(migrations)
+    # Get the forwards and reverse dependencies for this target
+    if target_name == None:
+        target_name = migrations[-1]
+    if target_name == "zero":
+        forwards = []
+        backwards = needed_before_backwards(tree, app, migrations[0]) + [(app, target_name)]
     else:
-        if target_name == "zero":
-            target = 0
-        else:
-            try:
-                target = migrations.index(target_name) + 1
-            except ValueError:
-                matches = [x for x in migrations if x.startswith(target_name)]
-                if len(matches) == 1:
-                    target = migrations.index(matches[0]) + 1
-                    print " - Soft matched migration %s to %s." % (
-                        target_name,
-                        matches[0]
-                    )
-                elif len(matches) > 1:
-                    print " - Prefix %s matches more than one migration:" % target_name
-                    print "     " + "\n     ".join(matches)
-                    return
-                else:
-                    print " ! '%s' is not a migration." % target_name
-                    return
+        forwards = needed_before_forwards(tree, app, target_name) + [(app, target_name)]
+        backwards = needed_before_backwards(tree, app, target_name)
     
-    def describe_index(i):
-        if i == 0:
-            return "(no migrations applied)"
-        else:
-            return "(after %s)" % migrations[i-1]
+    # Get the list of currently applied migrations from the db
+    current_migrations = [(models.get_app(m.app_name), m.migration) for m in  MigrationHistory.objects.filter(applied__isnull = False)]
     
-    def one_before(what):
-        index = migrations.index(what) - 1
-        if index < 0:
-            return "zero"
-        else:
-            return migrations[index]
+    direction = None
+    bad = False
     
-    print " - Current migration: %s %s" % (current, describe_index(current))
-    print " - Target migration: %s %s" % (target, describe_index(target))
-    
-    if missing:
-        print " ! These migrations should have been applied already, but aren't:"
-        print "   - " + "\n   - ".join(missing)
-        if resolve_mode is None:
-            print " ! Please re-run migrate with one of these switches:"
-            print "   --skip: Ignore this migration mismatch and keep going"
-            print "   --merge: Just apply the missing migrations out of order"
-            print "   If you want to roll back to the first of these migrations"
-            print "   and then roll forward, do:"
-            print "     ./manage.py migrate %s --skip %s" % (app_name, one_before(missing[0]))
-            print "     ./manage.py migrate %s" % app_name
-            return
-    
-    # If we're using merge, and going forwards, merge
-    if target >= current and resolve_mode == "merge" and missing:
-        print " - Merging..."
-        run_forwards(app_name, missing, fake=fake)
-    
-    # Now do the right direction.
-    if target == current:
-        print " - No migration needed."
-    elif target < current:
-        # Rollback
-        print " - Rolling back..."
-        run_backwards(app_name, reversed(current_migrations[target:current]), fake=fake)
+    # Is the whole forward branch applied?
+    missing = [step for step in forwards if step not in current_migrations]
+    # If they're all applied, we only know it's not backwards
+    if not missing:
+        direction = None
+    # If the remaining migrations are strictly a right segment of the forwards
+    # trace, we just need to go forwards to our target (and check for badness)
     else:
-        print " - Migrating..."
-        run_forwards(app_name, migrations[current:target], fake=fake)
+        problems = forwards_problems(tree, forwards, current_migrations)
+        if problems:
+            bad = True
+        else:
+            direction = 1
+    
+    # What about the whole backward trace then?
+    if not bad:
+        missing = [step for step in backwards if step not in current_migrations]
+        # If they're all missing, stick with the forwards decision
+        if missing == backwards:
+            pass
+        # If what's missing is a strict left segment of backwards (i.e.
+        # all the higher migrations) then we need to go backwards
+        else:
+            problems = backwards_problems(tree, backwards, current_migrations)
+            if problems:
+                bad = True
+            else:
+                direction = -1
+    
+    if bad:
+        print "Bad!"
+        print nice_trace(forwards)
+        print
+        print nice_trace(backwards)
+        print
+        print missing
+        sys.exit(1)
+    
+    if direction == 1:
+        for mapp, mname in forwards:
+            if (mapp, mname) not in current_migrations:
+                run_forwards(get_app_name(mapp), [mname], fake=fake)
+    elif direction == -1:
+        for mapp, mname in backwards:
+            if (mapp, mname) in current_migrations:
+                run_backwards(get_app_name(mapp), [mname], fake=fake)
+    else:
+        print "- Nothing to migrate."
