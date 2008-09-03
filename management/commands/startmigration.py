@@ -177,6 +177,23 @@ class Command(BaseCommand):
                     backwards += '''
         db.delete_table('%s')''' % m.m2m_db_table()
                 
+                if model._meta.unique_together:
+                    ut = model._meta.unique_together
+                    if not isinstance(ut[0], (list, tuple)):
+                        ut = (ut,)
+                        
+                    for unique in ut:
+                        columns = ["'%s'" % model._meta.get_field(f).column for f in unique]
+                        
+                        forwards += '''
+        db.create_index('%s', [%s], True, db_tablespace='%s')
+        ''' %   (
+                        table_name,
+                        ','.join(columns),
+                        model._meta.db_tablespace
+                )
+                
+                
             forwards += '''
         
         db.send_create_signal('%s', ['%s'])''' % (
