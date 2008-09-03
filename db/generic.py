@@ -158,7 +158,7 @@ class DatabaseOperations(object):
                 )
             )
             
-        if field.db_index:
+        if field.db_index and not field.unique:
             self.add_deferred_sql(self.create_index_sql(table_name, [field.column]))
             
         return sql % sqlparams
