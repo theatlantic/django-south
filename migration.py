@@ -257,7 +257,7 @@ def forwards_problems(tree, forwards, done):
         if (app, name) not in done:
             for dapp, dname in needed_before_backwards(tree, app, name):
                 if (dapp, dname) in done:
-                    print "Migration (%s, %s) should not have been applied before (%s, %s) but was." % (get_app_name(app), name, get_app_name(dapp), dname)
+                    print " ! Migration (%s, %s) should not have been applied before (%s, %s) but was." % (get_app_name(dapp), dname, get_app_name(app), name)
                     problems.append(((app, name), (dapp, dname)))
     return problems
 
@@ -269,7 +269,7 @@ def backwards_problems(tree, backwards, done):
         if (app, name) in done:
             for dapp, dname in needed_before_forwards(tree, app, name):
                 if (dapp, dname) not in done:
-                    print "Migration (%s, %s) should have been applied before (%s, %s) but wasn't." % (get_app_name(dapp), dname, get_app_name(app), name)
+                    print " ! Migration (%s, %s) should have been applied before (%s, %s) but wasn't." % (get_app_name(dapp), dname, get_app_name(app), name)
                     problems.append(((app, name), (dapp, dname)))
     return problems
 
@@ -366,19 +366,17 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False):
                 direction = -1
     
     if bad:
-        print "Bad!"
-        print nice_trace(forwards)
-        print
-        print nice_trace(backwards)
-        print
-        print missing
+        print " ! Inconsistent migration history"
+        print " ! Options to fix this will follow soon."
         sys.exit(1)
     
     if direction == 1:
+        print " - Migrating forwards to %s." % target_name
         for mapp, mname in forwards:
             if (mapp, mname) not in current_migrations:
                 run_forwards(get_app_name(mapp), [mname], fake=fake)
     elif direction == -1:
+        print " - Migrating backwards to just after %s." % target_name
         for mapp, mname in backwards:
             if (mapp, mname) in current_migrations:
                 run_backwards(get_app_name(mapp), [mname], fake=fake)
