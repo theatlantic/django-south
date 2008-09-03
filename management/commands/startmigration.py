@@ -114,12 +114,7 @@ class Command(BaseCommand):
                     if isinstance(f, models.ForeignKey):
                         mock_models.append(create_mock_model(f.rel.to))
                         field_definition = related_field_definition(f, field_definition)
-                        
-                    # give field subclasses a chance to do anything tricky
-                    # with the field definition
-                    if hasattr(f, 'south_field_definition'):
-                        field_definition = f.south_field_definition(field_definition)
-                        
+                                                
                     fields.append((f.name, field_definition))
                     
                 if mock_models:
@@ -231,6 +226,35 @@ def generate_field_definition(model, field):
             return True
         except SyntaxError:
             return False
+            
+    def strip_comments(field_definition):
+        # if a ')' isn't the last character in a field_definition, then there's
+        # a comment at the end that needs to be stripped off
+        
+        # TODO:  This could mess up if the comment ends in a ')'.
+        # What's a better solution to this hacked string parsing nonsense?
+        field_definition = field_definition.strip()
+        if field_definition[-1] == ')':
+            return field_definition
+            
+        try:
+            index = field_definition.rindex('#')
+        except ValueError:
+            # if this doesn't contain a # sign, then it's unknown what could be the problem
+            return field_definition
+            
+        stripped_definition = field_definition[:index].strip()
+        
+        # make sure the stripped definition is still valid
+        if test_field(stripped_definition):
+            return stripped_definition
+        else:
+            return field_definition
+            
+    # give field subclasses a chance to do anything tricky
+    # with the field definition
+    if hasattr(field, 'south_field_definition'):
+        return field.south_field_definition()
     
     field_pieces = []
     found_field = False
@@ -247,15 +271,15 @@ def generate_field_definition(model, field):
         if found_field:
             field_pieces.append(line.strip())
             if test_field(' '.join(field_pieces)):
-                return ' '.join(field_pieces)
+                return strip_comments(' '.join(field_pieces))
             continue
         
         match = start_field_re.match(line)
         if match:
             found_field = True
-            field_pieces.append(match.groups()[0])
+            field_pieces.append(match.groups()[0].strip())
             if test_field(' '.join(field_pieces)):
-                return ' '.join(field_pieces)
+                return strip_comments(' '.join(field_pieces))
     
     # TODO:
     # If field definition isn't found, try looking in models parents.
