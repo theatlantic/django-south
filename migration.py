@@ -43,7 +43,6 @@ def get_app_fullname(app):
     """
     Returns the full python name of an app - e.g. django.contrib.auth
     """
-    print app.__name__
     return app.__name__[:-11]
 
 
@@ -74,8 +73,11 @@ def get_migration(app, name):
     """
     Returns the migration class implied by 'name'.
     """
-    module = __import__(app.__name__ + "." + name, '', '', ['Migration'])
-    return module.Migration
+    try:
+        module = __import__(app.__name__ + "." + name, '', '', ['Migration'])
+        return module.Migration
+    except ImportError:
+        raise ValueError("Migration %s:%s does not exist." % (get_app_name(app), name))
 
 
 def all_migrations():
