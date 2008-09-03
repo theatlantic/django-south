@@ -188,7 +188,7 @@ class Command(BaseCommand):
                         columns = ["'%s'" % model._meta.get_field(f).column for f in unique]
                         
                         forwards += '''
-        db.create_index('%s', [%s], True, db_tablespace='%s')
+        db.create_index('%s', [%s], unique=True, db_tablespace='%s')
         ''' %   (
                         table_name,
                         ','.join(columns),
