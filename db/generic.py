@@ -142,8 +142,11 @@ class DatabaseOperations(object):
         # if the field is "NOT NULL" and a default value is provided, create the column with it
         # this allows the addition of a NOT NULL field to a table with existing rows
         if not field.null and field.has_default():
+            default = field.get_default()
+            if isinstance(default, basestring):
+                default = "'%s'" % default
             sql += " DEFAULT %s"
-            sqlparams = (field.get_default())
+            sqlparams = (default)
         
         if field.rel:
             self.add_deferred_sql(
