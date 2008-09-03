@@ -235,29 +235,23 @@ def generate_field_definition(model, field):
             return False
             
     def strip_comments(field_definition):
-        # if a ')' isn't the last character in a field_definition, then there's
-        # a comment at the end that needs to be stripped off
-        
-        # TODO:  This could mess up if the comment ends in a ')'.
-        # What's a better solution to this hacked string parsing nonsense?
+        # remove any comments at the end of the field definition string.
         field_definition = field_definition.strip()
-        if field_definition[-1] == ')':
+        if '#' not in field_definition:
             return field_definition
             
-        try:
-            index = field_definition.rindex('#')
-        except ValueError:
-            # if this doesn't contain a # sign, then it's unknown what could be the problem
-            return field_definition
+        index = field_definition.index('#')
+        while index:
+            stripped_definition = field_definition[:index].strip()
+            # if the stripped definition is parsable, then we've removed
+            # the correct comment.
+            if test_field(stripped_definition):
+                return stripped_definition
+                
+            index = field_definition.index('#', index+1)
             
-        stripped_definition = field_definition[:index].strip()
+        return field_definition
         
-        # make sure the stripped definition is still valid
-        if test_field(stripped_definition):
-            return stripped_definition
-        else:
-            return field_definition
-            
     # give field subclasses a chance to do anything tricky
     # with the field definition
     if hasattr(field, 'south_field_definition'):
