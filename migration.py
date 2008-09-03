@@ -25,6 +25,13 @@ def get_app_name(app):
     return app.__name__.split('.')[-2]
 
 
+def get_app_fullname(app):
+    """
+    Returns the full python name of an app - e.g. django.contrib.auth
+    """
+    return app.__name__[:-7]
+
+
 def short_from_long(app):
     return app.split(".")[-1]
 
@@ -37,8 +44,7 @@ def get_migration_package(app):
     if isinstance(app, (str, unicode)):
         # If it's a string, use the models module
         app = models.get_app(app)
-    app_name = '.'.join( app.__name__.split('.')[0:-1] )
-    mod = __import__(app_name, {}, {}, ['migrations'])
+    mod = __import__(get_app_fullname(app), {}, {}, ['migrations'])
     if hasattr(mod, 'migrations'):
         return getattr(mod, 'migrations')
 
@@ -67,7 +73,7 @@ def get_migration(app, name):
     Returns the migration class implied by 'name'.
     """
     if not isinstance(app, (str, unicode)):
-        app = get_app_name(app)
+        app = get_app_fullname(app)
     module = __import__(app + ".migrations." + name, '', '', ['Migration'])
     return module.Migration
 
