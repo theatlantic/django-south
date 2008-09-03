@@ -86,7 +86,7 @@ class Command(BaseCommand):
             # Touch the init py file
             open(os.path.join(migrations_dir, "__init__.py"), "w").close()
         # See what filename is next in line. We assume they use numbers.
-        migrations = migration.get_migration_names('.'.join(app_module_path))
+        migrations = migration.get_migration_names(app)
         highest_number = 0
         for migration_name in migrations:
             try:
@@ -110,10 +110,17 @@ class Command(BaseCommand):
                 for f in model._meta.local_fields:
                     # look up the field definition to see how this was created
                     field_definition = generate_field_definition(model, f)
-                    
-                    if isinstance(f, models.ForeignKey):
-                        mock_models.append(create_mock_model(f.rel.to))
-                        field_definition = related_field_definition(f, field_definition)
+                    if field_definition:
+                        
+                        if isinstance(f, models.ForeignKey):
+                            mock_models.append(create_mock_model(f.rel.to))
+                            field_definition = related_field_definition(f, field_definition)
+                            
+                    else:
+                        print "Warning: Could not generate field definition for %s.%s, manual editing of migration required." % \
+                                (model._meta.object_name, f.name)
+                                
+                        field_definition = '<<< REPLACE THIS WITH FIELD DEFINITION FOR %s.%s >>>' % (model._meta.object_name, f.name)
                                                 
                     fields.append((f.name, field_definition))
                     
@@ -281,20 +288,22 @@ def generate_field_definition(model, field):
             if test_field(' '.join(field_pieces)):
                 return strip_comments(' '.join(field_pieces))
     
-    # TODO:
-    # If field definition isn't found, try looking in models parents.
-    # This should most likely work with just a recursive call to generate_field_definition
-    # supplying the models parents and the current field
-    
     # the 'id' field never gets defined, so return what django does by default
     # django.db.models.options::_prepare
     if field.name == 'id' and field.__class__ == models.AutoField:
         return "models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)"
     
-    print "Warning: Could not generate field definition for %s.%s, manual editing of migration required." % \
-        (model._meta.object_name, field.name)
-        
-    return '<<< REPLACE THIS WITH FIELD DEFINITION FOR %s.%s >>>' % (model._meta.object_name, field.name)
+    # search this classes parents
+    for base in model.__bases__:
+        # we don't want to scan the django base model
+        if base == models.Model:
+            continue
+            
+        field_definition = generate_field_definition(base, field)
+        if field_definition:
+            return field_definition
+            
+    return None
     
 def replace_model_string(field_definition, search_string, model_name):
     # wrap 'search_string' in both ' and " chars when searching
