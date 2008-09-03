@@ -86,7 +86,7 @@ class Command(BaseCommand):
             # Touch the init py file
             open(os.path.join(migrations_dir, "__init__.py"), "w").close()
         # See what filename is next in line. We assume they use numbers.
-        migrations = migration.get_migration_files('.'.join(app_module_path))
+        migrations = migration.get_migration_names('.'.join(app_module_path))
         highest_number = 0
         for migration_name in migrations:
             try:

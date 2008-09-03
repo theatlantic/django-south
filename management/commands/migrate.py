@@ -47,10 +47,10 @@ class Command(BaseCommand):
         else:
             apps = models.get_apps()
         for app in apps:
-            migrations = migration.get_migrations(app)
+            migrations = migration.get_migration_package(app)
             if migrations is not None:
                 migration.migrate_app(
-                    migrations,
+                    app,
                     resolve_mode = resolve_mode,
                     target_name = target,
                     fake = fake,
