@@ -174,7 +174,17 @@ class DatabaseOperations(object):
             connection.ops.deferrable_sql() # Django knows this
         )
         
-    def create_index_sql(self, table_name, column_names, db_tablespace=''):
+    def create_index_name(self, table_name, column_names):
+        """
+        Generate a unique name for the index
+        """
+        index_unique_name = ''
+        if len(column_names) > 1:
+            index_unique_name = '_%x' % abs(hash((table_name, ','.join(column_names))))
+
+        return '%s_%s%s' % (table_name, column_names[0], index_unique_name)
+
+    def create_index_sql(self, table_name, column_names, unique=False, db_tablespace=''):
         """
         Generates a create index statement on 'table_name' for a list of 'column_names'
         """
@@ -187,20 +197,21 @@ class DatabaseOperations(object):
         else:
             tablespace_sql = ''
         
-        index_unique_name = ''
-        if len(column_names) > 1:
-            index_unique_name = '_%x' % abs(hash((table_name, ','.join(column_names))))
-            
-        index_name = '%s_%s%s' % (table_name, column_names[0], index_unique_name)
+        index_name = self.create_index_name(table_name, column_names)
         qn = connection.ops.quote_name
-        return 'CREATE INDEX %s ON %s (%s)%s;' % (
+        return 'CREATE %sINDEX %s ON %s (%s)%s;' % (
+            unique and 'UNIQUE ' or '',
             index_name,
             table_name,
             ','.join([qn(field) for field in column_names]),
             tablespace_sql
             )
         
-
+    def create_index(self, table_name, column_names, unique=False, db_tablespace=''):
+        """ Executes a create index statement """
+        sql = self.create_index_sql(table_name, column_names, unique, db_tablespace)
+        self.execute(sql)
+        
 
     def delete_column(self, table_name, name):
         """
