@@ -8,9 +8,6 @@ class DatabaseOperations(generic.DatabaseOperations):
     MySQL implementation of database operations.
     """
 
-    types = generic.DatabaseOperations.types
-    types['datetime'] = "datetime"
-
     def rename_column(self, table_name, old, new):
         if old == new:
             return []
