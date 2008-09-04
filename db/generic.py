@@ -286,7 +286,13 @@ class DatabaseOperations(object):
             # syncdb defaults -- perhaps take these as options?
             verbosity = 1
             interactive = True
-            dispatcher.send(signal=models.signals.post_syncdb, sender=app,
+            
+            if hasattr(dispatcher, "send"):
+                dispatcher.send(signal=models.signals.post_syncdb, sender=app,
+                app=app, created_models=created_models,
+                verbosity=verbosity, interactive=interactive)
+            else:
+                models.signals.post_syncdb.send(sender=app,
                 app=app, created_models=created_models,
                 verbosity=verbosity, interactive=interactive)
                 
@@ -313,6 +319,7 @@ class DatabaseOperations(object):
 
                 self.pk = pk_field_type(**pk_field_kwargs)
                 self.pk.set_attributes_from_name(pk_field_name)
+                self.abstract = False
 
             def get_field_by_name(self, field_name):
                 # we only care about the pk field
