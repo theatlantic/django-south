@@ -126,6 +126,7 @@ class Command(BaseCommand):
                     
                 if mock_models:
                     forwards += '''
+        
         # Mock Models
         %s
         ''' % "\n        ".join(mock_models)
@@ -140,8 +141,8 @@ class Command(BaseCommand):
                     ",\n            ".join(["('%s', %s)" % (f[0], f[1]) for f in fields]),
                 )
 
-                backwards += '''
-        db.delete_table('%s')''' % table_name
+                backwards = ('''db.delete_table('%s')
+        ''' % table_name) + backwards
         
                 # Now go through local M2Ms and add extra stuff for them
                 for m in model._meta.local_many_to_many:
