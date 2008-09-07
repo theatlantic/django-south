@@ -334,7 +334,7 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, yes=False)
         target_name = migrations[-1]
     if target_name == "zero":
         forwards = []
-        backwards = needed_before_backwards(tree, app, migrations[0]) + [(app, target_name)]
+        backwards = needed_before_backwards(tree, app, migrations[0]) + [(app, migrations[0])]
     else:
         forwards = needed_before_forwards(tree, app, target_name) + [(app, target_name)]
         # When migrating backwards we want to remove up to and including
