@@ -107,6 +107,61 @@ class DatabaseOperations(object):
         )
         sql = 'ALTER TABLE %s ADD COLUMN %s;' % params
         self.execute(sql)
+    
+    
+    def alter_column(self, table_name, name, field):
+        """
+        Alters the given column name so it will match the given field.
+        Note that conversion between the two by the database must be possible.
+        
+        @param table_name: The name of the table to add the column to
+        @param name: The name of the column to alter
+        @param field: The new field definition to use
+        """
+        
+        # hook for the field to do any resolution prior to it's attributes being queried
+        if hasattr(field, 'south_init'):
+            field.south_init()
+        
+        qn = connection.ops.quote_name
+        
+        # First, change the type
+        params = (
+            qn(name),
+            field.db_type(),
+        )
+        sqls = ['ALTER COLUMN %s TYPE %s' % params]
+        
+        
+        # Next, set any default
+        params = (
+            qn(name),
+        )
+        
+        if not field.null and field.has_default():
+            default = field.get_default()
+            if isinstance(default, basestring):
+                default = "'%s'" % default
+            params += ("SET DEFAULT %s",)
+        else:
+            params += ("DROP DEFAULT",)
+        
+        sqls.append('ALTER COLUMN %s %s ' % params)
+        
+        
+        # Next, nullity
+        params = (
+            qn(name),
+        )
+        if field.null:
+            sqls.append('ALTER COLUMN %s DROP NOT NULL' % params)
+        else:
+            sqls.append('ALTER COLUMN %s SET NOT NULL' % params)
+        
+        
+        # TODO: Unique
+        
+        self.execute("ALTER TABLE %s %s" % (qn(table_name), ", ".join(sqls)))
 
 
     def column_sql(self, table_name, field_name, field, tablespace=''):
