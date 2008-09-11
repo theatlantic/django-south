@@ -7,6 +7,10 @@ class DatabaseOperations(generic.DatabaseOperations):
     """
     MySQL implementation of database operations.
     """
+    
+    alter_string_set_type = ''
+    alter_string_set_null = 'MODIFY %(column)s %(type)s NULL;'
+    alter_string_drop_null = 'MODIFY %(column)s %(type)s NOT NULL;'
 
     def rename_column(self, table_name, old, new):
         if old == new:
