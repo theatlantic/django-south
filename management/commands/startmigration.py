@@ -177,8 +177,8 @@ class Command(BaseCommand):
                         m.rel.to._meta.object_name
                 )
                 
-                    backwards += '''
-        db.delete_table('%s')''' % m.m2m_db_table()
+                    backwards = '''db.delete_table('%s')
+        ''' % m.m2m_db_table() + backwards
                 
                 if model._meta.unique_together:
                     ut = model._meta.unique_together
