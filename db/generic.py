@@ -109,6 +109,10 @@ class DatabaseOperations(object):
         self.execute(sql)
     
     
+    alter_string_set_type = 'ALTER COLUMN %(column)s TYPE %(type)s'
+    alter_string_set_null = 'ALTER COLUMN %(column)s SET NOT NULL'
+    alter_string_drop_null = 'ALTER COLUMN %(column)s DROP NOT NULL'
+    
     def alter_column(self, table_name, name, field):
         """
         Alters the given column name so it will match the given field.
@@ -126,11 +130,11 @@ class DatabaseOperations(object):
         qn = connection.ops.quote_name
         
         # First, change the type
-        params = (
-            qn(name),
-            field.db_type(),
-        )
-        sqls = ['ALTER COLUMN %s TYPE %s' % params]
+        params = {
+            "column": qn(name),
+            "type": field.db_type(),
+        }
+        sqls = [self.alter_string_set_type % params]
         
         
         # Next, set any default
@@ -150,18 +154,19 @@ class DatabaseOperations(object):
         
         
         # Next, nullity
-        params = (
-            qn(name),
-        )
+        params = {
+            "column": qn(name),
+            "type": field.db_type(),
+        }
         if field.null:
-            sqls.append('ALTER COLUMN %s DROP NOT NULL' % params)
+            sqls.append(self.alter_string_drop_null % params)
         else:
-            sqls.append('ALTER COLUMN %s SET NOT NULL' % params)
+            sqls.append(self.alter_string_set_null % params)
         
         
         # TODO: Unique
         
-        self.execute("ALTER TABLE %s %s" % (qn(table_name), ", ".join(sqls)))
+        self.execute("ALTER TABLE %s %s;" % (qn(table_name), ", ".join(sqls)))
 
 
     def column_sql(self, table_name, field_name, field, tablespace=''):
