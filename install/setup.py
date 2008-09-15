@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 setup(
     name='South',
@@ -9,5 +9,5 @@ setup(
     author='Andrew Godwin & Andy McCurdy',
     author_email='south@aeracode.org',
     url='http://south.aeracode.org/',
-    packages="south",
+    packages=["south", "south.db", "south.management", "south.management.commands", "south.tests"],
 )
