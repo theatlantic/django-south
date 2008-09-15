@@ -138,7 +138,7 @@ class Command(BaseCommand):
         ))''' % (
                     model._meta.object_name,
                     table_name,
-                    ",\n            ".join(["('%s', %s)" % (f[0], f[1]) for f in fields]),
+                    "\n            ".join(["('%s', %s)," % (f[0], f[1]) for f in fields]),
                 )
 
                 backwards = ('''db.delete_table('%s')
