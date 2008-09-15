@@ -1,4 +1,5 @@
 import unittest
+import datetime
 import sys
 import os
 
@@ -160,3 +161,93 @@ class TestMigrationLogic(unittest.TestCase):
             }},
             migration.all_migrations(),
         )
+    
+    
+    def assertListEqual(self, list1, list2):
+        list1 = list(list1)
+        list2 = list(list2)
+        list1.sort()
+        list2.sort()
+        return self.assertEqual(list1, list2)
+    
+    
+    def test_apply_migrations(self):
+        
+        app = migration.get_app("fakeapp")
+        
+        # We should start with no migrations
+        self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
+        
+        # Apply them normally
+        migration.migrate_app(app, target_name=None, resolve_mode=None, fake=False)
+        
+        # We should finish with all migrations
+        self.assertListEqual(
+            (
+                (u"fakeapp", u"0001_spam"),
+                (u"fakeapp", u"0002_eggs"),
+            ),
+            migration.MigrationHistory.objects.values_list("app_name", "migration"),
+        )
+        
+        # Now roll them backwards
+        migration.migrate_app(app, target_name="zero", resolve_mode=None, fake=False)
+        
+        # Finish with none
+        self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
+    
+    
+    def test_migration_merge_forwards(self):
+        
+        app = migration.get_app("fakeapp")
+        
+        # We should start with no migrations
+        self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
+        
+        # Insert one in the wrong order
+        migration.MigrationHistory.objects.create(
+            app_name = "fakeapp",
+            migration = "0002_eggs",
+            applied = datetime.datetime.now(),
+        )
+        
+        # Did it go in?
+        self.assertListEqual(
+            (
+                (u"fakeapp", u"0002_eggs"),
+            ),
+            migration.MigrationHistory.objects.values_list("app_name", "migration"),
+        )
+        
+        # Apply them normally
+        try:
+            migration.migrate_app(app, target_name=None, resolve_mode=None, fake=False)
+        except SystemExit:
+            pass
+        
+        # Nothing should have changed (no merge mode!)
+        self.assertListEqual(
+            (
+                (u"fakeapp", u"0002_eggs"),
+            ),
+            migration.MigrationHistory.objects.values_list("app_name", "migration"),
+        )
+        
+        # Apply with merge
+        migration.migrate_app(app, target_name=None, resolve_mode="merge", fake=False)
+        
+        # We should finish with all migrations
+        self.assertListEqual(
+            (
+                (u"fakeapp", u"0001_spam"),
+                (u"fakeapp", u"0002_eggs"),
+            ),
+            migration.MigrationHistory.objects.values_list("app_name", "migration"),
+        )
+        
+        # Now roll them backwards
+        migration.migrate_app(app, target_name="0001", resolve_mode=None, fake=True)
+        migration.migrate_app(app, target_name="zero", resolve_mode=None, fake=False)
+        
+        # Finish with none
+        self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
