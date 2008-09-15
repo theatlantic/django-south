@@ -375,8 +375,7 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, yes=False)
         problems = forwards_problems(tree, forwards, current_migrations)
         if problems:
             bad = True
-        else:
-            direction = 1
+        direction = 1
     
     # What about the whole backward trace then?
     if not bad:
@@ -390,8 +389,7 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, yes=False)
             problems = backwards_problems(tree, backwards, current_migrations)
             if problems:
                 bad = True
-            else:
-                direction = -1
+            direction = -1
     
     if bad and resolve_mode not in ['merge']:
         print " ! Inconsistent migration history"
