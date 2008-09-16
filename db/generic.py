@@ -274,7 +274,18 @@ class DatabaseOperations(object):
         """ Executes a create index statement """
         sql = self.create_index_sql(table_name, column_names, unique, db_tablespace)
         self.execute(sql)
-        
+
+
+    def delete_index(self, table_name, column_names, db_tablespace=''):
+        """
+        Deletes an index created with create_index.
+        This is possible using only columns due to the deterministic
+        index naming function which relies on column names.
+        """
+        name = self.create_index_name(table_name, column_names)
+        sql = "DROP INDEX %s" % name
+        self.execute(sql)
+
 
     def delete_column(self, table_name, name):
         """
