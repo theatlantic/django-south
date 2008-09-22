@@ -1,4 +1,5 @@
 
+from django.core.management.color import no_style
 from django.db import connection, transaction, models
 from django.db.backends.util import truncate_name
 from django.dispatch import dispatcher
@@ -61,7 +62,7 @@ class DatabaseOperations(object):
             for field_name, field in fields
         ]
         
-        self.execute('CREATE TABLE %s (%s);' % (qn(table_name), ', '.join([col for col in columns])))
+        self.execute('CREATE TABLE %s (%s);' % (qn(table_name), ', '.join([col for col in columns if col])))
     
     add_table = create_table # Alias for consistency's sake
 
@@ -101,12 +102,13 @@ class DatabaseOperations(object):
         """
         qn = connection.ops.quote_name
         sql = self.column_sql(table_name, name, field)
-        params = (
-            qn(table_name),
-            sql,
-        )
-        sql = 'ALTER TABLE %s ADD COLUMN %s;' % params
-        self.execute(sql)
+        if sql:
+            params = (
+                qn(table_name),
+                sql,
+            )
+            sql = 'ALTER TABLE %s ADD COLUMN %s;' % params
+            self.execute(sql)
     
     
     alter_string_set_type = 'ALTER COLUMN %(column)s TYPE %(type)s'
@@ -174,6 +176,7 @@ class DatabaseOperations(object):
         Creates the SQL snippet for a column. Used by add_column and add_table.
         """
         qn = connection.ops.quote_name
+        
         field.set_attributes_from_name(field_name)
         
         # hook for the field to do any resolution prior to it's attributes being queried
@@ -181,47 +184,53 @@ class DatabaseOperations(object):
             field.south_init()
         
         sql = field.db_type()
-        if not sql:
-            return None
-            
-        field_output = [qn(field.column), sql]
-        field_output.append('%sNULL' % (not field.null and 'NOT ' or ''))
-        if field.primary_key:
-            field_output.append('PRIMARY KEY')
-        elif field.unique:
-            field_output.append('UNIQUE')
+        if sql:        
+            field_output = [qn(field.column), sql]
+            field_output.append('%sNULL' % (not field.null and 'NOT ' or ''))
+            if field.primary_key:
+                field_output.append('PRIMARY KEY')
+            elif field.unique:
+                field_output.append('UNIQUE')
         
-        tablespace = field.db_tablespace or tablespace
-        if tablespace and connection.features.supports_tablespaces and field.unique:
-            # We must specify the index tablespace inline, because we
-            # won't be generating a CREATE INDEX statement for this field.
-            field_output.append(connection.ops.tablespace_sql(tablespace, inline=True))
+            tablespace = field.db_tablespace or tablespace
+            if tablespace and connection.features.supports_tablespaces and field.unique:
+                # We must specify the index tablespace inline, because we
+                # won't be generating a CREATE INDEX statement for this field.
+                field_output.append(connection.ops.tablespace_sql(tablespace, inline=True))
             
-        sql = ' '.join(field_output)
-        sqlparams = ()
-        # if the field is "NOT NULL" and a default value is provided, create the column with it
-        # this allows the addition of a NOT NULL field to a table with existing rows
-        if not field.null and field.has_default():
-            default = field.get_default()
-            if isinstance(default, basestring):
-                default = "'%s'" % default.replace("'", "''")
-            sql += " DEFAULT %s"
-            sqlparams = (default)
-        
-        if field.rel:
-            self.add_deferred_sql(
-                self.foreign_key_sql(
-                    table_name,
-                    field.column,
-                    field.rel.to._meta.db_table,
-                    field.rel.to._meta.get_field(field.rel.field_name).column
+            sql = ' '.join(field_output)
+            sqlparams = ()
+            # if the field is "NOT NULL" and a default value is provided, create the column with it
+            # this allows the addition of a NOT NULL field to a table with existing rows
+            if not field.null and field.has_default():
+                default = field.get_default()
+                if isinstance(default, basestring):
+                    default = "'%s'" % default.replace("'", "''")
+                sql += " DEFAULT %s"
+                sqlparams = (default)
+            
+            if field.rel:
+                self.add_deferred_sql(
+                    self.foreign_key_sql(
+                        table_name,
+                        field.column,
+                        field.rel.to._meta.db_table,
+                        field.rel.to._meta.get_field(field.rel.field_name).column
+                    )
                 )
-            )
             
-        if field.db_index and not field.unique:
-            self.add_deferred_sql(self.create_index_sql(table_name, [field.column]))
+            if field.db_index and not field.unique:
+                self.add_deferred_sql(self.create_index_sql(table_name, [field.column]))
             
-        return sql % sqlparams
+        if hasattr(field, 'post_create_sql'):
+            style = no_style()
+            for stmt in field.post_create_sql(style, table_name):
+                self.add_deferred_sql(stmt)
+
+        if sql:
+            return sql % sqlparams
+        else:
+            return None
         
     def foreign_key_sql(self, from_table_name, from_column_name, to_table_name, to_column_name):
         """

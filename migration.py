@@ -243,6 +243,7 @@ def run_backwards(app, migrations, ignore=[], fake=False):
                 db.start_transaction()
                 try:
                     klass().backwards()
+                    db.execute_deferred_sql()
                 except:
                     db.rollback_transaction()
                     raise
