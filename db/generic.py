@@ -204,7 +204,7 @@ class DatabaseOperations(object):
         if not field.null and field.has_default():
             default = field.get_default()
             if isinstance(default, basestring):
-                default = "'%s'" % default
+                default = "'%s'" % default.replace("'", "''")
             sql += " DEFAULT %s"
             sqlparams = (default)
         
