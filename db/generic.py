@@ -61,7 +61,7 @@ class DatabaseOperations(object):
             for field_name, field in fields
         ]
         
-        self.execute('CREATE TABLE %s (%s);' % (table_name, ', '.join([col for col in columns])))
+        self.execute('CREATE TABLE %s (%s);' % (qn(table_name), ', '.join([col for col in columns])))
     
     add_table = create_table # Alias for consistency's sake
 
