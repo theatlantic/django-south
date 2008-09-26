@@ -179,7 +179,7 @@ class TestMigrationLogic(unittest.TestCase):
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
         
         # Apply them normally
-        migration.migrate_app(app, target_name=None, resolve_mode=None, fake=False)
+        migration.migrate_app(app, target_name=None, resolve_mode=None, fake=False, silent=True)
         
         # We should finish with all migrations
         self.assertListEqual(
@@ -191,7 +191,7 @@ class TestMigrationLogic(unittest.TestCase):
         )
         
         # Now roll them backwards
-        migration.migrate_app(app, target_name="zero", resolve_mode=None, fake=False)
+        migration.migrate_app(app, target_name="zero", resolve_mode=None, fake=False, silent=True)
         
         # Finish with none
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
@@ -221,7 +221,7 @@ class TestMigrationLogic(unittest.TestCase):
         
         # Apply them normally
         try:
-            migration.migrate_app(app, target_name=None, resolve_mode=None, fake=False)
+            migration.migrate_app(app, target_name=None, resolve_mode=None, fake=False, silent=True)
         except SystemExit:
             pass
         
@@ -234,7 +234,7 @@ class TestMigrationLogic(unittest.TestCase):
         )
         
         # Apply with merge
-        migration.migrate_app(app, target_name=None, resolve_mode="merge", fake=False)
+        migration.migrate_app(app, target_name=None, resolve_mode="merge", fake=False, silent=True)
         
         # We should finish with all migrations
         self.assertListEqual(
@@ -246,8 +246,8 @@ class TestMigrationLogic(unittest.TestCase):
         )
         
         # Now roll them backwards
-        migration.migrate_app(app, target_name="0001", resolve_mode=None, fake=True)
-        migration.migrate_app(app, target_name="zero", resolve_mode=None, fake=False)
+        migration.migrate_app(app, target_name="0001", resolve_mode=None, fake=True, silent=True)
+        migration.migrate_app(app, target_name="zero", resolve_mode=None, fake=False, silent=True)
         
         # Finish with none
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
