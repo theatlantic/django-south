@@ -16,7 +16,7 @@ class DatabaseOperations(object):
     def __init__(self):
         self.debug = False
         self.deferred_sql = []
-
+        self.dry_run = False
 
     def execute(self, sql, params=[]):
         """
@@ -26,6 +26,10 @@ class DatabaseOperations(object):
         cursor = connection.cursor()
         if self.debug:
             print "   = %s" % sql, params
+
+        if self.dry_run:
+            return []
+        
         cursor.execute(sql, params)
         try:
             return cursor.fetchall()
@@ -320,6 +324,8 @@ class DatabaseOperations(object):
         Makes sure the following commands are inside a transaction.
         Must be followed by a (commit|rollback)_transaction call.
         """
+        if self.dry_run:
+            return
         transaction.commit_unless_managed()
         transaction.enter_transaction_management()
         transaction.managed(True)
@@ -330,6 +336,8 @@ class DatabaseOperations(object):
         Commits the current transaction.
         Must be preceded by a start_transaction call.
         """
+        if self.dry_run:
+            return
         transaction.commit()
         transaction.leave_transaction_management()
 
@@ -339,6 +347,8 @@ class DatabaseOperations(object):
         Rolls back the current transaction.
         Must be preceded by a start_transaction call.
         """
+        if self.dry_run:
+            return
         transaction.rollback()
         transaction.leave_transaction_management()
     
