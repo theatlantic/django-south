@@ -201,7 +201,7 @@ def needed_before_backwards(tree, app, name, sameapp=True):
     return remove_duplicates(needed)
 
 
-def run_forwards(app, migrations, fake=False, silent=False):
+def run_forwards(app, migrations, fake=False, db_dry_run=False, silent=False):
     """
     Runs the specified migrations forwards, in order.
     """
@@ -210,10 +210,14 @@ def run_forwards(app, migrations, fake=False, silent=False):
         if not silent:
             print " > %s: %s" % (app_name, migration)
         klass = get_migration(app, migration)
+
         if fake:
             if not silent:
                 print "   (faked)"
         else:
+            if db_dry_run:
+                db.dry_run = True
+                
             db.start_transaction()
             try:
                 klass().forwards()
@@ -223,13 +227,15 @@ def run_forwards(app, migrations, fake=False, silent=False):
                 raise
             else:
                 db.commit_transaction()
-        # Record us as having done this
-        record = MigrationHistory.for_migration(app_name, migration)
-        record.applied = datetime.datetime.utcnow()
-        record.save()
+
+        if not db_dry_run:
+            # Record us as having done this
+            record = MigrationHistory.for_migration(app_name, migration)
+            record.applied = datetime.datetime.utcnow()
+            record.save()
 
 
-def run_backwards(app, migrations, ignore=[], fake=False, silent=False):
+def run_backwards(app, migrations, ignore=[], fake=False, db_dry_run=False, silent=False):
     """
     Runs the specified migrations backwards, in order, skipping those
     migrations in 'ignore'.
@@ -244,6 +250,9 @@ def run_backwards(app, migrations, ignore=[], fake=False, silent=False):
                 if not silent:
                     print "   (faked)"
             else:
+                if db_dry_run:
+                    db.dry_run = True
+                
                 db.start_transaction()
                 try:
                     klass().backwards()
@@ -253,9 +262,11 @@ def run_backwards(app, migrations, ignore=[], fake=False, silent=False):
                     raise
                 else:
                     db.commit_transaction()
-            # Record us as having not done this
-            record = MigrationHistory.for_migration(app_name, migration)
-            record.delete()
+
+            if not db_dry_run:
+                # Record us as having not done this
+                record = MigrationHistory.for_migration(app_name, migration)
+                record.delete()
 
 
 def right_side_of(x, y):
@@ -291,7 +302,7 @@ def backwards_problems(tree, backwards, done, silent=False):
     return problems
 
 
-def migrate_app(app, target_name=None, resolve_mode=None, fake=False, yes=False, silent=False):
+def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, silent=False):
     
     app_name = get_app_name(app)
     
@@ -418,13 +429,13 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, yes=False,
             print " - Migrating forwards to %s." % target_name
         for mapp, mname in forwards:
             if (mapp, mname) not in current_migrations:
-                run_forwards(mapp, [mname], fake=fake, silent=silent)
+                run_forwards(mapp, [mname], fake=fake, db_dry_run=db_dry_run, silent=silent)
     elif direction == -1:
         if not silent:
             print " - Migrating backwards to just after %s." % target_name
         for mapp, mname in backwards:
             if (mapp, mname) in current_migrations:
-                run_backwards(mapp, [mname], fake=fake, silent=silent)
+                run_backwards(mapp, [mname], fake=fake, db_dry_run=db_dry_run, silent=silent)
     else:
         if not silent:
             print "- Nothing to migrate."
