@@ -1,4 +1,5 @@
 
+import datetime
 from django.core.management.color import no_style
 from django.db import connection, transaction, models
 from django.db.backends.util import truncate_name
@@ -206,6 +207,8 @@ class DatabaseOperations(object):
                 default = field.get_default()
                 if isinstance(default, basestring):
                     default = "'%s'" % default.replace("'", "''")
+                elif isinstance(default, datetime.date):
+                    default = "'%s'" % default
                 sql += " DEFAULT %s"
                 sqlparams = (default)
             
