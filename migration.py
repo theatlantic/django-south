@@ -4,6 +4,7 @@ import os
 import sys
 from django.conf import settings
 from django.db import models
+from django.core.exceptions import ImproperlyConfigured
 from models import MigrationHistory
 from south.db import db
 
@@ -342,7 +343,15 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
             return
     
     # Check there's no strange ones in the database
-    ghost_migrations = [m for m in MigrationHistory.objects.filter(applied__isnull = False) if get_app(m.app_name) not in tree or m.migration not in tree[get_app(m.app_name)]]
+    ghost_migrations = []
+    for m in MigrationHistory.objects.filter(applied__isnull = False):
+        try:
+            if get_app(m.app_name) not in tree or m.migration not in tree[get_app(m.app_name)]:
+                ghost_migrations.append(m)
+        except ImproperlyConfigured:
+            pass
+            
+        
     if ghost_migrations:
         if not silent:
             print " ! These migrations are in the database but not on disk:"
@@ -372,7 +381,12 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
             backwards = []
     
     # Get the list of currently applied migrations from the db
-    current_migrations = [(get_app(m.app_name), m.migration) for m in  MigrationHistory.objects.filter(applied__isnull = False)]
+    current_migrations = []
+    for m in MigrationHistory.objects.filter(applied__isnull = False):
+        try:
+            current_migrations.append((get_app(m.app_name), m.migration))
+        except ImproperlyConfigured:
+            pass
     
     direction = None
     bad = False
