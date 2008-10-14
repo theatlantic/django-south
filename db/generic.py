@@ -62,13 +62,13 @@ class DatabaseOperations(object):
         django.db.models.fields.Field object
         """
         qn = connection.ops.quote_name
-		
-		# allow fields to be a dictionary
-		try:
-			fields = fields.items()
-		except AttributeError:
-			pass
-		
+        
+        # allow fields to be a dictionary
+        try:
+            fields = fields.items()
+        except AttributeError:
+            pass
+            
         columns = [
             self.column_sql(table_name, field_name, field)
             for field_name, field in fields
