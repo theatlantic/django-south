@@ -49,6 +49,7 @@ class Command(BaseCommand):
             apps = [migration.get_app(app)]
         else:
             apps = migration.get_migrated_apps()
+        silent = options.get('verbosity') == 0
         for app in apps:
             migration.migrate_app(
                 app,
@@ -56,4 +57,5 @@ class Command(BaseCommand):
                 target_name = target,
                 fake = fake,
                 db_dry_run = db_dry_run,
+                silent = silent,
             )
