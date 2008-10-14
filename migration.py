@@ -78,7 +78,9 @@ def get_migration(app, name):
         module = __import__(app.__name__ + "." + name, '', '', ['Migration'])
         return module.Migration
     except ImportError:
-        raise ValueError("Migration %s:%s does not exist." % (get_app_name(app), name))
+        print " ! Migration %s:%s probably doesn't exist." % (get_app_name(app), name)
+        print " - Traceback:"
+        raise
 
 
 def all_migrations():
