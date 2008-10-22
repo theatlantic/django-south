@@ -147,7 +147,7 @@ class TestMigrationLogic(unittest.TestCase):
         self.assertEqual(M1, migration.get_migration(app, "0001_spam"))
         self.assertEqual(M2, migration.get_migration(app, "0002_eggs"))
         
-        self.assertRaises(ValueError, migration.get_migration, app, "0001_jam")
+        self.assertRaises((ImportError, ValueError), migration.get_migration, app, "0001_jam")
     
     
     def test_all_migrations(self):
