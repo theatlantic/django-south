@@ -58,7 +58,7 @@ def get_migration_names(app):
     return sorted([
         filename[:-3]
         for filename in os.listdir(os.path.dirname(app.__file__))
-        if filename.endswith(".py") and filename != "__init__.py"
+        if filename.endswith(".py") and filename != "__init__.py" and not filename.startswith(".")
     ])
 
 
