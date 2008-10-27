@@ -9,5 +9,6 @@ setup(
     author='Andrew Godwin & Andy McCurdy',
     author_email='south@aeracode.org',
     url='http://south.aeracode.org/',
-    packages=["south", "south.db", "south.management", "south.management.commands", "south.tests"],
+    packages=["south", "south.db", "south.management", "south.management.commands", "south.tests", "south.tests.fakeapp", "south.tests.fakeapp.migrations"],
+    package_dir = {"south" : ""},
 )
