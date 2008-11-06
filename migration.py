@@ -5,6 +5,7 @@ import sys
 from django.conf import settings
 from django.db import models
 from django.core.exceptions import ImproperlyConfigured
+from django.core.management import call_command
 from models import MigrationHistory
 from south.db import db
 
@@ -305,7 +306,7 @@ def backwards_problems(tree, backwards, done, silent=False):
     return problems
 
 
-def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, silent=False):
+def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, silent=False, load_inital_data=False):
     
     app_name = get_app_name(app)
     
@@ -446,6 +447,19 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
         for mapp, mname in forwards:
             if (mapp, mname) not in current_migrations:
                 run_forwards(mapp, [mname], fake=fake, db_dry_run=db_dry_run, silent=silent)
+        # Now load initial data, only if we're really doing things and ended up at current
+        if not fake and not db_dry_run and load_inital_data and target_name == migrations[-1]:
+            print " - Loading initial data for %s." % app_name
+            # Override Django's get_apps call temporarily to only load from the
+            # current app
+            old_get_apps, models.get_apps = (
+                lambda: [app],
+                models.get_apps,
+            )
+            # Load the initial fixture
+            call_command('loaddata', 'initial_data', verbosity=1)
+            # Un-override
+            models.get_apps = old_get_apps
     elif direction == -1:
         if not silent:
             print " - Migrating backwards to just after %s." % target_name
