@@ -58,4 +58,5 @@ class Command(BaseCommand):
                 fake = fake,
                 db_dry_run = db_dry_run,
                 silent = silent,
+                load_inital_data = True,
             )
