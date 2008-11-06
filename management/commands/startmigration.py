@@ -248,8 +248,11 @@ def generate_field_definition(model, field):
             # the correct comment.
             if test_field(stripped_definition):
                 return stripped_definition
-                
-            index = field_definition.index('#', index+1)
+            
+            try:    
+                index = field_definition.index('#', index+1)
+            except ValueError:
+                break
             
         return field_definition
         
