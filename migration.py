@@ -453,8 +453,8 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
             # Override Django's get_apps call temporarily to only load from the
             # current app
             old_get_apps, models.get_apps = (
-                lambda: [app],
                 models.get_apps,
+                lambda: [app],
             )
             # Load the initial fixture
             call_command('loaddata', 'initial_data', verbosity=1)
