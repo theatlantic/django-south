@@ -40,7 +40,7 @@ class Command(NoArgsCommand):
             else:
                 # This is a migrated app, leave it
                 apps_migrated.append(app_name)
-        verbosity = int(options.get('verbosity'))
+        verbosity = int(options.get('verbosity', 0))
         # Run syncdb on only the ones needed
         if verbosity > 0:
             print "Syncing..."
