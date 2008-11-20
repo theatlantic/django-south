@@ -224,7 +224,7 @@ class DatabaseOperations(object):
                 sql += " DEFAULT %s"
                 sqlparams = (default)
             
-            if field.rel:
+            if field.rel and self.supports_foreign_keys:
                 self.add_deferred_sql(
                     self.foreign_key_sql(
                         table_name,
@@ -246,7 +246,10 @@ class DatabaseOperations(object):
             return sql % sqlparams
         else:
             return None
-        
+    
+    
+    supports_foreign_keys = True
+    
     def foreign_key_sql(self, from_table_name, from_column_name, to_table_name, to_column_name):
         """
         Generates a full SQL statement to add a foreign key constraint
