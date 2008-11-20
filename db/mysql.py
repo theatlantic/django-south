@@ -11,6 +11,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     alter_string_set_type = ''
     alter_string_set_null = 'MODIFY %(column)s %(type)s NULL;'
     alter_string_drop_null = 'MODIFY %(column)s %(type)s NOT NULL;'
+    drop_index_string = 'DROP INDEX %(index_name)s ON %(table_name)s'
 
     def rename_column(self, table_name, old, new):
         if old == new:
