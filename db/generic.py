@@ -260,7 +260,8 @@ class DatabaseOperations(object):
             to_column_name,
             connection.ops.deferrable_sql() # Django knows this
         )
-        
+
+
     def create_index_name(self, table_name, column_names):
         """
         Generate a unique name for the index
@@ -270,6 +271,7 @@ class DatabaseOperations(object):
             index_unique_name = '_%x' % abs(hash((table_name, ','.join(column_names))))
 
         return '%s_%s%s' % (table_name, column_names[0], index_unique_name)
+
 
     def create_index_sql(self, table_name, column_names, unique=False, db_tablespace=''):
         """
@@ -300,6 +302,8 @@ class DatabaseOperations(object):
         self.execute(sql)
 
 
+    drop_index_string = 'DROP INDEX %(index_name)s'
+
     def delete_index(self, table_name, column_names, db_tablespace=''):
         """
         Deletes an index created with create_index.
@@ -307,7 +311,7 @@ class DatabaseOperations(object):
         index naming function which relies on column names.
         """
         name = self.create_index_name(table_name, column_names)
-        sql = "DROP INDEX %s" % name
+        sql = self.drop_index_string % {"index_name": name, "table_name": table_name}
         self.execute(sql)
 
 
