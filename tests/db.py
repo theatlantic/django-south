@@ -81,3 +81,21 @@ class TestOperations(unittest.TestCase):
         except:
             pass
         db.rollback_transaction()
+        db.delete_table("test2")
+    
+    def test_index(self):
+        """
+        Test the index operations
+        """
+        cursor = connection.cursor()
+        db.create_table("test3", [('spam', models.BooleanField(default=False)), ('eggs', models.IntegerField())])
+        db.start_transaction()
+        # Add an index on that column
+        db.create_index("test3", ["spam"])
+        # Add another index on two columns
+        db.create_index("test3", ["spam", "eggs"])
+        # Delete them both
+        db.delete_index("test3", ["spam"])
+        db.delete_index("test3", ["spam", "eggs"])
+        db.rollback_transaction()
+        db.delete_table("test3")
