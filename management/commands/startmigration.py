@@ -80,11 +80,15 @@ class Command(BaseCommand):
             os.path.dirname(app_module.__file__),
             "migrations",
         )
+        # Make sure there's a migrations directory and __init__.py
         if not os.path.isdir(migrations_dir):
             print "Creating migrations directory at '%s'..." % migrations_dir
             os.mkdir(migrations_dir)
+        init_path = os.path.join(migrations_dir, "__init__.py")
+        if not os.path.isfile(init_path):
             # Touch the init py file
-            open(os.path.join(migrations_dir, "__init__.py"), "w").close()
+            print "Creating __init__.py in '%s'..." % migrations_dir
+            open(init_path, "w").close()
         # See what filename is next in line. We assume they use numbers.
         migrations = migration.get_migration_names(migration.get_app(app))
         highest_number = 0
