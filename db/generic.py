@@ -127,6 +127,7 @@ class DatabaseOperations(object):
     alter_string_set_type = 'ALTER COLUMN %(column)s TYPE %(type)s'
     alter_string_set_null = 'ALTER COLUMN %(column)s SET NOT NULL'
     alter_string_drop_null = 'ALTER COLUMN %(column)s DROP NOT NULL'
+    allows_combined_alters = True
     
     def alter_column(self, table_name, name, field):
         """
@@ -181,7 +182,12 @@ class DatabaseOperations(object):
         
         # TODO: Unique
         
-        self.execute("ALTER TABLE %s %s;" % (qn(table_name), ", ".join(sqls)))
+        if self.allows_combined_alters:
+            self.execute("ALTER TABLE %s %s;" % (qn(table_name), ", ".join(sqls)))
+        else:
+            # Databases like e.g. MySQL don't like more than one alter at once.
+            for sql in sqls:
+                self.execute("ALTER TABLE %s %s;" % (qn(table_name), sql))
 
 
     def column_sql(self, table_name, field_name, field, tablespace=''):
