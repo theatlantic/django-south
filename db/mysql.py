@@ -28,17 +28,21 @@ class DatabaseOperations(generic.DatabaseOperations):
             qn(table_name),
             qn(old),
             qn(new),
-            "%s %s %s %s %s" % (
-                rows[0][1],
-                rows[0][2] == "YES" and "NULL" or "NOT NULL",
-                rows[0][3] == "PRI" and "PRIMARY KEY" or "",
-                rows[0][4] and "DEFAULT %s" % rows[0][4] or "",
-                rows[0][5] or "",
-            ),
+            rows[0][1],
+            rows[0][2] == "YES" and "NULL" or "NOT NULL",
+            rows[0][3] == "PRI" and "PRIMARY KEY" or "",
+            rows[0][4] and "DEFAULT " or "",
+            rows[0][4] and "%s" or "",
+            rows[0][5] or "",
         )
-        self.execute('ALTER TABLE %s CHANGE COLUMN %s %s %s;' % params)
-
-
+        
+        sql = 'ALTER TABLE %s CHANGE COLUMN %s %s %s %s %s %s %s %s;' % params
+        
+        if rows[0][4]:
+            self.execute(sql, (rows[0][4],))
+        else:
+            self.execute(sql)
+            
     def rename_table(self, old_table_name, table_name):
         """
         Renames the table 'old_table_name' to 'table_name'.
