@@ -112,17 +112,27 @@ class Command(BaseCommand):
                 mock_models = []
                 fields = []
                 for f in model._meta.local_fields:
-                    # look up the field definition to see how this was created
+                    
+                    # Look up the field definition to see how this was created
                     field_definition = generate_field_definition(model, f)
-                    if field_definition:
+                    
+                    # If it's a OneToOneField, and ends in _ptr, just use it
+                    if isinstance(f, models.OneToOneField) and f.name.endswith("_ptr"):
+                        mock_models.append(create_mock_model(f.rel.to))
+                        field_definition = "models.OneToOneField(%s)" % f.rel.to.__name__
+                    
+                    # It's probably normal then
+                    elif field_definition:
                         
                         if isinstance(f, models.ForeignKey):
                             mock_models.append(create_mock_model(f.rel.to))
                             field_definition = related_field_definition(f, field_definition)
-                            
+                    
+                    # Oh noes, no defn found
                     else:
                         print "Warning: Could not generate field definition for %s.%s, manual editing of migration required." % \
                                 (model._meta.object_name, f.name)
+                        print f, type(f)
                                 
                         field_definition = '<<< REPLACE THIS WITH FIELD DEFINITION FOR %s.%s >>>' % (model._meta.object_name, f.name)
                                                 
@@ -214,6 +224,7 @@ class Command(BaseCommand):
         fp = open(os.path.join(migrations_dir, new_filename), "w")
         fp.write("""
 from south.db import db
+from django.db import models
 from %s.models import *
 
 class Migration:
@@ -270,7 +281,7 @@ def generate_field_definition(model, field):
     source = inspect.getsourcelines(model)
     if not source:
         raise Exception("Could not find source to model: '%s'" % (model.__name__))
-        
+    
     # look for a line starting with the field name
     start_field_re = re.compile(r'\s*%s\s*=\s*(.*)' % field.name)
     for line in source[0]:
