@@ -87,8 +87,10 @@ class TestOperations(unittest.TestCase):
         """
         Test the index operations
         """
-        cursor = connection.cursor()
-        db.create_table("test3", [('spam', models.BooleanField(default=False)), ('eggs', models.IntegerField())])
+        db.create_table("test3", [
+            ('spam', models.BooleanField(default=False)),
+            ('eggs', models.IntegerField()),
+        ])
         db.start_transaction()
         # Add an index on that column
         db.create_index("test3", ["spam"])
@@ -99,3 +101,18 @@ class TestOperations(unittest.TestCase):
         db.delete_index("test3", ["spam", "eggs"])
         db.rollback_transaction()
         db.delete_table("test3")
+    
+    def test_alter(self):
+        """
+        Test altering columns/tables
+        """
+        db.create_table("test4", [
+            ('spam', models.BooleanField(default=False)),
+            ('eggs', models.IntegerField()),
+        ])
+        db.start_transaction()
+        # Add a column
+        db.add_column("test4", "add1", models.IntegerField(default=3), keep_default=False)
+        
+        db.rollback_transaction()
+        db.delete_table("test4")

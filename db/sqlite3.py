@@ -12,10 +12,10 @@ class DatabaseOperations(generic.DatabaseOperations):
     supports_foreign_keys = False
     
     # You can't add UNIQUE columns with an ALTER TABLE.
-    def add_column(self, table_name, name, field):
+    def add_column(self, table_name, name, field, *args, **kwds):
         # Run ALTER TABLE with no unique column
         unique, field._unique, field.db_index = field.unique, False, False
-        generic.DatabaseOperations.add_column(self, table_name, name, field)
+        generic.DatabaseOperations.add_column(self, table_name, name, field, *args, **kwds)
         # If it _was_ unique, make an index on it.
         if unique:
             self.create_index(table_name, [name], unique=True)

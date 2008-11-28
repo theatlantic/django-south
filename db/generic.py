@@ -3,6 +3,7 @@ import datetime
 from django.core.management.color import no_style
 from django.db import connection, transaction, models
 from django.db.backends.util import truncate_name
+from django.db.models.fields import NOT_PROVIDED
 from django.dispatch import dispatcher
 from django.conf import settings
 
@@ -103,7 +104,7 @@ class DatabaseOperations(object):
     drop_table = delete_table
 
 
-    def add_column(self, table_name, name, field):
+    def add_column(self, table_name, name, field, keep_default=True):
         """
         Adds the column 'name' to the table 'table_name'.
         Uses the 'field' paramater, a django.db.models.fields.Field instance,
@@ -122,7 +123,11 @@ class DatabaseOperations(object):
             )
             sql = 'ALTER TABLE %s ADD COLUMN %s;' % params
             self.execute(sql)
-    
+            
+            # Now, drop the default if we need to
+            if not keep_default and field.default:
+                field.default = NOT_PROVIDED
+                self.alter_column(table_name, name, field)
     
     alter_string_set_type = 'ALTER COLUMN %(column)s TYPE %(type)s'
     alter_string_set_null = 'ALTER COLUMN %(column)s SET NOT NULL'
@@ -150,23 +155,16 @@ class DatabaseOperations(object):
             "column": qn(name),
             "type": field.db_type(),
         }
-        sqls = [self.alter_string_set_type % params]
         
+        # SQLs is a list of (SQL, values) pairs.
+        sqls = [(self.alter_string_set_type % params, [])]
         
         # Next, set any default
-        params = (
-            qn(name),
-        )
-        
         if not field.null and field.has_default():
             default = field.get_default()
-            if isinstance(default, basestring):
-                default = "'%s'" % default
-            params += ("SET DEFAULT %s",)
+            sqls.append(('ALTER COLUMN %s SET DEFAULT %%s ' % (qn(name),), [default]))
         else:
-            params += ("DROP DEFAULT",)
-        
-        sqls.append('ALTER COLUMN %s %s ' % params)
+            sqls.append(('ALTER COLUMN %s DROP DEFAULT' % (qn(name),), []))
         
         
         # Next, nullity
@@ -175,19 +173,23 @@ class DatabaseOperations(object):
             "type": field.db_type(),
         }
         if field.null:
-            sqls.append(self.alter_string_drop_null % params)
+            sqls.append((self.alter_string_drop_null % params, []))
         else:
-            sqls.append(self.alter_string_set_null % params)
+            sqls.append((self.alter_string_set_null % params, []))
         
         
         # TODO: Unique
         
         if self.allows_combined_alters:
-            self.execute("ALTER TABLE %s %s;" % (qn(table_name), ", ".join(sqls)))
+            sqls, values = zip(*sqls)
+            self.execute(
+                "ALTER TABLE %s %s;" % (qn(table_name), ", ".join(sqls)),
+                flatten(values),
+            )
         else:
             # Databases like e.g. MySQL don't like more than one alter at once.
-            for sql in sqls:
-                self.execute("ALTER TABLE %s %s;" % (qn(table_name), sql))
+            for sql, values in sqls:
+                self.execute("ALTER TABLE %s %s;" % (qn(table_name), sql), values)
 
 
     def column_sql(self, table_name, field_name, field, tablespace=''):
@@ -450,3 +452,11 @@ class DatabaseOperations(object):
         MockModel._meta = MockOptions()
         MockModel._meta.model = MockModel
         return MockModel
+
+# Single-level flattening of lists
+def flatten(ls):
+    nl = []
+    for l in ls:
+        nl += l
+    return nl
+
