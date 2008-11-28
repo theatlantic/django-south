@@ -350,10 +350,10 @@ def related_field_definition(field, field_definition):
 def create_mock_model(model):
     # produce a string representing the python syntax necessary for creating
     # a mock model using the supplied real model
-    if model._meta.pk.__class__.__module__ != 'django.db.models.fields':
+    if not model._meta.pk.__class__.__module__.startswith('django.db.models.fields'):
         # we can fix this with some clever imports, but it doesn't seem necessary to
         # spend time on just yet
-        print "Can't generate a mock model for %s because it's primary key isn't a default django field" % model
+        print "Can't generate a mock model for %s because it's primary key isn't a default django field; it's type %s." % (model, model._meta.pk.__class__)
         sys.exit()
     
     return "%s = db.mock_model(model_name='%s', db_table='%s', db_tablespace='%s', pk_field_name='%s', pk_field_type=models.%s)" % \
