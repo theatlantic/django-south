@@ -414,7 +414,7 @@ class DatabaseOperations(object):
                 
     def mock_model(self, model_name, db_table, db_tablespace='', 
                     pk_field_name='id', pk_field_type=models.AutoField,
-                    pk_field_kwargs={}):
+                    pk_field_args=[], pk_field_kwargs={}):
         """
         Generates a MockModel class that provides enough information
         to be used by a foreign key/many-to-many relationship.
@@ -433,7 +433,7 @@ class DatabaseOperations(object):
                 if pk_field_type == models.AutoField:
                     pk_field_kwargs['primary_key'] = True
 
-                self.pk = pk_field_type(**pk_field_kwargs)
+                self.pk = pk_field_type(*pk_field_args, **pk_field_kwargs)
                 self.pk.set_attributes_from_name(pk_field_name)
                 self.abstract = False
 

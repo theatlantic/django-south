@@ -118,14 +118,14 @@ class Command(BaseCommand):
                     
                     # If it's a OneToOneField, and ends in _ptr, just use it
                     if isinstance(f, models.OneToOneField) and f.name.endswith("_ptr"):
-                        mock_models.append(create_mock_model(f.rel.to))
+                        mock_models.append(create_mock_model(f.rel.to, "        "))
                         field_definition = "models.OneToOneField(%s)" % f.rel.to.__name__
                     
                     # It's probably normal then
                     elif field_definition:
                         
                         if isinstance(f, models.ForeignKey):
-                            mock_models.append(create_mock_model(f.rel.to))
+                            mock_models.append(create_mock_model(f.rel.to, "        "))
                             field_definition = related_field_definition(f, field_definition)
                     
                     # Oh noes, no defn found
@@ -142,8 +142,8 @@ class Command(BaseCommand):
                     forwards += '''
         
         # Mock Models
-        %s
-        ''' % "\n        ".join(mock_models)
+%s
+        ''' % "\n".join(mock_models)
         
                 forwards += '''
         # Model '%s'
@@ -169,11 +169,11 @@ class Command(BaseCommand):
                     if m.rel.through:
                         continue
                         
-                    mock_models = [create_mock_model(model), create_mock_model(m.rel.to)]
+                    mock_models = [create_mock_model(model, "        "), create_mock_model(m.rel.to, "        ")]
                     
                     forwards += '''
         # Mock Models
-        %s
+%s
         
         # M2M field '%s.%s'
         db.create_table('%s', (
@@ -181,7 +181,7 @@ class Command(BaseCommand):
             ('%s', models.ForeignKey(%s, null=False)),
             ('%s', models.ForeignKey(%s, null=False))
         )) ''' % (
-                        "\n        ".join(mock_models),
+                        "\n".join(mock_models),
                         model._meta.object_name,
                         m.name,
                         m.m2m_db_table(),
@@ -347,7 +347,7 @@ def related_field_definition(field, field_definition):
     
     return field_definition
 
-def create_mock_model(model):
+def create_mock_model(model, indent="        "):
     # produce a string representing the python syntax necessary for creating
     # a mock model using the supplied real model
     if not model._meta.pk.__class__.__module__.startswith('django.db.models.fields'):
@@ -356,12 +356,25 @@ def create_mock_model(model):
         print "Can't generate a mock model for %s because it's primary key isn't a default django field; it's type %s." % (model, model._meta.pk.__class__)
         sys.exit()
     
-    return "%s = db.mock_model(model_name='%s', db_table='%s', db_tablespace='%s', pk_field_name='%s', pk_field_type=models.%s)" % \
+    pk_field_args = []
+    other_mocks = []
+    # If it's a OneToOneField or ForeignKey, take it's first arg
+    if model._meta.pk.__class__.__name__ in ["OneToOneField", "ForeignKey"]:
+        if model._meta.pk.rel.to == model:
+            pk_field_args += ["self"]
+        else:
+            pk_field_args += [model._meta.pk.rel.to._meta.object_name]
+            other_mocks += [model._meta.pk.rel.to]
+    
+    return "%s%s%s = db.mock_model(model_name='%s', db_table='%s', db_tablespace='%s', pk_field_name='%s', pk_field_type=models.%s, pk_field_args=[%s])" % \
         (
+        "\n".join([create_mock_model(m, indent) for m in other_mocks]+[""]),
+        indent,
         model._meta.object_name,
         model._meta.object_name,
         model._meta.db_table,
         model._meta.db_tablespace,
         model._meta.pk.name,
-        model._meta.pk.__class__.__name__
+        model._meta.pk.__class__.__name__,
+        ", ".join(pk_field_args),
         )
