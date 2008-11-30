@@ -454,7 +454,7 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
             # current app
             old_get_apps, models.get_apps = (
                 models.get_apps,
-                lambda: [app],
+                lambda: [models.get_app(get_app_name(app))],
             )
             # Load the initial fixture
             call_command('loaddata', 'initial_data', verbosity=1)
