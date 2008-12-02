@@ -130,8 +130,8 @@ class DatabaseOperations(object):
                 self.alter_column(table_name, name, field)
     
     alter_string_set_type = 'ALTER COLUMN %(column)s TYPE %(type)s'
-    alter_string_set_null = 'ALTER COLUMN %(column)s SET NOT NULL'
-    alter_string_drop_null = 'ALTER COLUMN %(column)s DROP NOT NULL'
+    alter_string_set_null = 'ALTER COLUMN %(column)s DROP NOT NULL'
+    alter_string_drop_null = 'ALTER COLUMN %(column)s SET NOT NULL'
     allows_combined_alters = True
     
     def alter_column(self, table_name, name, field):
@@ -173,9 +173,9 @@ class DatabaseOperations(object):
             "type": field.db_type(),
         }
         if field.null:
-            sqls.append((self.alter_string_drop_null % params, []))
-        else:
             sqls.append((self.alter_string_set_null % params, []))
+        else:
+            sqls.append((self.alter_string_drop_null % params, []))
         
         
         # TODO: Unique
