@@ -325,6 +325,12 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
     tree = dependency_tree()
     migrations = get_migration_names(app)
     
+    # If there aren't any, quit quizically
+    if not migrations:
+        if not silent:
+            print "? You have no migrations for the '%s' app. You might want some." % app_name
+        return
+    
     if target_name not in migrations and target_name not in ["zero", None]:
         matches = [x for x in migrations if x.startswith(target_name)]
         if len(matches) == 1:
