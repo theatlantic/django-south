@@ -13,6 +13,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     alter_string_drop_null = 'MODIFY %(column)s %(type)s NOT NULL;'
     drop_index_string = 'DROP INDEX %(index_name)s ON %(table_name)s'
     allows_combined_alters = False
+    has_ddl_transactions = False
 
     def rename_column(self, table_name, old, new):
         if old == new:
