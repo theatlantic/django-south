@@ -2,6 +2,7 @@
 import datetime
 import os
 import sys
+import traceback
 from django.conf import settings
 from django.db import models
 from django.core.exceptions import ImproperlyConfigured
@@ -205,38 +206,93 @@ def needed_before_backwards(tree, app, name, sameapp=True):
     return remove_duplicates(needed)
 
 
-def run_forwards(app, migrations, fake=False, db_dry_run=False, silent=False):
+def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry_run=False, silent=False):
     """
     Runs the specified migrations forwards, in order.
     """
     for migration in migrations:
         app_name = get_app_name(app)
         if not silent:
-            print " > %s: %s" % (app_name, migration)
+            print toprint % (app_name, migration)
         klass = get_migration(app, migration)
 
         if fake:
             if not silent:
                 print "   (faked)"
         else:
-            if db_dry_run:
+            
+            # If the database doesn't support running DDL inside a transaction
+            # *cough*MySQL*cough* then do a dry run first.
+            if not db.has_ddl_transactions:
                 db.dry_run = True
-                
-            db.start_transaction()
+                db.debug, old_debug = False, db.debug
+                try:
+                    getattr(klass(), torun)()
+                except:
+                    traceback.print_exc()
+                    print " ! Error found during dry run of migration! Aborting."
+                    return False
+                db.debug = old_debug
+                db.clear_deferred_sql()
+            
+            db.dry_run = bool(db_dry_run)
+            
+            if db.has_ddl_transactions:
+                db.start_transaction()
             try:
-                klass().forwards()
+                getattr(klass(), torun)()
                 db.execute_deferred_sql()
             except:
-                db.rollback_transaction()
-                raise
+                if db.has_ddl_transactions:
+                    db.rollback_transaction()
+                    raise
+                else:
+                    traceback.print_exc()
+                    print " ! Error found during real run of migration! Aborting."
+                    print
+                    print " ! Since you have a database that does not support running"
+                    print " ! schema-altering statements in transactions, we have had to"
+                    print " ! leave it in an interim state between migrations."
+                    if torun == "forwards":
+                        print
+                        print " ! You *might* be able to recover with:"
+                        db.debug = db.dry_run = True
+                        klass().backwards()
+                    print
+                    print " ! The South developers regret this has happened, and would"
+                    print " ! like to gently persuade you to consider a slightly"
+                    print " ! easier-to-deal-with DBMS."
+                    return False
             else:
-                db.commit_transaction()
+                if db.has_ddl_transactions:
+                    db.commit_transaction()
 
         if not db_dry_run:
             # Record us as having done this
-            record = MigrationHistory.for_migration(app_name, migration)
-            record.applied = datetime.datetime.utcnow()
-            record.save()
+            recorder(app_name, migration)
+
+
+def run_forwards(app, migrations, fake=False, db_dry_run=False, silent=False):
+    """
+    Runs the specified migrations forwards, in order.
+    """
+    
+    def record(app_name, migration):
+        # Record us as having done this
+        record = MigrationHistory.for_migration(app_name, migration)
+        record.applied = datetime.datetime.utcnow()
+        record.save()
+    
+    return run_migrations(
+        toprint = " > %s: %s",
+        torun = "forwards",
+        recorder = record,
+        app = app,
+        migrations = migrations,
+        fake = fake,
+        db_dry_run = db_dry_run,
+        silent = silent,
+    )
 
 
 def run_backwards(app, migrations, ignore=[], fake=False, db_dry_run=False, silent=False):
@@ -244,33 +300,22 @@ def run_backwards(app, migrations, ignore=[], fake=False, db_dry_run=False, sile
     Runs the specified migrations backwards, in order, skipping those
     migrations in 'ignore'.
     """
-    for migration in migrations:
-        if migration not in ignore:
-            app_name = get_app_name(app)
-            if not silent:
-                print " < %s: %s" % (app_name, migration)
-            klass = get_migration(app, migration)
-            if fake:
-                if not silent:
-                    print "   (faked)"
-            else:
-                if db_dry_run:
-                    db.dry_run = True
-                
-                db.start_transaction()
-                try:
-                    klass().backwards()
-                    db.execute_deferred_sql()
-                except:
-                    db.rollback_transaction()
-                    raise
-                else:
-                    db.commit_transaction()
-
-            if not db_dry_run:
-                # Record us as having not done this
-                record = MigrationHistory.for_migration(app_name, migration)
-                record.delete()
+    
+    def record(app_name, migration):
+        # Record us as having not done this
+        record = MigrationHistory.for_migration(app_name, migration)
+        record.delete()
+    
+    return run_migrations(
+        toprint = " < %s: %s",
+        torun = "backwards",
+        recorder = record,
+        app = app,
+        migrations = [x for x in migrations if x not in ignore],
+        fake = fake,
+        db_dry_run = db_dry_run,
+        silent = silent,
+    )
 
 
 def right_side_of(x, y):
@@ -452,7 +497,9 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
             print " - Migrating forwards to %s." % target_name
         for mapp, mname in forwards:
             if (mapp, mname) not in current_migrations:
-                run_forwards(mapp, [mname], fake=fake, db_dry_run=db_dry_run, silent=silent)
+                result = run_forwards(mapp, [mname], fake=fake, db_dry_run=db_dry_run, silent=silent)
+                if result is False: # The migrations errored, but nicely.
+                    return
         # Now load initial data, only if we're really doing things and ended up at current
         if not fake and not db_dry_run and load_inital_data and target_name == migrations[-1]:
             print " - Loading initial data for %s." % app_name

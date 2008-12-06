@@ -24,6 +24,9 @@ class DatabaseOperations(object):
     Generic SQL implementation of the DatabaseOperations.
     Some of this code comes from Django Evolution.
     """
+    
+    # We assume the generic DB can handle DDL transactions. MySQL wil change this.
+    has_ddl_transactions = True
 
     def __init__(self):
         self.debug = False
@@ -64,6 +67,13 @@ class DatabaseOperations(object):
         for sql in self.deferred_sql:
             self.execute(sql)
             
+        self.deferred_sql = []
+    
+    
+    def clear_deferred_sql(self):
+        """
+        Resets the deferred_sql list to empty.
+        """
         self.deferred_sql = []
 
 
