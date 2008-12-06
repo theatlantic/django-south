@@ -45,7 +45,7 @@ class TestOperations(unittest.TestCase):
         db.rollback_transaction()
         db.start_transaction()
         # Remove the table
-        db.delete_table("test1")
+        db.drop_table("test1")
         # Make sure it went
         try:
             cursor.execute("SELECT * FROM test1")
@@ -82,6 +82,26 @@ class TestOperations(unittest.TestCase):
             pass
         db.rollback_transaction()
         db.delete_table("test2")
+    
+    def test_table_rename(self):
+        """
+        Test column renaming
+        """
+        cursor = connection.cursor()
+        db.create_table("testtr", [('spam', models.BooleanField(default=False))])
+        db.start_transaction()
+        # Make sure we can select the column
+        cursor.execute("SELECT spam FROM testtr")
+        # Rename it
+        db.rename_table("testtr", "testtr2")
+        cursor.execute("SELECT spam FROM testtr2")
+        try:
+            cursor.execute("SELECT spam FROM testtr")
+            self.fail("Just-renamed column could be selected!")
+        except:
+            pass
+        db.rollback_transaction()
+        db.delete_table("testtr2")
     
     def test_index(self):
         """
