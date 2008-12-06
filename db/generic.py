@@ -7,6 +7,17 @@ from django.db.models.fields import NOT_PROVIDED
 from django.dispatch import dispatcher
 from django.conf import settings
 
+
+def alias(attrname):
+    """
+    Returns a function which calls 'attrname' - for function aliasing.
+    We can't just use foo = bar, as this breaks subclassing.
+    """
+    def func(self, *args, **kwds):
+        return getattr(self, attrname)(*args, **kwds)
+    return func
+
+
 class DatabaseOperations(object):
 
     """
@@ -78,7 +89,7 @@ class DatabaseOperations(object):
         
         self.execute('CREATE TABLE %s (%s);' % (qn(table_name), ', '.join([col for col in columns if col])))
     
-    add_table = create_table # Alias for consistency's sake
+    add_table = alias('create_table') # Alias for consistency's sake
 
 
     def rename_table(self, old_table_name, table_name):
@@ -101,7 +112,7 @@ class DatabaseOperations(object):
         params = (qn(table_name), )
         self.execute('DROP TABLE %s;' % params)
     
-    drop_table = delete_table
+    drop_table = alias('delete_table')
 
 
     def add_column(self, table_name, name, field, keep_default=True):
@@ -325,6 +336,8 @@ class DatabaseOperations(object):
         sql = self.drop_index_string % {"index_name": name, "table_name": table_name}
         self.execute(sql)
 
+    drop_index = alias('delete_index')
+
 
     def delete_column(self, table_name, name):
         """
@@ -333,6 +346,8 @@ class DatabaseOperations(object):
         qn = connection.ops.quote_name
         params = (qn(table_name), qn(name))
         self.execute('ALTER TABLE %s DROP COLUMN %s CASCADE;' % params, [])
+    
+    drop_column = alias('delete_column')
 
 
     def rename_column(self, table_name, old, new):
