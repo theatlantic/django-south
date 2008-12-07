@@ -130,12 +130,13 @@ class Command(BaseCommand):
         if fields_to_add:
             # First, do the added fields
             for model, field_name, field in fields_to_add:
+                field_definition = generate_field_definition(model, field)
+                
                 if field.rel: # ForeignKey, etc.
                     mock_model = create_mock_model(field.rel.to, "        ")
                     field_definition = related_field_definition(field, field_definition)
                 else:
                     mock_model = None
-                    field_definition = generate_field_definition(model, field)
                 
                 # If we can't get it (inspect madness?) then insert placeholder
                 if not field_definition:
