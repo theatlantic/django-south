@@ -3,6 +3,7 @@ from django.core.management.color import no_style
 from django.db import models
 from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
 from django.contrib.contenttypes.generic import GenericRelation
+from django.db.models.fields import FieldDoesNotExist
 from optparse import make_option
 from south import migration
 import sys
@@ -17,18 +18,23 @@ class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
         make_option('--model', action='append', dest='model_list', type='string',
             help='Generate a Create Table migration for the specified model.  Add multiple models to this migration with subsequent --model parameters.'),
+        make_option('--add-field', action='append', dest='field_list', type='string',
+            help='Generate an Add Column migration for the specified modelname.fieldname - you can use this multiple times to add more than one column.'),
         make_option('--initial', action='store_true', dest='initial', default=False,
             help='Generate the initial schema for the app.'),
     )
     help = "Creates a new template migration for the given app"
     
-    def handle(self, app=None, name="", model_list=None, initial=False, **options):
+    def handle(self, app=None, name="", model_list=None, field_list=None, initial=False, **options):
         
         # If model_list is None, then it's an empty list
         model_list = model_list or []
         
+        # If field_list is None, then it's an empty list
+        field_list = field_list or []
+        
         # make sure --model and --all aren't both specified
-        if initial and model_list:
+        if initial and (model_list or field_list):
             print "You cannot use --initial and other options together"
             return
             
@@ -67,7 +73,22 @@ class Command(BaseCommand):
                     return
                     
                 models_to_migrate.append(model)
-                
+        
+        # See what fields need to be included
+        fields_to_add = []
+        for field_spec in field_list:
+            model_name, field_name = field_spec.split(".", 1)
+            model = models.get_model(app, model_name)
+            if not model:
+                print "Couldn't find model '%s' in app '%s'" % (model_name, app)
+                return
+            try:
+                field = model._meta.get_field(field_name)
+            except FieldDoesNotExist:
+                print "Model '%s' doesn't have a field '%s'" % (model_name, field_name)
+                return
+            fields_to_add.append((model, field_name, field))
+        
         # Make the migrations directory if it's not there
         app_module_path = app_models_module.__name__.split('.')[0:-1]
         try:
@@ -106,7 +127,50 @@ class Command(BaseCommand):
         )
         # If there's a model, make the migration skeleton, else leave it bare
         forwards, backwards = '', ''
+        if fields_to_add:
+            # First, do the added fields
+            for model, field_name, field in fields_to_add:
+                if field.rel: # ForeignKey, etc.
+                    mock_model = create_mock_model(field.rel.to, "        ")
+                    field_definition = related_field_definition(field, field_definition)
+                else:
+                    mock_model = None
+                    field_definition = generate_field_definition(model, field)
+                
+                # If we can't get it (inspect madness?) then insert placeholder
+                if not field_definition:
+                    print "Warning: Could not generate field definition for %s.%s, manual editing of migration required." % \
+                                (model._meta.object_name, field.name)
+                    field_definition = '<<< REPLACE THIS WITH FIELD DEFINITION FOR %s.%s >>>' % (model._meta.object_name, f.name)
+                
+                if mock_model:
+                    forwards += '''
+        # Mock model
+%s
+        ''' % (mock_model)
+                
+                forwards += '''
+        # Adding field '%s.%s'
+        db.add_column(%r, %r, %s)
+        ''' % (
+            model._meta.object_name,
+            field.name,
+            model._meta.db_table,
+            field.name,
+            field_definition,
+        )
+                backwards += '''
+        # Deleting field '%s.%s'
+        db.delete_column(%r, %r)
+        ''' % (
+            model._meta.object_name,
+            field.name,
+            model._meta.db_table,
+            field.name,
+        )
+        
         if models_to_migrate:
+            # Now, do the added models
             for model in models_to_migrate:
                 table_name = model._meta.db_table
                 mock_models = []
@@ -147,7 +211,7 @@ class Command(BaseCommand):
         
                 forwards += '''
         # Model '%s'
-        db.create_table('%s', (
+        db.create_table(%r, (
             %s
         ))''' % (
                     model._meta.object_name,
@@ -218,7 +282,7 @@ class Command(BaseCommand):
                 "','".join(model._meta.object_name for model in models_to_migrate)
                 )
         
-        else:
+        if (not forwards) and (not backwards):
             forwards = '"Write your forwards migration here"'
             backwards = '"Write your backwards migration here"'
         fp = open(os.path.join(migrations_dir, new_filename), "w")
