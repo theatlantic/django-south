@@ -6,6 +6,8 @@ class DatabaseOperations(generic.DatabaseOperations):
     """
     django-pyodbc (sql_server.pyodbc) implementation of database operations.
     """
+    
+    add_column_string = 'ALTER TABLE %s ADD %s;'
 
     def create_table(self, table_name, fields):
         # Tweak stuff as needed
