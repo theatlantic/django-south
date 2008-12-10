@@ -123,7 +123,17 @@ class DatabaseOperations(object):
         self.execute('DROP TABLE %s;' % params)
     
     drop_table = alias('delete_table')
+    
+    
+    def clear_table(self, table_name):
+        """
+        Deletes all rows from 'table_name'.
+        """
+        qn = connection.ops.quote_name
+        params = (qn(table_name), )
+        self.execute('DELETE FROM %s;' % params)
 
+    add_column_string = 'ALTER TABLE %s ADD COLUMN %s;'
 
     def add_column(self, table_name, name, field, keep_default=True):
         """
@@ -142,7 +152,7 @@ class DatabaseOperations(object):
                 qn(table_name),
                 sql,
             )
-            sql = 'ALTER TABLE %s ADD COLUMN %s;' % params
+            sql = self.add_column_string % params
             self.execute(sql)
             
             # Now, drop the default if we need to
