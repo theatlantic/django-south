@@ -422,16 +422,21 @@ def create_mock_model(model, indent="        "):
         sys.exit()
     
     pk_field_args = []
+    pk_field_kwargs = {}
     other_mocks = []
     # If it's a OneToOneField or ForeignKey, take it's first arg
     if model._meta.pk.__class__.__name__ in ["OneToOneField", "ForeignKey"]:
         if model._meta.pk.rel.to == model:
-            pk_field_args += ["self"]
+            pk_field_args += ["'self'"]
         else:
             pk_field_args += [model._meta.pk.rel.to._meta.object_name]
             other_mocks += [model._meta.pk.rel.to]
     
-    return "%s%s%s = db.mock_model(model_name='%s', db_table='%s', db_tablespace='%s', pk_field_name='%s', pk_field_type=models.%s, pk_field_args=[%s])" % \
+    # Perhaps it has a max_length set?
+    if model._meta.pk.max_length:
+        pk_field_kwargs["max_length"] = model._meta.pk.max_length
+    
+    return "%s%s%s = db.mock_model(model_name='%s', db_table='%s', db_tablespace='%s', pk_field_name='%s', pk_field_type=models.%s, pk_field_args=[%s], pk_field_kwargs=%r)" % \
         (
         "\n".join([create_mock_model(m, indent) for m in other_mocks]+[""]),
         indent,
@@ -442,4 +447,5 @@ def create_mock_model(model, indent="        "):
         model._meta.pk.name,
         model._meta.pk.__class__.__name__,
         ", ".join(pk_field_args),
+        pk_field_kwargs,
         )
