@@ -293,13 +293,14 @@ class DatabaseOperations(object):
         """
         Generates a full SQL statement to add a foreign key constraint
         """
+        qn = connection.ops.quote_name
         constraint_name = '%s_refs_%s_%x' % (from_column_name, to_column_name, abs(hash((from_table_name, to_table_name))))
         return 'ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)%s;' % (
-            from_table_name,
-            truncate_name(constraint_name, connection.ops.max_name_length()),
-            from_column_name,
-            to_table_name,
-            to_column_name,
+            qn(from_table_name),
+            qn(truncate_name(constraint_name, connection.ops.max_name_length())),
+            qn(from_column_name),
+            qn(to_table_name),
+            qn(to_column_name),
             connection.ops.deferrable_sql() # Django knows this
         )
 
@@ -319,6 +320,7 @@ class DatabaseOperations(object):
         """
         Generates a create index statement on 'table_name' for a list of 'column_names'
         """
+        qn = connection.ops.quote_name
         if not column_names:
             print "No column names supplied on which to create an index"
             return ''
@@ -332,8 +334,8 @@ class DatabaseOperations(object):
         qn = connection.ops.quote_name
         return 'CREATE %sINDEX %s ON %s (%s)%s;' % (
             unique and 'UNIQUE ' or '',
-            index_name,
-            table_name,
+            qn(index_name),
+            qn(table_name),
             ','.join([qn(field) for field in column_names]),
             tablespace_sql
         )
@@ -353,7 +355,8 @@ class DatabaseOperations(object):
         index naming function which relies on column names.
         """
         name = self.create_index_name(table_name, column_names)
-        sql = self.drop_index_string % {"index_name": name, "table_name": table_name}
+        qn = connection.ops.quote_name
+        sql = self.drop_index_string % {"index_name": qn(name), "table_name": qn(table_name)}
         self.execute(sql)
 
     drop_index = alias('delete_index')
