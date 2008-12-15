@@ -16,7 +16,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     has_ddl_transactions = False
 
     def rename_column(self, table_name, old, new):
-        if old == new:
+        if old == new or self.dry_run:
             return []
         
         qn = connection.ops.quote_name
@@ -44,7 +44,8 @@ class DatabaseOperations(generic.DatabaseOperations):
             self.execute(sql, (rows[0][4],))
         else:
             self.execute(sql)
-            
+    
+    
     def rename_table(self, old_table_name, table_name):
         """
         Renames the table 'old_table_name' to 'table_name'.

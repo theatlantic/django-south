@@ -83,6 +83,28 @@ class TestOperations(unittest.TestCase):
         db.rollback_transaction()
         db.delete_table("test2")
     
+    def test_dry_rename(self):
+        """
+        Test column renaming while --dry-run is turned on (should do nothing)
+        """
+        cursor = connection.cursor()
+        db.create_table("test2", [('spam', models.BooleanField(default=False))])
+        db.start_transaction()
+        # Make sure we can select the column
+        cursor.execute("SELECT spam FROM test2")
+        # Rename it
+        db.dry_run = True
+        db.rename_column("test2", "spam", "eggs")
+        db.dry_run = False
+        cursor.execute("SELECT spam FROM test2")
+        try:
+            cursor.execute("SELECT eggs FROM test2")
+            self.fail("Dry-renamed new column could be selected!")
+        except:
+            pass
+        db.rollback_transaction()
+        db.delete_table("test2")
+    
     def test_table_rename(self):
         """
         Test column renaming
