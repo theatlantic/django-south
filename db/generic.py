@@ -24,7 +24,7 @@ class DatabaseOperations(object):
     Generic SQL implementation of the DatabaseOperations.
     Some of this code comes from Django Evolution.
     """
-    
+
     # We assume the generic DB can handle DDL transactions. MySQL wil change this.
     has_ddl_transactions = True
 
@@ -44,32 +44,32 @@ class DatabaseOperations(object):
 
         if self.dry_run:
             return []
-        
+
         cursor.execute(sql, params)
         try:
             return cursor.fetchall()
         except:
             return []
-            
-            
+
+
     def add_deferred_sql(self, sql):
         """
         Add a SQL statement to the deferred list, that won't be executed until
         this instance's execute_deferred_sql method is run.
         """
         self.deferred_sql.append(sql)
-        
-        
+
+
     def execute_deferred_sql(self):
         """
         Executes all deferred SQL, resetting the deferred_sql list
         """
         for sql in self.deferred_sql:
             self.execute(sql)
-            
+
         self.deferred_sql = []
-    
-    
+
+
     def clear_deferred_sql(self):
         """
         Resets the deferred_sql list to empty.
@@ -84,21 +84,21 @@ class DatabaseOperations(object):
         django.db.models.fields.Field object
         """
         qn = connection.ops.quote_name
-        
+
         # allow fields to be a dictionary
-	# removed for now - philosophical reasons (this is almost certainly not what you want)
+        # removed for now - philosophical reasons (this is almost certainly not what you want)
         #try:
         #    fields = fields.items()
         #except AttributeError:
         #    pass
-            
+
         columns = [
             self.column_sql(table_name, field_name, field)
             for field_name, field in fields
         ]
-        
+
         self.execute('CREATE TABLE %s (%s);' % (qn(table_name), ', '.join([col for col in columns if col])))
-    
+
     add_table = alias('create_table') # Alias for consistency's sake
 
 
@@ -121,10 +121,10 @@ class DatabaseOperations(object):
         qn = connection.ops.quote_name
         params = (qn(table_name), )
         self.execute('DROP TABLE %s;' % params)
-    
+
     drop_table = alias('delete_table')
-    
-    
+
+
     def clear_table(self, table_name):
         """
         Deletes all rows from 'table_name'.
@@ -140,7 +140,7 @@ class DatabaseOperations(object):
         Adds the column 'name' to the table 'table_name'.
         Uses the 'field' paramater, a django.db.models.fields.Field instance,
         to generate the necessary sql
-        
+
         @param table_name: The name of the table to add the column to
         @param name: The name of the column to add
         @param field: The field to use
@@ -154,50 +154,50 @@ class DatabaseOperations(object):
             )
             sql = self.add_column_string % params
             self.execute(sql)
-            
+
             # Now, drop the default if we need to
             if not keep_default and field.default:
                 field.default = NOT_PROVIDED
                 self.alter_column(table_name, name, field)
-    
+
     alter_string_set_type = 'ALTER COLUMN %(column)s TYPE %(type)s'
     alter_string_set_null = 'ALTER COLUMN %(column)s DROP NOT NULL'
     alter_string_drop_null = 'ALTER COLUMN %(column)s SET NOT NULL'
     allows_combined_alters = True
-    
+
     def alter_column(self, table_name, name, field):
         """
         Alters the given column name so it will match the given field.
         Note that conversion between the two by the database must be possible.
-        
+
         @param table_name: The name of the table to add the column to
         @param name: The name of the column to alter
         @param field: The new field definition to use
         """
-        
+
         # hook for the field to do any resolution prior to it's attributes being queried
         if hasattr(field, 'south_init'):
             field.south_init()
-        
+
         qn = connection.ops.quote_name
-        
+
         # First, change the type
         params = {
             "column": qn(name),
             "type": field.db_type(),
         }
-        
+
         # SQLs is a list of (SQL, values) pairs.
         sqls = [(self.alter_string_set_type % params, [])]
-        
+
         # Next, set any default
         if not field.null and field.has_default():
             default = field.get_default()
             sqls.append(('ALTER COLUMN %s SET DEFAULT %%s ' % (qn(name),), [default]))
         else:
             sqls.append(('ALTER COLUMN %s DROP DEFAULT' % (qn(name),), []))
-        
-        
+
+
         # Next, nullity
         params = {
             "column": qn(name),
@@ -207,10 +207,10 @@ class DatabaseOperations(object):
             sqls.append((self.alter_string_set_null % params, []))
         else:
             sqls.append((self.alter_string_drop_null % params, []))
-        
-        
+
+
         # TODO: Unique
-        
+
         if self.allows_combined_alters:
             sqls, values = zip(*sqls)
             self.execute(
@@ -228,13 +228,13 @@ class DatabaseOperations(object):
         Creates the SQL snippet for a column. Used by add_column and add_table.
         """
         qn = connection.ops.quote_name
-        
+
         field.set_attributes_from_name(field_name)
-        
+
         # hook for the field to do any resolution prior to it's attributes being queried
         if hasattr(field, 'south_init'):
             field.south_init()
-        
+
         sql = field.db_type()
         if sql:        
             field_output = [qn(field.column), sql]
@@ -243,13 +243,13 @@ class DatabaseOperations(object):
                 field_output.append('PRIMARY KEY')
             elif field.unique:
                 field_output.append('UNIQUE')
-        
+
             tablespace = field.db_tablespace or tablespace
             if tablespace and connection.features.supports_tablespaces and field.unique:
                 # We must specify the index tablespace inline, because we
                 # won't be generating a CREATE INDEX statement for this field.
                 field_output.append(connection.ops.tablespace_sql(tablespace, inline=True))
-            
+
             sql = ' '.join(field_output)
             sqlparams = ()
             # if the field is "NOT NULL" and a default value is provided, create the column with it
@@ -262,7 +262,7 @@ class DatabaseOperations(object):
                     default = "'%s'" % default
                 sql += " DEFAULT %s"
                 sqlparams = (default)
-            
+
             if field.rel and self.supports_foreign_keys:
                 self.add_deferred_sql(
                     self.foreign_key_sql(
@@ -272,10 +272,10 @@ class DatabaseOperations(object):
                         field.rel.to._meta.get_field(field.rel.field_name).column
                     )
                 )
-            
+
             if field.db_index and not field.unique:
                 self.add_deferred_sql(self.create_index_sql(table_name, [field.column]))
-            
+
         if hasattr(field, 'post_create_sql'):
             style = no_style()
             for stmt in field.post_create_sql(style, table_name):
@@ -285,10 +285,10 @@ class DatabaseOperations(object):
             return sql % sqlparams
         else:
             return None
-    
-    
+
+
     supports_foreign_keys = True
-    
+
     def foreign_key_sql(self, from_table_name, from_column_name, to_table_name, to_column_name):
         """
         Generates a full SQL statement to add a foreign key constraint
@@ -322,12 +322,12 @@ class DatabaseOperations(object):
         if not column_names:
             print "No column names supplied on which to create an index"
             return ''
-            
+
         if db_tablespace and connection.features.supports_tablespaces:
             tablespace_sql = ' ' + connection.ops.tablespace_sql(db_tablespace)
         else:
             tablespace_sql = ''
-        
+
         index_name = self.create_index_name(table_name, column_names)
         qn = connection.ops.quote_name
         return 'CREATE %sINDEX %s ON %s (%s)%s;' % (
@@ -336,8 +336,8 @@ class DatabaseOperations(object):
             table_name,
             ','.join([qn(field) for field in column_names]),
             tablespace_sql
-            )
-        
+        )
+
     def create_index(self, table_name, column_names, unique=False, db_tablespace=''):
         """ Executes a create index statement """
         sql = self.create_index_sql(table_name, column_names, unique, db_tablespace)
@@ -366,7 +366,7 @@ class DatabaseOperations(object):
         qn = connection.ops.quote_name
         params = (qn(table_name), qn(name))
         self.execute('ALTER TABLE %s DROP COLUMN %s CASCADE;' % params, [])
-    
+
     drop_column = alias('delete_column')
 
 
@@ -409,15 +409,15 @@ class DatabaseOperations(object):
             return
         transaction.rollback()
         transaction.leave_transaction_management()
-    
-    
+
+
     def send_create_signal(self, app_label, model_names):
         """
         Sends a post_syncdb signal for the model specified.
-        
+
         If the model is not found (perhaps it's been deleted?),
         no signal is sent.
-        
+
         TODO: The behavior of django.contrib.* apps seems flawed in that
         they don't respect created_models.  Rather, they blindly execute
         over all models within the app sending the signal.  This is a
@@ -426,34 +426,34 @@ class DatabaseOperations(object):
         app = models.get_app(app_label)
         if not app:
             return
-            
+
         created_models = []
         for model_name in model_names:
             model = models.get_model(app_label, model_name)
             if model:
                 created_models.append(model)
-                
+
         if created_models:
             # syncdb defaults -- perhaps take these as options?
             verbosity = 1
             interactive = True
-            
+
             if hasattr(dispatcher, "send"):
                 dispatcher.send(signal=models.signals.post_syncdb, sender=app,
-                app=app, created_models=created_models,
-                verbosity=verbosity, interactive=interactive)
+                                app=app, created_models=created_models,
+                                verbosity=verbosity, interactive=interactive)
             else:
                 models.signals.post_syncdb.send(sender=app,
-                app=app, created_models=created_models,
-                verbosity=verbosity, interactive=interactive)
-                
+                                                app=app, created_models=created_models,
+                                                verbosity=verbosity, interactive=interactive)
+
     def mock_model(self, model_name, db_table, db_tablespace='', 
-                    pk_field_name='id', pk_field_type=models.AutoField,
-                    pk_field_args=[], pk_field_kwargs={}):
+                   pk_field_name='id', pk_field_type=models.AutoField,
+                   pk_field_args=[], pk_field_kwargs={}):
         """
         Generates a MockModel class that provides enough information
         to be used by a foreign key/many-to-many relationship.
-        
+
         Migrations should prefer to use these rather than actual models
         as models could get deleted over time, but these can remain in
         migration files forever.
