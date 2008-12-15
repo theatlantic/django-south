@@ -63,6 +63,22 @@ class TestOperations(unittest.TestCase):
             pass
         db.rollback_transaction()
     
+    def test_foreign_keys(self):
+        """
+        Tests foreign key creation, especially uppercase (see #61)
+        """
+        Test = db.mock_model(model_name='Test', db_table='test5a',
+                             db_tablespace='', pk_field_name='ID',
+                             pk_field_type=models.AutoField, pk_field_args=[])
+        cursor = connection.cursor()
+        db.start_transaction()
+        db.create_table("test5a", [('ID', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True))])
+        db.create_table("test5b", [
+            ('id', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)),
+            ('UNIQUE', models.ForeignKey(Test)),
+        ])
+        db.rollback_transaction()
+    
     def test_rename(self):
         """
         Test column renaming
@@ -86,6 +102,7 @@ class TestOperations(unittest.TestCase):
     def test_dry_rename(self):
         """
         Test column renaming while --dry-run is turned on (should do nothing)
+        See ticket #65
         """
         cursor = connection.cursor()
         db.create_table("test2", [('spam', models.BooleanField(default=False))])
@@ -130,17 +147,17 @@ class TestOperations(unittest.TestCase):
         Test the index operations
         """
         db.create_table("test3", [
-            ('spam', models.BooleanField(default=False)),
+            ('SELECT', models.BooleanField(default=False)),
             ('eggs', models.IntegerField()),
         ])
         db.start_transaction()
         # Add an index on that column
-        db.create_index("test3", ["spam"])
+        db.create_index("test3", ["SELECT"])
         # Add another index on two columns
-        db.create_index("test3", ["spam", "eggs"])
+        db.create_index("test3", ["SELECT", "eggs"])
         # Delete them both
-        db.delete_index("test3", ["spam"])
-        db.delete_index("test3", ["spam", "eggs"])
+        db.delete_index("test3", ["SELECT"])
+        db.delete_index("test3", ["SELECT", "eggs"])
         db.rollback_transaction()
         db.delete_table("test3")
     
