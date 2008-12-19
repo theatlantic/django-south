@@ -10,6 +10,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     add_column_string = 'ALTER TABLE %s ADD %s;'
     alter_string_set_type = 'ALTER COLUMN %(column)s %(type)s'
     allows_combined_alters = False
+    delete_column_string = 'ALTER TABLE %s DROP COLUMN %s;'
 
     def create_table(self, table_name, fields):
         # Tweak stuff as needed
