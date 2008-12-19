@@ -361,6 +361,7 @@ class DatabaseOperations(object):
 
     drop_index = alias('delete_index')
 
+    delete_column_string = 'ALTER TABLE %s DROP COLUMN %s CASCADE;'
 
     def delete_column(self, table_name, name):
         """
@@ -368,7 +369,7 @@ class DatabaseOperations(object):
         """
         qn = connection.ops.quote_name
         params = (qn(table_name), qn(name))
-        self.execute('ALTER TABLE %s DROP COLUMN %s CASCADE;' % params, [])
+        self.execute(self.delete_column_string % params, [])
 
     drop_column = alias('delete_column')
 
