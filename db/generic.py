@@ -242,7 +242,15 @@ class DatabaseOperations(object):
             if field.primary_key:
                 field_output.append('PRIMARY KEY')
             elif field.unique:
-                field_output.append('UNIQUE')
+                # Instead of using UNIQUE, add a unique index with a predictable name
+                self.add_deferred_sql(
+                    self.create_index_sql(
+                        table_name,
+                        [field.column],
+                        unique = True,
+                        db_tablespace = tablespace,
+                    )
+                )
 
             tablespace = field.db_tablespace or tablespace
             if tablespace and connection.features.supports_tablespaces and field.unique:
