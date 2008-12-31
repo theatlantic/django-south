@@ -21,6 +21,7 @@ class TestOperations(unittest.TestCase):
 
     def setUp(self):
         db.debug = False
+        db.clear_deferred_sql()
 
     def test_create(self):
         """
@@ -77,6 +78,7 @@ class TestOperations(unittest.TestCase):
             ('id', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)),
             ('UNIQUE', models.ForeignKey(Test)),
         ])
+        db.execute_deferred_sql()
         db.rollback_transaction()
     
     def test_rename(self):
@@ -148,8 +150,9 @@ class TestOperations(unittest.TestCase):
         """
         db.create_table("test3", [
             ('SELECT', models.BooleanField(default=False)),
-            ('eggs', models.IntegerField()),
+            ('eggs', models.IntegerField(unique=True)),
         ])
+        db.execute_deferred_sql()
         db.start_transaction()
         # Add an index on that column
         db.create_index("test3", ["SELECT"])
@@ -158,6 +161,8 @@ class TestOperations(unittest.TestCase):
         # Delete them both
         db.delete_index("test3", ["SELECT"])
         db.delete_index("test3", ["SELECT", "eggs"])
+        # Delete the unique index
+        db.delete_index("test3", ["eggs"])
         db.rollback_transaction()
         db.delete_table("test3")
     
