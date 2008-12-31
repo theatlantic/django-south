@@ -158,17 +158,19 @@ class DatabaseOperations(object):
             # Now, drop the default if we need to
             if not keep_default and field.default:
                 field.default = NOT_PROVIDED
-                self.alter_column(table_name, name, field)
+                self.alter_column(table_name, name, field, explicit_name=False)
 
     alter_string_set_type = 'ALTER COLUMN %(column)s TYPE %(type)s'
     alter_string_set_null = 'ALTER COLUMN %(column)s DROP NOT NULL'
     alter_string_drop_null = 'ALTER COLUMN %(column)s SET NOT NULL'
     allows_combined_alters = True
 
-    def alter_column(self, table_name, name, field):
+    def alter_column(self, table_name, name, field, explicit_name=True):
         """
         Alters the given column name so it will match the given field.
         Note that conversion between the two by the database must be possible.
+        Will not automatically add _id by default; to have this behavour, pass
+        explicit_name=False.
 
         @param table_name: The name of the table to add the column to
         @param name: The name of the column to alter
@@ -180,6 +182,11 @@ class DatabaseOperations(object):
             field.south_init()
 
         qn = connection.ops.quote_name
+        
+        # Add _id or whatever if we need to
+        if not explicit_name:
+            field.set_attributes_from_name(name)
+            name = field.column
 
         # First, change the type
         params = {
