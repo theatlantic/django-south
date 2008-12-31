@@ -1,5 +1,6 @@
 
 from django.db import connection
+from django.conf import settings
 from south.db import generic
 
 class DatabaseOperations(generic.DatabaseOperations):
@@ -14,6 +15,14 @@ class DatabaseOperations(generic.DatabaseOperations):
     drop_index_string = 'DROP INDEX %(index_name)s ON %(table_name)s'
     allows_combined_alters = False
     has_ddl_transactions = False
+    
+    def execute(self, sql, params=[]):
+        if hasattr(settings, "DATABASE_STORAGE_ENGINE") and \
+           settings.DATABASE_STORAGE_ENGINE:
+            generic.DatabaseOperations.execute(self, "SET storage_engine=%s;" %
+                settings.DATABASE_STORAGE_ENGINE)
+        return generic.DatabaseOperations.execute(self, sql, params)
+    execute.__doc__ = generic.DatabaseOperations.execute.__doc__
 
     def rename_column(self, table_name, old, new):
         if old == new or self.dry_run:
