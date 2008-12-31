@@ -316,11 +316,18 @@ class Command(BaseCommand):
                 "','".join(model._meta.object_name for model in models_to_migrate)
                 )
         
+        # Try sniffing the encoding using PEP 0263's method
+        encoding = None
+        first_two_lines = inspect.getsourcelines(app_models_module)[0][:2]
+        for line in first_two_lines:
+            if re.search("coding[:=]\s*([-\w.]+)", line):
+                encoding = line
+        
         if (not forwards) and (not backwards):
             forwards = '"Write your forwards migration here"'
             backwards = '"Write your backwards migration here"'
         fp = open(os.path.join(migrations_dir, new_filename), "w")
-        fp.write("""
+        fp.write("""%s
 from south.db import db
 from django.db import models
 from %s.models import *
@@ -332,7 +339,7 @@ class Migration:
     
     def backwards(self):
         %s
-""" % ('.'.join(app_module_path), forwards, backwards))
+""" % (encoding or "", '.'.join(app_module_path), forwards, backwards))
         fp.close()
         print "Created %s." % new_filename
 
