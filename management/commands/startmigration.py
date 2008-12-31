@@ -132,7 +132,40 @@ class Command(BaseCommand):
             for model, field_name, field in fields_to_add:
                 field_definition = generate_field_definition(model, field)
                 
-                if field.rel: # ForeignKey, etc.
+                if isinstance(field, models.ManyToManyField):
+                    # Make a mock model for each side
+                    mock_model = "\n".join([
+                        create_mock_model(model, "        "), 
+                        create_mock_model(field.rel.to, "        ")
+                    ])
+                    # And a field defn, that's actually a table creation
+                    forwards += '''
+        # Mock Model
+%s
+        # Adding ManyToManyField '%s.%s'
+        db.create_table('%s', (
+            ('id', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)),
+            ('%s', models.ForeignKey(%s, null=False)),
+            ('%s', models.ForeignKey(%s, null=False))
+        )) ''' % (
+                mock_model,
+                model._meta.object_name,
+                field.name,
+                field.m2m_db_table(),
+                field.m2m_column_name()[:-3], # strip off the '_id' at the end
+                model._meta.object_name,
+                field.m2m_reverse_name()[:-3], # strip off the '_id' at the ned
+                field.rel.to._meta.object_name
+                )
+                    backwards += '''
+        # Dropping ManyToManyField '%s.%s'
+        db.drop_table('%s')''' % (
+                        model._meta.object_name,
+                        field.name,
+                        field.m2m_db_table()
+                    )
+                    continue
+                elif field.rel: # ForeignKey, etc.
                     mock_model = create_mock_model(field.rel.to, "        ")
                     field_definition = related_field_definition(field, field_definition)
                 else:
