@@ -369,6 +369,8 @@ class DatabaseOperations(object):
         This is possible using only columns due to the deterministic
         index naming function which relies on column names.
         """
+        if isinstance(column_names, (str, unicode)):
+            column_names = [column_names]
         name = self.create_index_name(table_name, column_names)
         qn = connection.ops.quote_name
         sql = self.drop_index_string % {"index_name": qn(name), "table_name": qn(table_name)}
