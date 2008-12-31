@@ -200,7 +200,7 @@ class Command(BaseCommand):
             model._meta.object_name,
             field.name,
             model._meta.db_table,
-            field.name,
+            field.column,
         )
         
         if models_to_migrate:
