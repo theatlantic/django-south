@@ -233,7 +233,7 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                     print " ! Error found during dry run of migration! Aborting."
                     return False
                 db.debug = old_debug
-                db.clear_deferred_sql()
+                db.clear_run_data()
             
             db.dry_run = bool(db_dry_run)
             
@@ -500,6 +500,8 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
                 result = run_forwards(mapp, [mname], fake=fake, db_dry_run=db_dry_run, silent=silent)
                 if result is False: # The migrations errored, but nicely.
                     return
+        # Call any pending post_syncdb signals
+        db.send_pending_create_signals()
         # Now load initial data, only if we're really doing things and ended up at current
         if not fake and not db_dry_run and load_inital_data and target_name == migrations[-1]:
             print " - Loading initial data for %s." % app_name
