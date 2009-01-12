@@ -495,13 +495,15 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
     if direction == 1:
         if not silent:
             print " - Migrating forwards to %s." % target_name
-        for mapp, mname in forwards:
-            if (mapp, mname) not in current_migrations:
-                result = run_forwards(mapp, [mname], fake=fake, db_dry_run=db_dry_run, silent=silent)
-                if result is False: # The migrations errored, but nicely.
-                    return
-        # Call any pending post_syncdb signals
-        db.send_pending_create_signals()
+        try:
+            for mapp, mname in forwards:
+                if (mapp, mname) not in current_migrations:
+                    result = run_forwards(mapp, [mname], fake=fake, db_dry_run=db_dry_run, silent=silent)
+                    if result is False: # The migrations errored, but nicely.
+                        return
+        finally:
+            # Call any pending post_syncdb signals
+            db.send_pending_create_signals()
         # Now load initial data, only if we're really doing things and ended up at current
         if not fake and not db_dry_run and load_inital_data and target_name == migrations[-1]:
             print " - Loading initial data for %s." % app_name

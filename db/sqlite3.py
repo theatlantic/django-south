@@ -21,7 +21,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             self.create_index(table_name, [name], unique=True)
     
     # SQLite doesn't have ALTER COLUMN
-    def alter_column(self, table_name, name, field):
+    def alter_column(self, table_name, name, field, explicit_name=True):
         """
         Not supported under SQLite.
         """
