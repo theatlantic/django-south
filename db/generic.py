@@ -271,6 +271,10 @@ class DatabaseOperations(object):
             # this allows the addition of a NOT NULL field to a table with existing rows
             if not field.null and field.has_default():
                 default = field.get_default()
+                # If the default is a callable, then call it!
+                if callable(default):
+                    default = default()
+                # Now do some very cheap quoting. TODO: Redesign return values to avoid this.
                 if isinstance(default, basestring):
                     default = "'%s'" % default.replace("'", "''")
                 elif isinstance(default, datetime.date):
