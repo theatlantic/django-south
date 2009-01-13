@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='South',
-    version='0.3',
+    version='0.4',
     description='South: Migrations for Django',
     author='Andrew Godwin & Andy McCurdy',
     author_email='south@aeracode.org',
