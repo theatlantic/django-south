@@ -1,5 +1,7 @@
 
 import datetime
+import re
+
 from django.core.management.color import no_style
 from django.db import connection, transaction, models
 from django.db.backends.util import truncate_name
@@ -51,6 +53,20 @@ class DatabaseOperations(object):
             return cursor.fetchall()
         except:
             return []
+    
+    
+    def execute_many(self, sql, regex=r"(?mx) ([^';]* (?:'[^']*'[^';]*)*)", comment_regex=r"(?mx) (?:^\s*$)|(?:--.*$)"):
+        """
+        Takes a SQL file and executes it as many separate statements.
+        (Some backends, such as Postgres, don't work otherwise.)
+        """
+        # Be warned: This function is full of dark magic. Make sure you really
+        # know regexes before trying to edit it.
+        # First, strip comments
+        sql = "\n".join([x.strip() for x in re.split(comment_regex, sql) if x.strip()])
+        # Now execute each statement
+        for st in re.split(regex, sql)[1:][::2]:
+            self.execute(st)
 
 
     def add_deferred_sql(self, sql):
