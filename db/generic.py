@@ -63,11 +63,10 @@ class DatabaseOperations(object):
         # Be warned: This function is full of dark magic. Make sure you really
         # know regexes before trying to edit it.
         # First, strip comments
-        sql = "\n".join([x.strip() for x in re.split(comment_regex, sql) if x.strip()])
+        sql = "\n".join([x.strip().replace("%", "%%") for x in re.split(comment_regex, sql) if x.strip()])
         # Now execute each statement
         for st in re.split(regex, sql)[1:][::2]:
             self.execute(st)
-
 
     def add_deferred_sql(self, sql):
         """
