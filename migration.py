@@ -3,12 +3,14 @@ import datetime
 import os
 import sys
 import traceback
+import inspect
 from django.conf import settings
 from django.db import models
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from models import MigrationHistory
 from south.db import db
+from south.orm import FakeORM
 
 
 def get_app(app):
@@ -78,7 +80,9 @@ def get_migration(app, name):
     """
     try:
         module = __import__(app.__name__ + "." + name, '', '', ['Migration'])
-        return module.Migration
+        migclass = module.Migration
+        migclass.orm = FakeORM(migclass, get_app_name(app))
+        return migclass
     except ImportError:
         print " ! Migration %s:%s probably doesn't exist." % (get_app_name(app), name)
         print " - Traceback:"
@@ -208,7 +212,7 @@ def needed_before_backwards(tree, app, name, sameapp=True):
 
 def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry_run=False, silent=False):
     """
-    Runs the specified migrations forwards, in order.
+    Runs the specified migrations forwards/backwards, in order.
     """
     for migration in migrations:
         app_name = get_app_name(app)
@@ -240,7 +244,12 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
             if db.has_ddl_transactions:
                 db.start_transaction()
             try:
-                getattr(klass(), torun)()
+                runfunc = getattr(klass(), torun)
+                args = inspect.getargspec(runfunc)
+                if len(args[0]) == 1:  # They don't want an ORM param
+                    runfunc()
+                else:
+                    runfunc(klass.orm)
                 db.execute_deferred_sql()
             except:
                 if db.has_ddl_transactions:
