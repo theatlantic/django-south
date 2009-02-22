@@ -28,7 +28,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         raise NotImplementedError("SQLite does not support altering columns.")
     
     # Nor DROP COLUMN
-    def delete_column(self, table_name, name, field):
+    def delete_column(self, table_name, name):
         """
         Not supported under SQLite.
         """
