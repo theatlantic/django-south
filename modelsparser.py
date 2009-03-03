@@ -10,6 +10,8 @@ import symbol
 import token
 import keyword
 
+from django.db import models
+
 
 def name_that_thing(thing):
     "Turns a symbol/token int into its name."
@@ -52,6 +54,14 @@ class STTree(object):
         self.tree = tree
     
     
+    def __eq__(self, other):
+        return other.tree == self.tree
+    
+    
+    def __hash__(self):
+        return hash(self.tree)
+    
+    
     @property
     def root(self):
         return self.tree[0]
@@ -62,27 +72,47 @@ class STTree(object):
         return self.tree
     
     
-    def flatten(self, recursive=True):
+    def walk(self, recursive=True):
         """
         Yields (symbol, subtree) for the entire subtree.
-        Comes out in reverse lexical order, until my brain unmelts enough.
+        Comes out with node 1, node 1's children, node 2, etc.
         """
         stack = [self.tree]
         done_outer = False
         while stack:
             atree = stack.pop()
             if isinstance(atree, tuple):
-                if recursive or done_outer:
+                if done_outer:
                     yield atree[0], STTree(atree)
                 if recursive or not done_outer:
-                    for bit in atree[1:]:
+                    for bit in reversed(atree[1:]):
                         stack.append(bit)
                     done_outer = True
     
     
+    def flatten(self):
+        "Yields the tokens/symbols in the tree only, in order."
+        bits = []
+        for sym, subtree in self.walk():
+            if sym in token_map:
+                bits.append(sym)
+            elif sym == token.NAME:
+                bits.append(subtree.value)
+            elif sym == token.STRING:
+                bits.append(subtree.value)
+            elif sym == token.NUMBER:
+                bits.append(subtree.value)
+        return bits
+
+    
+    def reform(self):
+        "Prints how the tree's input probably looked."
+        return reform(self.flatten())
+    
+    
     def findAllType(self, ntype, recursive=True):
         "Returns all nodes with the given type in the tree."
-        for symbol, subtree in self.flatten(recursive=recursive):
+        for symbol, subtree in self.walk(recursive=recursive):
             if symbol == ntype:
                 yield subtree
     
@@ -91,14 +121,14 @@ class STTree(object):
         """
         Searches the syntax tree with a CSS-like selector syntax.
         You can use things like 'suite simple_stmt', 'suite, simple_stmt'
-        or 'suite > simple_stmt'.
+        or 'suite > simple_stmt'. Not guaranteed to return in order.
         """
         # Split up the overall parts
         patterns = [x.strip() for x in selector.split(",")]
         results = []
         for pattern in patterns:
             # Split up the parts
-            parts = re.split(r'(?:[\s]|(>))+', selector)
+            parts = re.split(r'(?:[\s]|(>))+', pattern)
             # Take the first part, use it for results
             if parts[0] == "^":
                 subresults = [self]
@@ -203,40 +233,134 @@ def reform(bits):
             if keyword.iskeyword(bit[1]):
                 output += " %s " % bit[1]
             else:
-                output += bit[1]
+                if bit[1] not in symbol.sym_name:
+                    output += bit[1]
     return output
+
+
+def parse_arguments(argstr):
+    """
+    Takes a string representing arguments and returns the positional and 
+    keyword argument list and dict respectively.
+    All the entries in these are python source, except the dict keys.
+    """
+    # Get the tree
+    tree = STTree(parser.suite(argstr).totuple())
+
+    # Initialise the lists
+    curr_kwd = None
+    args = []
+    kwds = {}
+    
+    # Walk through, assigning things
+    testlists = tree.find("testlist")
+    for i, testlist in enumerate(testlists):
+        # BTW: A testlist is to the left or right of an =.
+        items = list(testlist.walk(recursive=False))
+        for j, item in enumerate(items):
+            if item[0] == symbol.test:
+                if curr_kwd:
+                    kwds[curr_kwd] = item[1].reform()
+                    curr_kwd = None
+                elif j == len(items)-1:
+                    # Last item in a group must be a keyword
+                    curr_kwd = item[1].reform()
+                else:
+                    args.append(item[1].reform())
+    return args, kwds
 
 
 def extract_field(tree):
     # Collapses the tree and tries to parse it as a field def
-    bits = []
-    for sym, subtree in reversed(list(tree.flatten())):
-        if sym in token_map:
-            bits.append(sym)
-        elif sym == token.NAME:
-            bits.append(subtree.value)
-        elif sym == token.STRING:
-            bits.append(subtree.value)
-        elif sym == token.NUMBER:
-            bits.append(subtree.value)
-    # Check it looks right
+    bits = tree.flatten()
+    ## Check it looks right:
+    # Second token should be equals
     if len(bits) < 2 or bits[1] != token.EQUAL:
         return
+    ## Split into meaningful sections
+    name = bits[0][1]
+    declaration = bits[2:]
+    # Find the first LPAR; stuff before that is the class.
+    try:
+        lpar_at = declaration.index(token.LPAR)
+    except ValueError:
+        return
+    clsname = reform(declaration[:lpar_at])
+    # Now, inside that, find the last RPAR, and we'll take the stuff between
+    # them as the arguments
+    declaration.reverse()
+    rpar_at = (len(declaration) - 1) - declaration.index(token.RPAR)
+    declaration.reverse()
+    args = declaration[lpar_at+1:rpar_at]
+    # Now, extract the arguments as a list and dict
+    try:
+        args, kwargs = parse_arguments(reform(args))
+    except SyntaxError:
+        return
     # OK, extract and reform it
-    return bits[0][1], reform(bits[2:])
+    return name, clsname, args, kwargs
     
 
 
 def get_model_fields(model_instance):
-    
+    """
+    Given a model class, will return the dict of name: field_constructor
+    mappings.
+    """
     tree = get_model_tree(model_instance)
     possible_field_defs = tree.find("^ > classdef > suite > stmt > simple_stmt > small_stmt > expr_stmt")
-    fields = {}
+    field_defs = {}
     
+    # Go through all the found defns, and try to parse them
     for pfd in possible_field_defs:
         field = extract_field(pfd)
         if field:
-            fields[field[0]] = field[1]
+            field_defs[field[0]] = field[1:]
+
+    # Now, go through all the fields and try to get their definition
+    fields = {}
+    for fieldname in model_instance._meta.get_all_field_names():
+        # Now see if that's not actually a field
+        field = model_instance._meta.get_field_by_name(fieldname)[0]
+        if isinstance(field, models.related.RelatedObject):
+            continue
+        # Now, try to get the defn
+        if fieldname in field_defs:
+            fields[fieldname] = field_defs[fieldname]
+        else:
+            if fieldname == "id":
+                fields[fieldname] = ("models.AutoField", [], {"primary_key": "True"})
+            else:
+                fields[fieldname] = None
     
     return fields
 
+
+def get_model_meta(model_instance):
+    """
+    Given a model class, will return the dict representing the Meta class.
+    """
+    tree = get_model_tree(model_instance)
+    
+    # Find all classes exactly two levels deep
+    possible_meta_classes = set(tree.find("classdef classdef"))
+    possible_meta_classes.difference(set(tree.find("classdef classdef classdef")))
+    
+    # Select only those called 'Meta', and expand all their assignments
+    possible_meta_classes = [
+        tree.find("^ > suite > stmt > simple_stmt > small_stmt > expr_stmt")
+        for tree in possible_meta_classes
+        if tree.value[2][1] == "Meta"
+    ]
+    
+    if not possible_meta_classes:
+        return None
+    else:
+        # Now, for each possible definition, try it. (Only for last Meta,
+        # since that's how python interprets it)
+        defns = {}
+        for defn in possible_meta_classes[-1]:
+            bits = defn.flatten()
+            if len(bits) > 1 and bits[1] == token.EQUAL:
+                defns[bits[0][1]] = reform(bits[2:])
+        return defns
