@@ -162,15 +162,15 @@ class STTree(object):
     __repr__ = __str__
     
 
-def get_model_tree(model_instance):
+def get_model_tree(model):
     # Get the source of the model's file
-    source = open(inspect.getsourcefile(model_instance)).read()
+    source = open(inspect.getsourcefile(model)).read()
     tree = STTree(parser.suite(source).totuple())
     
     # Now, we have to find it
     for poss in tree.find("compound_stmt"):
         if poss.value[1][0] == symbol.classdef and \
-           poss.value[1][2][1] == model_instance.__name__:
+           poss.value[1][2][1] == model.__name__:
             # This is the tree
             return poss
 
@@ -302,12 +302,12 @@ def extract_field(tree):
     
 
 
-def get_model_fields(model_instance):
+def get_model_fields(model):
     """
     Given a model class, will return the dict of name: field_constructor
     mappings.
     """
-    tree = get_model_tree(model_instance)
+    tree = get_model_tree(model)
     possible_field_defs = tree.find("^ > classdef > suite > stmt > simple_stmt > small_stmt > expr_stmt")
     field_defs = {}
     
@@ -317,30 +317,45 @@ def get_model_fields(model_instance):
         if field:
             field_defs[field[0]] = field[1:]
 
+    inherited_fields = {}
+    # Go through all bases (that are themselves models, but not Model)
+    for base in model.__bases__:
+        if base != models.Model and issubclass(base, models.Model):
+            inherited_fields.update(get_model_fields(base))
+    
     # Now, go through all the fields and try to get their definition
     fields = {}
-    for fieldname in model_instance._meta.get_all_field_names():
+    for fieldname in model._meta.get_all_field_names():
         # Now see if that's not actually a field
-        field = model_instance._meta.get_field_by_name(fieldname)[0]
+        field = model._meta.get_field_by_name(fieldname)[0]
         if isinstance(field, models.related.RelatedObject):
             continue
         # Now, try to get the defn
         if fieldname in field_defs:
             fields[fieldname] = field_defs[fieldname]
+        # Try the South definition workaround?
+        elif hasattr(field, 'south_field_triple'):
+            fields[fieldname] = field.south_field_triple()
+        elif hasattr(field, 'south_field_definition'):
+            print "Your custom field %s provides the outdated south_field_definition method.\nPlease consider implementing south_field_triple too; it's more reliably evaluated." % field
+            fields[fieldname] = field.south_field_definition()
+        # Try a parent?
+        elif fieldname in inherited_fields:
+            fields[fieldname] = inherited_fields[fieldname]
+        # Try a default for 'id'.
+        elif fieldname == "id":
+            fields[fieldname] = ("models.AutoField", [], {"primary_key": "True"})
         else:
-            if fieldname == "id":
-                fields[fieldname] = ("models.AutoField", [], {"primary_key": "True"})
-            else:
-                fields[fieldname] = None
+            fields[fieldname] = None
     
     return fields
 
 
-def get_model_meta(model_instance):
+def get_model_meta(model):
     """
     Given a model class, will return the dict representing the Meta class.
     """
-    tree = get_model_tree(model_instance)
+    tree = get_model_tree(model)
     
     # Find all classes exactly two levels deep
     possible_meta_classes = set(tree.find("classdef classdef"))
