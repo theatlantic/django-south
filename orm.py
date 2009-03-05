@@ -105,11 +105,18 @@ class FakeORM(object):
         
         failed_fields = {}
         fields = {}
+        stub = False
         
         # Now, make some fields!
         for fname, params in data.items():
-            if not params:
+            if fname == "_stub":
+                stub = bool(params)
+                continue
+            elif not params:
                 raise ValueError("Field '%s' on model '%s.%s' has no definition." % (fname, app, name))
+            elif isinstance(params, (str, unicode)):
+                # It's a premade definition string! Let's hope it works...
+                code = params
             elif len(params) == 1:
                 code = "%s()" % params[0]
             elif len(params) == 3:
@@ -147,6 +154,10 @@ class FakeORM(object):
             fields,
         )
         
+        # If this is a stub model, change Objects to a whiny class
+        if stub:
+            model.objects = WhinyManager()
+        
         if failed_fields:
             model._failed_fields = failed_fields
         
@@ -168,3 +179,9 @@ class FakeORM(object):
                         # Startup that field.
                         model.add_to_class(fname, field)
 
+
+class WhinyManager(object):
+    "A fake manager that whines whenever you try to touch it. For stub models."
+    
+    def __getattr__(self, key):
+        raise AttributeError("You cannot use items from a stub model.")
