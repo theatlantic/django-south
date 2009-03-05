@@ -138,13 +138,16 @@ class DatabaseOperations(object):
         self.execute('ALTER TABLE %s RENAME TO %s;' % params)
 
 
-    def delete_table(self, table_name):
+    def delete_table(self, table_name, cascade=True):
         """
         Deletes the table 'table_name'.
         """
         qn = connection.ops.quote_name
         params = (qn(table_name), )
-        self.execute('DROP TABLE %s;' % params)
+        if cascade:
+            self.execute('DROP TABLE %s CASCADE;' % params)
+        else:
+            self.execute('DROP TABLE %s;' % params)
 
     drop_table = alias('delete_table')
 
