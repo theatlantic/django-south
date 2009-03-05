@@ -157,11 +157,17 @@ class Command(BaseCommand):
                 if "." in item:
                     # It's a specific model
                     app_name, model_name = item.split(".", 1)
-                    model = models.get_model(models.get_app(app_name), model_name)
+                    model = models.get_model(app_name, model_name)
+                    if model is None:
+                        print "Cannot find the model '%s' to freeze it." % item
+                        return
                     frozen_models.add(model)
                 else:
                     # Get everything in an app!
                     frozen_models.update(models.get_models(models.get_app(item)))
+            # For every model in the freeze list, add in dependency stubs
+            for model in frozen_models:
+                stub_models.update(model_dependencies(model))
         
         # Add fields
         if fields_to_add:
@@ -218,11 +224,19 @@ class Command(BaseCommand):
                 fields = modelsparser.get_model_fields(model)
                 # Turn the (class, args, kwargs) format into a string
                 for field, triple in fields.items():
-                    fields[field] = make_field_constructor(
-                        app,
-                        model._meta.get_field_by_name(field)[0],
-                        remove_useless_attributes(triple),
-                    )
+                    triple = remove_useless_attributes(triple)
+                    if triple is None:
+                        print "WARNING: Cannot get definition for '%s' on '%s'. Please edit the migration manually." % (
+                            field,
+                            model_key(model),
+                        )
+                        fields[field] = FIELD_NEEDS_DEF_SNIPPET
+                    else:
+                        fields[field] = make_field_constructor(
+                            app,
+                            model._meta.get_field_by_name(field)[0],
+                            triple,
+                        )
                 # Make the code
                 forwards += CREATE_TABLE_SNIPPET % (
                     model._meta.object_name,
@@ -251,7 +265,7 @@ class Command(BaseCommand):
             # See if there's a Meta
             meta = modelsparser.get_model_meta(model)
             if meta:
-                fields['Meta'] = meta
+                fields['Meta'] = remove_useless_meta(meta)
             # Add it to our models
             all_models[model_key(model)] = fields
         
@@ -269,9 +283,23 @@ class Command(BaseCommand):
             # Meta is important too.
             meta = modelsparser.get_model_meta(model)
             if meta:
-                fields['Meta'] = meta
+                fields['Meta'] = remove_useless_meta(meta)
             # Add it to the models
             all_models[model_key(model)] = fields
+        
+        # Do some model cleanup, and warnings
+        for modelname, model in all_models.items():
+            for fieldname, fielddef in model.items():
+                # Remove empty-after-cleaning Metas.
+                if fieldname == "Meta" and not fielddef:
+                    del model['Meta']
+                # Warn about undefined fields
+                elif fielddef is None:
+                    print "WARNING: Cannot get definition for '%s' on '%s'. Please edit the migration manually." % (
+                        fieldname,
+                        modelname,
+                    )
+                    model[fieldname] = FIELD_NEEDS_DEF_SNIPPET
         
         # Write the migration file
         fp = open(os.path.join(migrations_dir, new_filename), "w")
@@ -329,16 +357,37 @@ def pprint_fields(fields):
 
 ### Output sanitisers
 
+
+USELESS_KEYWORDS = ["choices", "help_text"]
 def remove_useless_attributes(field):
-    # If that has a 'choices' attribute, remove it.
-    if "choices" in field[2]:
-        del field[2]['choices']
+    "Removes useless (for database) attributes from the field's defn."
+    if field:
+        for name in USELESS_KEYWORDS:
+            if name in field[2]:
+                del field[2][name]
     return field
+
+USELESS_META = ["verbose_name", "verbose_name_plural"]
+def remove_useless_meta(meta):
+    "Removes useless (for database) attributes from the table's meta."
+    if meta:
+        for name in USELESS_META:
+            if name in meta:
+                del meta[name]
+    return meta
 
 
 ### Turns (class, args, kwargs) triples into function defs.
 
 def make_field_constructor(default_app, field, triple):
+    """
+    Given the defualt app, the field class,
+    and the defn triple (or string), make the defition string.
+    """
+    # It might be a defn string already...
+    if isinstance(triple, (str, unicode)):
+        return triple
+    # OK, do it the hard way
     if hasattr(field, "rel") and hasattr(field.rel, "to") and field.rel.to:
         rel_to = field.rel.to
     else:
@@ -359,7 +408,7 @@ def poss_ormise(default_app, rel_to, arg):
     rel_name = rel_to._meta.object_name
     # Is it in a different app? If so, use proper addressing.
     if rel_to._meta.app_label != default_app:
-        real_name = "orm['%s.%s']" % (default_app, rel_name)
+        real_name = "orm['%s.%s']" % (rel_to._meta.app_label, rel_name)
     else:
         real_name = "orm.%s" % rel_name
     # Now see if we can replace it.
@@ -413,3 +462,4 @@ CREATE_M2MFIELD_SNIPPET = '''
 DELETE_M2MFIELD_SNIPPET = '''
         # Dropping ManyToManyField '%s.%s'
         db.drop_table('%s')'''
+FIELD_NEEDS_DEF_SNIPPET = "<< PUT FIELD DEFINITION HERE >>"
