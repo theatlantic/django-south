@@ -37,14 +37,14 @@ class FakeORM(object):
                 model_name = name
                 name = "%s.%s" % (app_name, model_name)
             
-            self.models[name] = self.make_model(app_name, model_name, data)
+            self.models[name.lower()] = self.make_model(app_name, model_name, data)
         
         # And perform the second run to iron out any circular/backwards depends.
         self.retry_failed_fields()
 
     
     def __getattr__(self, key):
-        fullname = self.default_app+"."+key
+        fullname = (self.default_app+"."+key).lower()
         try:
             return self.models[fullname]
         except KeyError:
@@ -52,6 +52,7 @@ class FakeORM(object):
     
     
     def __getitem__(self, key):
+        key = key.lower()
         try:
             return self.models[key]
         except KeyError:
@@ -75,6 +76,9 @@ class FakeORM(object):
             for name, model in self.models.items()
             if name.split(".")[0] == self.default_app
         ]))
+        
+        # And a fake _ function
+        fake_locals['_'] = lambda x: x
         
         return eval(code, globals(), fake_locals)
     
