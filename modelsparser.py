@@ -262,8 +262,8 @@ def parse_arguments(argstr):
                 if curr_kwd:
                     kwds[curr_kwd] = item[1].reform()
                     curr_kwd = None
-                elif j == len(items)-1:
-                    # Last item in a group must be a keyword
+                elif j == len(items)-1 and i != len(testlists)-1:
+                    # Last item in a group must be a keyword, unless it's last overall
                     curr_kwd = item[1].reform()
                 else:
                     args.append(item[1].reform())
