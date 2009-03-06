@@ -2,76 +2,22 @@ import unittest
 import datetime
 import sys
 import os
+import StringIO
 
 from south import migration
+from south.tests import Monkeypatcher
 
 # Add the tests directory so fakeapp is on sys.path
 test_root = os.path.dirname(__file__)
 sys.path.append(test_root)
 
 
-class TestMigrationLogic(unittest.TestCase):
+class TestMigrationLogic(Monkeypatcher):
 
     """
     Tests if the various logic functions in migration actually work.
     """
-
-    def create_fake_app(self, name):
-        
-        class Fake:
-            pass
-        
-        fake = Fake()
-        fake.__name__ = name
-        return fake
-
-
-    def create_test_app(self):
-        
-        class Fake:
-            pass
-        
-        fake = Fake()
-        fake.__name__ = "fakeapp.migrations"
-        fake.__file__ = os.path.join(test_root, "fakeapp", "migrations", "__init__.py")
-        return fake
     
-    
-    def monkeypatch(self):
-        """Swaps out various Django calls for fake ones for our own nefarious purposes."""
-        
-        def new_get_apps():
-            return ['fakeapp']
-        
-        from django.db import models
-        from django.conf import settings
-        models.get_apps_old, models.get_apps = models.get_apps, new_get_apps
-        settings.INSTALLED_APPS, settings.OLD_INSTALLED_APPS = (
-            ["fakeapp"],
-            settings.INSTALLED_APPS,
-        )
-        self.redo_app_cache()
-    setUp = monkeypatch
-    
-    
-    def unmonkeypatch(self):
-        """Undoes what monkeypatch did."""
-        
-        from django.db import models
-        from django.conf import settings
-        models.get_apps = models.get_apps_old
-        settings.INSTALLED_APPS = settings.OLD_INSTALLED_APPS
-        self.redo_app_cache()
-    tearDown = unmonkeypatch
-    
-    
-    def redo_app_cache(self):
-        from django.db.models.loading import AppCache
-        a = AppCache()
-        a.loaded = False
-        a._populate()
-    
-
     def test_get_app_name(self):
         self.assertEqual(
             "southtest",
@@ -148,7 +94,12 @@ class TestMigrationLogic(unittest.TestCase):
         self.assertEqual(M1, migration.get_migration(app, "0001_spam"))
         self.assertEqual(M2, migration.get_migration(app, "0002_eggs"))
         
-        self.assertRaises((ImportError, ValueError), migration.get_migration, app, "0001_jam")
+        # Temporarily redirect sys.stdout during this, it whinges.
+        stdout, sys.stdout = sys.stdout, StringIO.StringIO()
+        try:
+            self.assertRaises((ImportError, ValueError), migration.get_migration, app, "0001_jam")
+        finally:
+            sys.stdout = stdout
     
     
     def test_all_migrations(self):
