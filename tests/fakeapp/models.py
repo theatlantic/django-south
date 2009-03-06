@@ -3,9 +3,10 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+# An empty case.
 class Other1(models.Model): pass
 
-
+# Nastiness.
 class HorribleModel(models.Model):
     "A model to test the edge cases of model parsing"
     
@@ -21,16 +22,25 @@ class HorribleModel(models.Model):
     # Now to something outside
     user = models.ForeignKey(User, related_name="horribles")
     
+    # Unicode!
+    code = models.CharField(max_length=25, default="↑↑↓↓←→←→BA")
+    
     # Time to get nasty. Define a non-field choices, and use it
     choices = [('hello', '1'), ('world', '2')]
     choiced = models.CharField(max_length=20, choices=choices)
+    
+    class Meta:
+        db_table = "my_fave"
+        verbose_name = "Dr. Strangelove," + \
+                     """or how I learned to stop worrying
+and love the bomb"""
     
     # Now spread over multiple lines
     multiline = \
               models.TextField(
         )
     
-    
-
-class Other2(models.Model): pass
-    
+# Special case.
+class Other2(models.Model):
+    # Try loading a field without a newline after it (inspect hates this)
+    close_but_no_cigar = models.PositiveIntegerField(primary_key=True)
