@@ -342,6 +342,9 @@ def get_model_fields(model):
         # Try a parent?
         elif fieldname in inherited_fields:
             fields[fieldname] = inherited_fields[fieldname]
+        # Is it a _ptr?
+        elif fieldname.endswith("_ptr"):
+            fields[fieldname] = ("models.OneToOneField", [field.rel.to.__name__], {})
         # Try a default for 'id'.
         elif fieldname == "id":
             fields[fieldname] = ("models.AutoField", [], {"primary_key": "True"})

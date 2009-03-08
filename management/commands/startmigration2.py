@@ -1,17 +1,6 @@
-from django.core.management.base import BaseCommand
-from django.core.management.color import no_style
-from django.db import models
-from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
-from django.contrib.contenttypes.generic import GenericRelation
-from django.db.models.fields import FieldDoesNotExist
-from optparse import make_option
-
-try:
-    set
-except NameError:
-    from sets import Set as set
-
-from south import migration, modelsparser
+"""
+Startmigration command, version 2.
+"""
 
 import sys
 import os
@@ -20,6 +9,23 @@ import string
 import random
 import inspect
 import parser
+from optparse import make_option
+
+from django.core.management.base import BaseCommand
+from django.core.management.color import no_style
+from django.db import models
+from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
+from django.contrib.contenttypes.generic import GenericRelation
+from django.db.models.fields import FieldDoesNotExist
+from django.conf import settings
+
+try:
+    set
+except NameError:
+    from sets import Set as set
+
+from south import migration, modelsparser
+
 
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
@@ -29,12 +35,14 @@ class Command(BaseCommand):
             help='Generate an Add Column migration for the specified modelname.fieldname - you can use this multiple times to add more than one column.'),
         make_option('--initial', action='store_true', dest='initial', default=False,
             help='Generate the initial schema for the app.'),
+        make_option('--auto', action='store_true', dest='auto', default=False,
+            help='Attempt to automatically detect differences from the last migration.'),
         make_option('--freeze', action='append', dest='freeze_list', type='string',
             help='Freeze the specified model(s). Pass in either an app name (to freeze the whole app) or a single model, as appname.modelname.'),
     )
     help = "Creates a new template migration for the given app"
     
-    def handle(self, app=None, name="", model_list=None, field_list=None, initial=False, freeze_list=None, **options):
+    def handle(self, app=None, name="", model_list=None, field_list=None, initial=False, freeze_list=None, auto=False, **options):
         
         # If model_list is None, then it's an empty list
         model_list = model_list or []
@@ -42,16 +50,19 @@ class Command(BaseCommand):
         # If field_list is None, then it's an empty list
         field_list = field_list or []
         
-        # make sure --model and --all aren't both specified
-        if initial and (model_list or field_list):
+        # Make sure options are compatable
+        if initial and (model_list or field_list or auto):
             print "You cannot use --initial and other options together"
             return
-            
+        if auto and (model_list or field_list or initial):
+            print "You cannot use --auto and other options together"
+            return
+        
         # specify the default name 'initial' if a name wasn't specified and we're
         # doing a migration for an entire app
         if not name and initial:
             name = 'initial'
-            
+        
         # if not name, there's an error
         if not name:
             print "You must name this migration"
@@ -60,13 +71,23 @@ class Command(BaseCommand):
         if not app:
             print "Please provide an app in which to create the migration."
             return
-            
+        
+        # Make sure the app is short form
+        app = app.split(".")[-1]
+        
         # See if the app exists
         app_models_module = models.get_app(app)
         if not app_models_module:
             print "App '%s' doesn't seem to exist, isn't in INSTALLED_APPS, or has no models." % app
             return
-            
+        
+        # If they've set SOUTH_AUTO_FREEZE_APP = True, then add this app to freeze_list
+        if hasattr(settings, 'SOUTH_AUTO_FREEZE_APP') and settings.SOUTH_AUTO_FREEZE_APP:
+            if freeze_list and app not in freeze_list:
+                freeze_list += [app]
+            else:
+                freeze_list = [app]
+        
         # Determine what models should be included in this migration.
         models_to_migrate = []
         if initial:
@@ -150,6 +171,7 @@ class Command(BaseCommand):
         backwards = ""
         frozen_models = set() # Frozen models, used by the Fake ORM
         stub_models = set() # Frozen models, but only enough for relation ends (old mock models)
+        complete_apps = set() # Apps that are completely frozen - useable for diffing.
         
         # Add anything frozen (I almost called the dict Iceland...)
         if freeze_list:
@@ -165,9 +187,98 @@ class Command(BaseCommand):
                 else:
                     # Get everything in an app!
                     frozen_models.update(models.get_models(models.get_app(item)))
+                    complete_apps.add(item.split(".")[-1])
             # For every model in the freeze list, add in dependency stubs
             for model in frozen_models:
                 stub_models.update(model_dependencies(model))
+        
+        # If they've asked for automatic detection, try it.
+        if auto:
+            
+            # Get the last migration for this app
+            last_models = None
+            app_module = migration.get_app(app)
+            if app_module is None:
+                print "You cannot use automatic detection on the first migration of an app. Try --initial instead."
+            else:
+                migrations = list(migration.get_migration_classes(app_module))
+                if not migrations:
+                    print "You cannot use automatic detection on the first migration of an app. Try --initial instead."
+                else:
+                    if hasattr(migrations[-1], "complete_apps") and \
+                       app in migrations[-1].complete_apps:
+                        last_models = migrations[-1].models
+                        last_orm = migrations[-1].orm
+                    else:
+                        print "You cannot use automatic detection, since the previous migration does not have this whole app frozen.\nEither make migrations using '--freeze %s' or set 'SOUTH_AUTO_FREEZE_APP = True' in your settings.py." % app
+            
+            # Right, did we manage to get the last set of models?
+            if not last_models:
+                return
+            
+            # Good! Get new things.
+            new = dict([
+                (model_key(model), prep_for_freeze(model))
+                for model in models.get_models(app_models_module)
+            ])
+            # And filter other apps out of the old
+            old = dict([
+                (key, fields)
+                for key, fields in last_models.items()
+                if key.split(".", 1)[0] == app
+            ])
+            am, dm, af, df, cf = models_diff(old, new)
+            
+            if not (am or dm or af or df or cf):
+                print "Nothing seems to have changed."
+                return
+            
+            # Make the SQL for:
+            # Added models
+            for key in am:
+                # Get the model
+                app, modelname = key.split(".", 1)
+                model = models.get_model(app, modelname)
+                # Add the model's dependencies to the stubs
+                stub_models.update(model_dependencies(model))
+                # Get the field definitions
+                fields = new[key]
+                # Turn the (class, args, kwargs) format into a string
+                fields = triples_to_defs(app, model, fields)
+                # Make the code
+                forwards += CREATE_TABLE_SNIPPET % (
+                    model._meta.object_name,
+                    model._meta.db_table,
+                    "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
+                )
+                # And the backwards code
+                backwards += DELETE_TABLE_SNIPPET % (
+                    model._meta.object_name, 
+                    model._meta.db_table
+                )
+            
+            # Deleted models
+            for key in dm:
+                # Get the model
+                model = last_orm[key]
+                # Add the model's dependencies to the stubs
+                stub_models.update(model_dependencies(model))
+                # Get the field definitions
+                fields = old[key]
+                # Turn the (class, args, kwargs) format into a string
+                fields = triples_to_defs(app, model, fields)
+                # Make the code
+                forwards += DELETE_TABLE_SNIPPET % (
+                    model._meta.object_name, 
+                    model._meta.db_table
+                )
+                # And the backwards code
+                backwards += CREATE_TABLE_SNIPPET % (
+                    model._meta.object_name,
+                    model._meta.db_table,
+                    "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
+                )
+            
         
         # Add fields
         if fields_to_add:
@@ -223,20 +334,7 @@ class Command(BaseCommand):
                 # Get the field definitions
                 fields = modelsparser.get_model_fields(model)
                 # Turn the (class, args, kwargs) format into a string
-                for field, triple in fields.items():
-                    triple = remove_useless_attributes(triple)
-                    if triple is None:
-                        print "WARNING: Cannot get definition for '%s' on '%s'. Please edit the migration manually." % (
-                            field,
-                            model_key(model),
-                        )
-                        fields[field] = FIELD_NEEDS_DEF_SNIPPET
-                    else:
-                        fields[field] = make_field_constructor(
-                            app,
-                            model._meta.get_field_by_name(field)[0],
-                            triple,
-                        )
+                fields = triples_to_defs(app, model, fields)
                 # Make the code
                 forwards += CREATE_TABLE_SNIPPET % (
                     model._meta.object_name,
@@ -258,34 +356,13 @@ class Command(BaseCommand):
         
         # Fill out frozen model definitions
         for model in frozen_models:
-            fields = modelsparser.get_model_fields(model)
-            # Remove useless attributes (like 'choices')
-            for name, field in fields.items():
-                fields[name] = remove_useless_attributes(field)
-            # See if there's a Meta
-            meta = modelsparser.get_model_meta(model)
-            if meta:
-                fields['Meta'] = remove_useless_meta(meta)
-            # Add it to our models
-            all_models[model_key(model)] = fields
+            all_models[model_key(model)] = prep_for_freeze(model)
         
         # Fill out stub model definitions
         for model in stub_models:
             if model in frozen_models:
                 continue # We'd rather use full models than stubs.
-            fields = modelsparser.get_model_fields(model)
-            # Now, take only the PK (and a 'we're a stub' field) and freeze 'em
-            pk = model._meta.pk.get_attname()
-            fields = {
-                pk: remove_useless_attributes(fields[pk]),
-                "_stub": True,
-            }
-            # Meta is important too.
-            meta = modelsparser.get_model_meta(model)
-            if meta:
-                fields['Meta'] = remove_useless_meta(meta)
-            # Add it to the models
-            all_models[model_key(model)] = fields
+            all_models[model_key(model)] = prep_for_stub(model)
         
         # Do some model cleanup, and warnings
         for modelname, model in all_models.items():
@@ -307,10 +384,40 @@ class Command(BaseCommand):
             encoding or "", '.'.join(app_module_path), 
             forwards, 
             backwards, 
-            pprint_frozen_models(all_models)
+            pprint_frozen_models(all_models),
+            complete_apps and "complete_apps = [%s]" % (", ".join(map(repr, complete_apps))) or ""
         ))
         fp.close()
         print "Created %s." % new_filename
+
+
+### Cleaning functions for freezing
+
+def prep_for_freeze(model):
+    fields = modelsparser.get_model_fields(model)
+    # Remove useless attributes (like 'choices')
+    for name, field in fields.items():
+        fields[name] = remove_useless_attributes(field)
+    # See if there's a Meta
+    meta = modelsparser.get_model_meta(model)
+    if meta:
+        fields['Meta'] = remove_useless_meta(meta)
+    return fields
+
+
+def prep_for_stub(model):
+    fields = modelsparser.get_model_fields(model)
+    # Now, take only the PK (and a 'we're a stub' field) and freeze 'em
+    pk = model._meta.pk.get_attname()
+    fields = {
+        pk: remove_useless_attributes(fields[pk]),
+        "_stub": True,
+    }
+    # Meta is important too.
+    meta = modelsparser.get_model_meta(model)
+    if meta:
+        fields['Meta'] = remove_useless_meta(meta)
+    return fields
 
 
 ### Module handling functions
@@ -417,6 +524,74 @@ def poss_ormise(default_app, rel_to, arg):
     return arg
 
 
+### Diffing functions between sets of models
+
+def models_diff(old, new):
+    """
+    Returns the difference between the old and new sets of models as a 5-tuple:
+    added_models, deleted_models, added_fields, deleted_fields, changed_fields
+    """
+    
+    added_models = set()
+    deleted_models = set()
+    added_fields = set()
+    deleted_fields = set()
+    changed_fields = set()
+    
+    # See if anything's vanished
+    for key in old:
+        if key not in new:
+            deleted_models.add(key)
+    
+    # Or appeared
+    for key in new:
+        if key not in old:
+            added_models.add(key)
+    
+    # Now, for every model that's stayed the same, check its fields.
+    for key in old:
+        if key not in deleted_models:
+            still_there = set()
+            # Find fields that have vanished.
+            for fieldname in old[key]:
+                if fieldname not in new[key]:
+                    deleted_fields.add((key, fieldname))
+                else:
+                    still_there.add(fieldname)
+            # And ones that have appeared
+            for fieldname in new[key]:
+                if fieldname not in old[key]:
+                    added_fields.add((key, fieldname))
+            # For the ones that exist in both models, see if they were changed
+            for fieldname in still_there:
+                if new[key][fieldname] != old[key][fieldname]:
+                    changed_fields.add((key, fieldname))
+    
+    return added_models, deleted_models, added_fields, deleted_fields, changed_fields
+
+
+### Creates SQL snippets for various common operations
+
+
+def triples_to_defs(app, model, fields):
+    # Turn the (class, args, kwargs) format into a string
+    for field, triple in fields.items():
+        triple = remove_useless_attributes(triple)
+        if triple is None:
+            print "WARNING: Cannot get definition for '%s' on '%s'. Please edit the migration manually." % (
+                field,
+                model_key(model),
+            )
+            fields[field] = FIELD_NEEDS_DEF_SNIPPET
+        else:
+            fields[field] = make_field_constructor(
+                app,
+                model._meta.get_field_by_name(field)[0],
+                triple,
+            )
+    return fields
+
+
 ### Various code snippets we need to use
 
 MIGRATION_SNIPPET = """%s
@@ -435,14 +610,16 @@ class Migration:
     
     
     models = %s
+    
+    %s
 """
 CREATE_TABLE_SNIPPET = '''
-        # Model '%s'
+        # Adding model '%s'
         db.create_table(%r, (
             %s
         ))'''
 DELETE_TABLE_SNIPPET = '''
-        # Model '%s'
+        # Deleting model '%s'
         db.delete_table(%r)'''
 CREATE_FIELD_SNIPPET = '''
         # Adding field '%s.%s'
