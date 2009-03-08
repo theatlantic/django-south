@@ -6,7 +6,7 @@ Roughly emulates the real Django ORM, to a point.
 import inspect
 
 from django.db import models
-
+from django.db.models.loading import cache
 
 class FakeORM(object):
     
@@ -64,7 +64,7 @@ class FakeORM(object):
                 raise KeyError("The model '%s' from the app '%s' is not available in this migration." % (model, app))
     
     
-    def eval_in_context(self, code):
+    def eval_in_context(self, code, app):
         "Evaluates the given code in the context of the migration file."
         
         # Drag in the migration module's locals (hopefully including models.py)
@@ -74,7 +74,12 @@ class FakeORM(object):
         fake_locals.update(dict([
             (name.split(".")[-1], model)
             for name, model in self.models.items()
-            if name.split(".")[0] == self.default_app
+        ]))
+        # Make sure the ones for this app override.
+        fake_locals.update(dict([
+            (name.split(".")[-1], model)
+            for name, model in self.models.items()
+            if name.split(".")[0] == app
         ]))
         
         # And a fake _ function
@@ -83,15 +88,15 @@ class FakeORM(object):
         return eval(code, globals(), fake_locals)
     
     
-    def make_meta(self, modelname, data):
+    def make_meta(self, app, model, data):
         "Makes a Meta class out of a dict of eval-able arguments."
         results = {}
         for key, code in data.items():
             try:
-                results[key] = self.eval_in_context(code)
+                results[key] = self.eval_in_context(code, app)
             except (NameError, AttributeError), e:
-                raise ValueError("Cannot successfully create meta field '%s' for model '%s': %s." % (
-                    key, modelname, e
+                raise ValueError("Cannot successfully create meta field '%s' for model '%s.%s': %s." % (
+                    key, app, model, e
                 ))
         return type("Meta", tuple(), results) 
     
@@ -100,7 +105,7 @@ class FakeORM(object):
         "Makes a Model class out of the given app name, model name and pickled data."
         
         # Turn the Meta dict into a basic class
-        meta = self.make_meta("%s.%s" % (app, name), data['Meta'])
+        meta = self.make_meta(app, name, data['Meta'])
         del data['Meta']
         
         failed_fields = {}
@@ -131,7 +136,7 @@ class FakeORM(object):
                 raise ValueError("Field '%s' on model '%s.%s' has a weird definition length (should be 1 or 3 items)." % (fname, app, name))
             
             try:
-                field = self.eval_in_context(code)
+                field = self.eval_in_context(code, app)
             except (NameError, AttributeError):
                 # It might rely on other models being around. Add it to the
                 # model for the second pass.
@@ -146,6 +151,9 @@ class FakeORM(object):
         
         more_kwds['Meta'] = meta
         
+        # Stop AppCache from changing!
+        cache.app_models[app], old_app_models = {}, cache.app_models[app]
+        
         # Make our model
         fields.update(more_kwds)
         model = type(
@@ -153,6 +161,9 @@ class FakeORM(object):
             (models.Model,),
             fields,
         )
+        
+        # Send AppCache back in time
+        cache.app_models[app] = old_app_models
         
         # If this is a stub model, change Objects to a whiny class
         if stub:
@@ -166,10 +177,11 @@ class FakeORM(object):
     def retry_failed_fields(self):
         "Tries to re-evaluate the _failed_fields for each model."
         for modelname, model in self.models.items():
+            app, model = modelname.split(".", 1)
             if hasattr(model, "_failed_fields"):
                 for fname, code in model._failed_fields.items():
                     try:
-                        field = self.eval_in_context(code)
+                        field = self.eval_in_context(code, app)
                     except (NameError, AttributeError), e:
                         # It's failed again. Complain.
                         raise ValueError("Cannot successfully create field '%s' for model '%s': %s." % (
