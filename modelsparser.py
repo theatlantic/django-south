@@ -166,11 +166,10 @@ def get_model_tree(model):
     # Get the source of the model's file
     source = open(inspect.getsourcefile(model)).read()
     tree = STTree(parser.suite(source).totuple())
-    
     # Now, we have to find it
     for poss in tree.find("compound_stmt"):
         if poss.value[1][0] == symbol.classdef and \
-           poss.value[1][2][1] == model.__name__:
+           poss.value[1][2][1].lower() == model.__name__.lower():
             # This is the tree
             return poss
 
@@ -308,6 +307,8 @@ def get_model_fields(model):
     mappings.
     """
     tree = get_model_tree(model)
+    if tree is None:
+        raise ValueError("Cannot find source for model '%s'." % model)
     possible_field_defs = tree.find("^ > classdef > suite > stmt > simple_stmt > small_stmt > expr_stmt")
     field_defs = {}
     
