@@ -29,9 +29,9 @@ from south import migration, modelsparser
 
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
-        make_option('--model', action='append', dest='model_list', type='string',
+        make_option('--model', action='append', dest='added_model_list', type='string',
             help='Generate a Create Table migration for the specified model.  Add multiple models to this migration with subsequent --model parameters.'),
-        make_option('--add-field', action='append', dest='field_list', type='string',
+        make_option('--add-field', action='append', dest='added_field_list', type='string',
             help='Generate an Add Column migration for the specified modelname.fieldname - you can use this multiple times to add more than one column.'),
         make_option('--initial', action='store_true', dest='initial', default=False,
             help='Generate the initial schema for the app.'),
@@ -42,19 +42,17 @@ class Command(BaseCommand):
     )
     help = "Creates a new template migration for the given app"
     
-    def handle(self, app=None, name="", model_list=None, field_list=None, initial=False, freeze_list=None, auto=False, **options):
+    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, freeze_list=None, auto=False, **options):
         
-        # If model_list is None, then it's an empty list
-        model_list = model_list or []
-        
-        # If field_list is None, then it's an empty list
-        field_list = field_list or []
+        # Any supposed lists that are None become empty lists
+        added_model_list = added_model_list or []
+        added_field_list = added_field_list or []
         
         # Make sure options are compatable
-        if initial and (model_list or field_list or auto):
+        if initial and (added_model_list or added_field_list or auto):
             print "You cannot use --initial and other options together"
             return
-        if auto and (model_list or field_list or initial):
+        if auto and (added_model_list or added_field_list or initial):
             print "You cannot use --auto and other options together"
             return
         
@@ -87,37 +85,6 @@ class Command(BaseCommand):
                 freeze_list += [app]
             else:
                 freeze_list = [app]
-        
-        # Determine what models should be included in this migration.
-        models_to_migrate = []
-        if initial:
-            models_to_migrate = models.get_models(app_models_module)
-            if not models_to_migrate:
-                print "No models found in app '%s'" % (app)
-                return
-        else:
-            for model_name in model_list:
-                model = models.get_model(app, model_name)
-                if not model:
-                    print "Couldn't find model '%s' in app '%s'" % (model_name, app)
-                    return
-                    
-                models_to_migrate.append(model)
-        
-        # See what fields need to be included
-        fields_to_add = []
-        for field_spec in field_list:
-            model_name, field_name = field_spec.split(".", 1)
-            model = models.get_model(app, model_name)
-            if not model:
-                print "Couldn't find model '%s' in app '%s'" % (model_name, app)
-                return
-            try:
-                field = model._meta.get_field(field_name)
-            except FieldDoesNotExist:
-                print "Model '%s' doesn't have a field '%s'" % (model_name, field_name)
-                return
-            fields_to_add.append((model, field_name, field))
         
         # Make the migrations directory if it's not there
         app_module_path = app_models_module.__name__.split('.')[0:-1]
@@ -173,6 +140,33 @@ class Command(BaseCommand):
         stub_models = set() # Frozen models, but only enough for relation ends (old mock models)
         complete_apps = set() # Apps that are completely frozen - useable for diffing.
         
+        # Sets of actions
+        added_models = set()
+        deleted_models = [] # Special: contains instances _not_ string keys
+        added_fields = set()
+        deleted_fields = [] # Similar to deleted_models
+        
+        # --initial means 'add all models in this app'.
+        if initial:
+            for model in models.get_models(app_models_module):
+                added_models.add("%s.%s" % (app, model._meta.object_name))
+        
+        # Added models might be 'model' or 'app.model'.
+        for modelname in added_model_list:
+            if "." in modelname:
+                added_models.add(modelname)
+            else:
+                added_models.add("%s.%s" % (app, modelname))
+        
+        # Fields need translating from "model.field" to (app.model, field)
+        for fielddef in added_field_list:
+            try:
+                modelname, fieldname = fielddef.split(".", 1)
+            except ValueError:
+                print "The field specification '%s' is not in modelname.fieldname format." % fielddef
+            else:
+                added_fields.add(("%s.%s" % (app, modelname), fieldname))
+        
         # Add anything frozen (I almost called the dict Iceland...)
         if freeze_list:
             for item in freeze_list:
@@ -192,9 +186,9 @@ class Command(BaseCommand):
             for model in frozen_models:
                 stub_models.update(model_dependencies(model))
         
-        # If they've asked for automatic detection, try it.
+        
+        ### Automatic Detection ###
         if auto:
-            
             # Get the last migration for this app
             last_models = None
             app_module = migration.get_app(app)
@@ -233,119 +227,176 @@ class Command(BaseCommand):
                 print "Nothing seems to have changed."
                 return
             
-            # Make the SQL for:
-            # Added models
-            for key in am:
-                # Get the model
-                app, modelname = key.split(".", 1)
-                model = models.get_model(app, modelname)
-                # Add the model's dependencies to the stubs
-                stub_models.update(model_dependencies(model))
-                # Get the field definitions
-                fields = new[key]
-                # Turn the (class, args, kwargs) format into a string
-                fields = triples_to_defs(app, model, fields)
-                # Make the code
-                forwards += CREATE_TABLE_SNIPPET % (
-                    model._meta.object_name,
-                    model._meta.db_table,
-                    "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
-                )
-                # And the backwards code
-                backwards += DELETE_TABLE_SNIPPET % (
-                    model._meta.object_name, 
-                    model._meta.db_table
-                )
+            # Add items to the todo lists
+            added_models.update(am)
+            added_fields.update(af)
             
-            # Deleted models
-            for key in dm:
-                # Get the model
-                model = last_orm[key]
-                # Add the model's dependencies to the stubs
-                stub_models.update(model_dependencies(model))
-                # Get the field definitions
-                fields = old[key]
-                # Turn the (class, args, kwargs) format into a string
-                fields = triples_to_defs(app, model, fields)
-                # Make the code
-                forwards += DELETE_TABLE_SNIPPET % (
-                    model._meta.object_name, 
-                    model._meta.db_table
-                )
-                # And the backwards code
-                backwards += CREATE_TABLE_SNIPPET % (
-                    model._meta.object_name,
-                    model._meta.db_table,
-                    "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
-                )
+            # Deleted models are from the past, and so we use instances instead.
+            for mkey in dm:
+                model = last_orm[mkey]
+                fields = last_models[mkey]
+                deleted_models.append((model, fields))
             
+            # For deleted fields, we tag the instance on the end too
+            for mkey, fname in df:
+                deleted_fields.append((
+                    mkey,
+                    fname,
+                    last_orm[mkey]._meta.get_field_by_name(fname)[0],
+                    last_models[mkey][fname],
+                ))
         
-        # Add fields
-        if fields_to_add:
-            for model, field_name, field in fields_to_add:
-                
-                if isinstance(field, models.ManyToManyField):
-                    # Add a stub model for each side
-                    stub_models.add(model)
-                    stub_models.add(field.rel.to)
-                    # And a field defn, that's actually a table creation
-                    forwards += CREATE_M2MFIELD_SNIPPET % (
-                        model._meta.object_name,
-                        field.name,
-                        field.m2m_db_table(),
-                        field.m2m_column_name()[:-3], # strip off the '_id' at the end
-                        model._meta.object_name,
-                        field.m2m_reverse_name()[:-3], # strip off the '_id' at the ned
-                        field.rel.to._meta.object_name
-                        )
-                    backwards += DELETE_M2MFIELD_SNIPPET % (
-                        model._meta.object_name,
-                        field.name,
-                        field.m2m_db_table()
+        
+        ### Added fields ###
+        for mkey, field_name in added_fields:
+            
+            # Get the model
+            model = model_unkey(mkey)
+            # Get the field
+            try:
+                field = model._meta.get_field(field_name)
+            except FieldDoesNotExist:
+                print "Model '%s' doesn't have a field '%s'" % (model_name, field_name)
+                return
+            
+            # ManyToMany fields need special attention.
+            if isinstance(field, models.ManyToManyField):
+                # Add a stub model for each side
+                stub_models.add(model)
+                stub_models.add(field.rel.to)
+                # And a field defn, that's actually a table creation
+                forwards += CREATE_M2MFIELD_SNIPPET % (
+                    model._meta.object_name,
+                    field.name,
+                    field.m2m_db_table(),
+                    field.m2m_column_name()[:-3], # strip off the '_id' at the end
+                    model._meta.object_name,
+                    field.m2m_reverse_name()[:-3], # strip off the '_id' at the ned
+                    field.rel.to._meta.object_name
                     )
-                    continue
-                
-                # Add any dependencies
-                stub_models.update(field_dependencies(field))
-                
-                # Work out the definition
-                triple = modelsparser.get_model_fields(model)[field_name]
-                field_definition = make_field_constructor(app, field, triple)
-                
-                forwards += CREATE_FIELD_SNIPPET % (
+                backwards += DELETE_M2MFIELD_SNIPPET % (
                     model._meta.object_name,
                     field.name,
-                    model._meta.db_table,
-                    field.name,
-                    field_definition,
+                    field.m2m_db_table()
                 )
-                backwards += DELETE_FIELD_SNIPPET % (
-                    model._meta.object_name,
-                    field.name,
-                    model._meta.db_table,
-                    field.column,
-                )
+                continue
+            
+            # Add any dependencies
+            stub_models.update(field_dependencies(field))
+            
+            # Work out the definition
+            triple = modelsparser.get_model_fields(model)[field_name]
+            field_definition = make_field_constructor(app, field, triple)
+            
+            forwards += CREATE_FIELD_SNIPPET % (
+                model._meta.object_name,
+                field.name,
+                model._meta.db_table,
+                field.name,
+                field_definition,
+            )
+            backwards += DELETE_FIELD_SNIPPET % (
+                model._meta.object_name,
+                field.name,
+                model._meta.db_table,
+                field.column,
+            )
         
-        # Generate model migrations
-        if models_to_migrate:
-            for model in models_to_migrate:
-                # Add the model's dependencies to the stubs
-                stub_models.update(model_dependencies(model))
-                # Get the field definitions
-                fields = modelsparser.get_model_fields(model)
-                # Turn the (class, args, kwargs) format into a string
-                fields = triples_to_defs(app, model, fields)
-                # Make the code
-                forwards += CREATE_TABLE_SNIPPET % (
+        
+        ### Deleted fields ###
+        for mkey, field_name, field, triple in deleted_fields:
+            
+            # Get the model
+            model = model_unkey(mkey)
+            
+            # ManyToMany fields need special attention.
+            if isinstance(field, models.ManyToManyField):
+                # Add a stub model for each side
+                stub_models.add(model)
+                stub_models.add(field.rel.to)
+                # And a field defn, that's actually a table deletion
+                forwards += DELETE_M2MFIELD_SNIPPET % (
                     model._meta.object_name,
-                    model._meta.db_table,
-                    "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
+                    field.name,
+                    field.m2m_db_table()
                 )
-                # And the backwards code
-                backwards += DELETE_TABLE_SNIPPET % (
-                    model._meta.object_name, 
-                    model._meta.db_table
-                )
+                backwards += CREATE_M2MFIELD_SNIPPET % (
+                    model._meta.object_name,
+                    field.name,
+                    field.m2m_db_table(),
+                    field.m2m_column_name()[:-3], # strip off the '_id' at the end
+                    model._meta.object_name,
+                    field.m2m_reverse_name()[:-3], # strip off the '_id' at the ned
+                    field.rel.to._meta.object_name
+                    )
+                continue
+            
+            # Add any dependencies
+            stub_models.update(field_dependencies(field))
+            
+            # Work out the definition
+            field_definition = make_field_constructor(app, field, triple)
+            
+            forwards += DELETE_FIELD_SNIPPET % (
+                model._meta.object_name,
+                field.name,
+                model._meta.db_table,
+                field.column,
+            )
+            backwards += CREATE_FIELD_SNIPPET % (
+                model._meta.object_name,
+                field.name,
+                model._meta.db_table,
+                field.name,
+                field_definition,
+            )
+        
+        
+        ### Added model ###
+        for mkey in added_models:
+            
+            model = model_unkey(mkey)
+            
+            # Add the model's dependencies to the stubs
+            stub_models.update(model_dependencies(model))
+            # Get the field definitions
+            fields = modelsparser.get_model_fields(model)
+            # Turn the (class, args, kwargs) format into a string
+            fields = triples_to_defs(app, model, fields)
+            # Make the code
+            forwards += CREATE_TABLE_SNIPPET % (
+                model._meta.object_name,
+                model._meta.db_table,
+                "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
+            )
+            # And the backwards code
+            backwards += DELETE_TABLE_SNIPPET % (
+                model._meta.object_name, 
+                model._meta.db_table
+            )
+        
+        
+        ### Deleted model ###
+        for model, fields in deleted_models:
+            
+            # Add the model's dependencies to the stubs
+            stub_models.update(model_dependencies(model))
+            
+            # Turn the (class, args, kwargs) format into a string
+            fields = triples_to_defs(app, model, fields)
+            
+            # Make the code
+            forwards += DELETE_TABLE_SNIPPET % (
+                model._meta.object_name, 
+                model._meta.db_table
+            )
+            # And the backwards code
+            backwards += CREATE_TABLE_SNIPPET % (
+                model._meta.object_name,
+                model._meta.db_table,
+                "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
+            )
+        
         
         # Default values for forwards/backwards
         if (not forwards) and (not backwards):
@@ -408,7 +459,7 @@ def prep_for_freeze(model):
 def prep_for_stub(model):
     fields = modelsparser.get_model_fields(model)
     # Now, take only the PK (and a 'we're a stub' field) and freeze 'em
-    pk = model._meta.pk.get_attname()
+    pk = model._meta.pk.name
     fields = {
         pk: remove_useless_attributes(fields[pk]),
         "_stub": True,
@@ -426,6 +477,15 @@ def model_key(model):
     "For a given model, return 'appname.modelname'."
     return ("%s.%s" % (model._meta.app_label, model._meta.object_name)).lower()
 
+def model_unkey(key):
+    "For 'appname.modelname', return the model."
+    app, modelname = key.split(".", 1)
+    model = models.get_model(app, modelname)
+    if not model:
+        print "Couldn't find model '%s' in app '%s'" % (modelname, app)
+        raise ValueError("Couldn't find model '%s' in app '%s'" % (modelname, app))
+        sys.exit(1)
+    return model
 
 ### Dependency resolvers
 
@@ -617,10 +677,12 @@ CREATE_TABLE_SNIPPET = '''
         # Adding model '%s'
         db.create_table(%r, (
             %s
-        ))'''
+        ))
+        '''
 DELETE_TABLE_SNIPPET = '''
         # Deleting model '%s'
-        db.delete_table(%r)'''
+        db.delete_table(%r)
+        '''
 CREATE_FIELD_SNIPPET = '''
         # Adding field '%s.%s'
         db.add_column(%r, %r, %s)
@@ -635,8 +697,10 @@ CREATE_M2MFIELD_SNIPPET = '''
             ('id', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)),
             ('%s', models.ForeignKey(%s, null=False)),
             ('%s', models.ForeignKey(%s, null=False))
-        )) '''
+        ))
+        '''
 DELETE_M2MFIELD_SNIPPET = '''
         # Dropping ManyToManyField '%s.%s'
-        db.drop_table('%s')'''
+        db.drop_table('%s')
+        '''
 FIELD_NEEDS_DEF_SNIPPET = "<< PUT FIELD DEFINITION HERE >>"
