@@ -228,13 +228,19 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                 print "   (faked)"
         else:
             
+            runfunc = getattr(klass(), torun)
+            args = inspect.getargspec(runfunc)
+            
             # If the database doesn't support running DDL inside a transaction
             # *cough*MySQL*cough* then do a dry run first.
             if not db.has_ddl_transactions:
                 db.dry_run = True
                 db.debug, old_debug = False, db.debug
                 try:
-                    getattr(klass(), torun)()
+                    if len(args[0]) == 1:  # They don't want an ORM param
+                        runfunc()
+                    else:
+                        runfunc(klass.orm)
                 except:
                     traceback.print_exc()
                     print " ! Error found during dry run of migration! Aborting."
@@ -247,8 +253,6 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
             if db.has_ddl_transactions:
                 db.start_transaction()
             try:
-                runfunc = getattr(klass(), torun)
-                args = inspect.getargspec(runfunc)
                 if len(args[0]) == 1:  # They don't want an ORM param
                     runfunc()
                 else:
