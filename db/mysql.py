@@ -13,6 +13,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     alter_string_set_null = 'MODIFY %(column)s %(type)s NULL;'
     alter_string_drop_null = 'MODIFY %(column)s %(type)s NOT NULL;'
     drop_index_string = 'DROP INDEX %(index_name)s ON %(table_name)s'
+    drop_primary_key_string = "ALTER TABLE %(table)s DROP PRIMARY KEY"
     allows_combined_alters = False
     has_ddl_transactions = False
     

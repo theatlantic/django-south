@@ -428,7 +428,36 @@ class DatabaseOperations(object):
         """
         raise NotImplementedError("rename_column has no generic SQL syntax")
 
+    
+    drop_primary_key_string = "ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s"
+    
+    def drop_primary_key(self, table_name):
+        """
+        Drops the old primary key.
+        """
+        qn = connection.ops.quote_name
+        self.execute(self.drop_primary_key_string % {
+            "table": qn(table_name),
+            "constraint": qn(table_name+"_pkey"),
+        })
 
+
+    create_primary_key_string = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s PRIMARY KEY (%(columns)s)"
+    
+    def create_primary_key(self, table_name, columns):
+        """
+        Creates a new primary key on the specified columns.
+        """
+        if not isinstance(columns, (list, tuple)):
+            columns = [columns]
+        qn = connection.ops.quote_name
+        self.execute(self.create_primary_key_string % {
+            "table": qn(table_name),
+            "constraint": qn(table_name+"_pkey"),
+            "columns": ", ".join(map(qn, columns)),
+        })
+    
+    
     def start_transaction(self):
         """
         Makes sure the following commands are inside a transaction.
