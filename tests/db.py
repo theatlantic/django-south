@@ -86,20 +86,20 @@ class TestOperations(unittest.TestCase):
         Test column renaming
         """
         cursor = connection.cursor()
-        db.create_table("test2", [('spam', models.BooleanField(default=False))])
+        db.create_table("test_rn", [('spam', models.BooleanField(default=False))])
         db.start_transaction()
         # Make sure we can select the column
-        cursor.execute("SELECT spam FROM test2")
+        cursor.execute("SELECT spam FROM test_rn")
         # Rename it
-        db.rename_column("test2", "spam", "eggs")
-        cursor.execute("SELECT eggs FROM test2")
+        db.rename_column("test_rn", "spam", "eggs")
+        cursor.execute("SELECT eggs FROM test_rn")
         try:
-            cursor.execute("SELECT spam FROM test2")
+            cursor.execute("SELECT spam FROM test_rn")
             self.fail("Just-renamed column could be selected!")
         except:
             pass
         db.rollback_transaction()
-        db.delete_table("test2")
+        db.delete_table("test_rn")
     
     def test_dry_rename(self):
         """
@@ -107,22 +107,22 @@ class TestOperations(unittest.TestCase):
         See ticket #65
         """
         cursor = connection.cursor()
-        db.create_table("test2", [('spam', models.BooleanField(default=False))])
+        db.create_table("test_drn", [('spam', models.BooleanField(default=False))])
         db.start_transaction()
         # Make sure we can select the column
-        cursor.execute("SELECT spam FROM test2")
+        cursor.execute("SELECT spam FROM test_drn")
         # Rename it
         db.dry_run = True
-        db.rename_column("test2", "spam", "eggs")
+        db.rename_column("test_drn", "spam", "eggs")
         db.dry_run = False
-        cursor.execute("SELECT spam FROM test2")
+        cursor.execute("SELECT spam FROM test_drn")
         try:
-            cursor.execute("SELECT eggs FROM test2")
+            cursor.execute("SELECT eggs FROM test_drn")
             self.fail("Dry-renamed new column could be selected!")
         except:
             pass
         db.rollback_transaction()
-        db.delete_table("test2")
+        db.delete_table("test_drn")
     
     def test_table_rename(self):
         """
@@ -165,6 +165,25 @@ class TestOperations(unittest.TestCase):
         db.delete_index("test3", ["eggs"])
         db.rollback_transaction()
         db.delete_table("test3")
+    
+    def test_primary_key(self):
+        """
+        Test the primary key operations
+        """
+        db.create_table("test_pk", [
+            ('id', models.IntegerField(primary_key=True)),
+            ('new_pkey', models.IntegerField()),
+            ('eggs', models.IntegerField(unique=True)),
+        ])
+        db.execute_deferred_sql()
+        db.start_transaction()
+        # Remove the default primary key, and make eggs it
+        db.drop_primary_key("test_pk")
+        db.create_primary_key("test_pk", "new_pkey")
+        # Try inserting a now-valid row pair
+        db.execute("INSERT INTO test_pk (id, new_pkey, eggs) VALUES (1, 2, 3), (1, 3, 4)")
+        db.rollback_transaction()
+        db.delete_table("test_pk")
     
     def test_alter(self):
         """
