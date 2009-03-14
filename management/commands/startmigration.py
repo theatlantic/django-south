@@ -368,6 +368,8 @@ class Command(BaseCommand):
                 model._meta.object_name,
                 model._meta.db_table,
                 "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
+                model._meta.app_label,
+                model._meta.object_name,
             )
             # And the backwards code
             backwards += DELETE_TABLE_SNIPPET % (
@@ -678,6 +680,7 @@ CREATE_TABLE_SNIPPET = '''
         db.create_table(%r, (
             %s
         ))
+        db.send_create_signal(%r, [%r])
         '''
 DELETE_TABLE_SNIPPET = '''
         # Deleting model '%s'
