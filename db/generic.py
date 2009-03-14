@@ -298,16 +298,18 @@ class DatabaseOperations(object):
             # this allows the addition of a NOT NULL field to a table with existing rows
             if not field.null and field.has_default():
                 default = field.get_default()
-                # If the default is a callable, then call it!
-                if callable(default):
-                    default = default()
-                # Now do some very cheap quoting. TODO: Redesign return values to avoid this.
-                if isinstance(default, basestring):
-                    default = "'%s'" % default.replace("'", "''")
-                elif isinstance(default, datetime.date):
-                    default = "'%s'" % default
-                sql += " DEFAULT %s"
-                sqlparams = (default)
+                # If the default is actually None, don't add a default term
+                if default is not None:
+                    # If the default is a callable, then call it!
+                    if callable(default):
+                        default = default()
+                    # Now do some very cheap quoting. TODO: Redesign return values to avoid this.
+                    if isinstance(default, basestring):
+                        default = "'%s'" % default.replace("'", "''")
+                    elif isinstance(default, datetime.date):
+                        default = "'%s'" % default
+                    sql += " DEFAULT %s"
+                    sqlparams = (default)
 
             if field.rel and self.supports_foreign_keys:
                 self.add_deferred_sql(
@@ -440,6 +442,8 @@ class DatabaseOperations(object):
             "table": qn(table_name),
             "constraint": qn(table_name+"_pkey"),
         })
+
+    delete_primary_key = alias('drop_primary_key')
 
 
     create_primary_key_string = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s PRIMARY KEY (%(columns)s)"
