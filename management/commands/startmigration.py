@@ -247,6 +247,35 @@ class Command(BaseCommand):
                 ))
         
         
+        ### Added model ###
+        for mkey in added_models:
+            
+            model = model_unkey(mkey)
+            
+            # Add the model's dependencies to the stubs
+            stub_models.update(model_dependencies(model))
+            # Get the field definitions
+            fields = modelsparser.get_model_fields(model)
+            # Turn the (class, args, kwargs) format into a string
+            fields = triples_to_defs(app, model, fields)
+            # Make the code
+            forwards += CREATE_TABLE_SNIPPET % (
+                model._meta.object_name,
+                model._meta.db_table,
+                "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
+                model._meta.app_label,
+                model._meta.object_name,
+            )
+            # And the backwards code
+            backwards += DELETE_TABLE_SNIPPET % (
+                model._meta.object_name, 
+                model._meta.db_table
+            )
+            # Now add M2M fields to be done
+            for field in model._meta.many_to_many:
+                added_fields.add((mkey, field.attname))
+        
+        
         ### Added fields ###
         for mkey, field_name in added_fields:
             
@@ -349,32 +378,6 @@ class Command(BaseCommand):
                 model._meta.db_table,
                 field.name,
                 field_definition,
-            )
-        
-        
-        ### Added model ###
-        for mkey in added_models:
-            
-            model = model_unkey(mkey)
-            
-            # Add the model's dependencies to the stubs
-            stub_models.update(model_dependencies(model))
-            # Get the field definitions
-            fields = modelsparser.get_model_fields(model)
-            # Turn the (class, args, kwargs) format into a string
-            fields = triples_to_defs(app, model, fields)
-            # Make the code
-            forwards += CREATE_TABLE_SNIPPET % (
-                model._meta.object_name,
-                model._meta.db_table,
-                "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
-                model._meta.app_label,
-                model._meta.object_name,
-            )
-            # And the backwards code
-            backwards += DELETE_TABLE_SNIPPET % (
-                model._meta.object_name, 
-                model._meta.db_table
             )
         
         
@@ -485,7 +488,6 @@ def model_unkey(key):
     model = models.get_model(app, modelname)
     if not model:
         print "Couldn't find model '%s' in app '%s'" % (modelname, app)
-        raise ValueError("Couldn't find model '%s' in app '%s'" % (modelname, app))
         sys.exit(1)
     return model
 
@@ -503,7 +505,7 @@ def model_dependencies(model):
 
 def field_dependencies(field):
     depends = set()
-    if isinstance(field, (models.OneToOneField, models.ForeignKey)):
+    if isinstance(field, (models.OneToOneField, models.ForeignKey, models.ManyToManyField)):
         depends.add(field.rel.to)
     return depends
     
@@ -704,6 +706,6 @@ CREATE_M2MFIELD_SNIPPET = '''
         '''
 DELETE_M2MFIELD_SNIPPET = '''
         # Dropping ManyToManyField '%s.%s'
-        db.drop_table('%s')
+        db.delete_table('%s')
         '''
 FIELD_NEEDS_DEF_SNIPPET = "<< PUT FIELD DEFINITION HERE >>"
