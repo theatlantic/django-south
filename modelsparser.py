@@ -328,7 +328,7 @@ def get_model_fields(model):
     fields = {}
     for field in model._meta.fields:
         # Get its name
-        fieldname = field.attname
+        fieldname = field.name
         if isinstance(field, models.related.RelatedObject):
             continue
         # Now, try to get the defn
