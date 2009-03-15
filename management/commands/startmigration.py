@@ -314,7 +314,8 @@ class Command(BaseCommand):
             stub_models.update(field_dependencies(field))
             
             # Work out the definition
-            triple = modelsparser.get_model_fields(model)[field_name]
+            triple = remove_useless_attributes(
+                modelsparser.get_model_fields(model)[field_name])
             
             field_definition = make_field_constructor(app, field, triple)
             
@@ -365,7 +366,8 @@ class Command(BaseCommand):
             stub_models.update(field_dependencies(field))
             
             # Work out the definition
-            field_definition = make_field_constructor(app, field, triple)
+            field_definition = remove_useless_attributes(
+                make_field_constructor(app, field, triple))
             
             forwards += DELETE_FIELD_SNIPPET % (
                 model._meta.object_name,
