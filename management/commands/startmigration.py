@@ -315,6 +315,7 @@ class Command(BaseCommand):
             
             # Work out the definition
             triple = modelsparser.get_model_fields(model)[field_name]
+            
             field_definition = make_field_constructor(app, field, triple)
             
             forwards += CREATE_FIELD_SNIPPET % (
