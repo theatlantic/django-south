@@ -326,9 +326,9 @@ def get_model_fields(model):
     
     # Now, go through all the fields and try to get their definition
     fields = {}
-    for fieldname in model._meta.get_all_field_names():
-        # Now see if that's not actually a field
-        field = model._meta.get_field_by_name(fieldname)[0]
+    for field in model._meta.fields:
+        # Get its name
+        fieldname = field.attname
         if isinstance(field, models.related.RelatedObject):
             continue
         # Now, try to get the defn
