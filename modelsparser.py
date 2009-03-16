@@ -326,7 +326,7 @@ def get_model_fields(model):
     
     # Now, go through all the fields and try to get their definition
     fields = {}
-    for field in model._meta.fields:
+    for field in model._meta.local_fields:
         # Get its name
         fieldname = field.name
         if isinstance(field, models.related.RelatedObject):
@@ -361,6 +361,15 @@ def get_model_meta(model):
     """
     tree = get_model_tree(model)
     
+    result = {}
+    
+    # First, try to get any unusual inherited classes
+    for base in model.__bases__:
+        if base is not models.Model:
+            if "_bases" not in result:
+                result['_bases'] = []
+            result['_bases'].append(base.__module__ + "." + base.__name__)
+    
     # Find all classes exactly two levels deep
     possible_meta_classes = set(tree.find("classdef classdef"))
     possible_meta_classes.difference(set(tree.find("classdef classdef classdef")))
@@ -372,14 +381,12 @@ def get_model_meta(model):
         if tree.value[2][1] == "Meta"
     ]
     
-    if not possible_meta_classes:
-        return None
-    else:
+    if possible_meta_classes:
         # Now, for each possible definition, try it. (Only for last Meta,
         # since that's how python interprets it)
-        defns = {}
         for defn in possible_meta_classes[-1]:
             bits = defn.flatten()
             if len(bits) > 1 and bits[1] == token.EQUAL:
-                defns[bits[0][1]] = reform(bits[2:])
-        return defns
+                result[bits[0][1]] = reform(bits[2:])
+    
+    return result or None
