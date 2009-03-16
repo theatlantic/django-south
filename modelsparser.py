@@ -366,9 +366,12 @@ def get_model_meta(model):
     # First, try to get any unusual inherited classes
     for base in model.__bases__:
         if base is not models.Model:
-            if "_bases" not in result:
-                result['_bases'] = []
-            result['_bases'].append(base.__module__ + "." + base.__name__)
+            if not base._meta.abstract:
+                # Abstract models' fields are included anyway, and we don't
+                # want extra dependencies
+                if "_bases" not in result:
+                    result['_bases'] = []
+                result['_bases'].append(base.__module__ + "." + base.__name__)
     
     # Find all classes exactly two levels deep
     possible_meta_classes = set(tree.find("classdef classdef"))

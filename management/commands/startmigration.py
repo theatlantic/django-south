@@ -207,7 +207,7 @@ class Command(BaseCommand):
                         print "You cannot use automatic detection, since the previous migration does not have this whole app frozen.\nEither make migrations using '--freeze %s' or set 'SOUTH_AUTO_FREEZE_APP = True' in your settings.py." % app
             
             # Right, did we manage to get the last set of models?
-            if not last_models:
+            if last_models is None:
                 return
             
             # Good! Get new things.
