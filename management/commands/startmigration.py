@@ -272,7 +272,7 @@ class Command(BaseCommand):
                 model._meta.db_table
             )
             # Now add M2M fields to be done
-            for field in model._meta.many_to_many:
+            for field in model._meta.local_many_to_many:
                 added_fields.add((mkey, field.attname))
         
         
