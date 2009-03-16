@@ -621,17 +621,17 @@ def models_diff(old, new):
             still_there = set()
             # Find fields that have vanished.
             for fieldname in old[key]:
-                if fieldname not in new[key]:
+                if fieldname != "Meta" and fieldname not in new[key]:
                     deleted_fields.add((key, fieldname))
                 else:
                     still_there.add(fieldname)
             # And ones that have appeared
             for fieldname in new[key]:
-                if fieldname not in old[key]:
+                if fieldname != "Meta" and fieldname not in old[key]:
                     added_fields.add((key, fieldname))
             # For the ones that exist in both models, see if they were changed
             for fieldname in still_there:
-                if new[key][fieldname] != old[key][fieldname]:
+                if fieldname != "Meta" and new[key][fieldname] != old[key][fieldname]:
                     changed_fields.add((key, fieldname))
     
     return added_models, deleted_models, added_fields, deleted_fields, changed_fields
