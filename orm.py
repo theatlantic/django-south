@@ -92,6 +92,8 @@ class FakeORM(object):
         "Makes a Meta class out of a dict of eval-able arguments."
         results = {}
         for key, code in data.items():
+            if key in ["_bases"]:
+                continue
             try:
                 results[key] = self.eval_in_context(code, app)
             except (NameError, AttributeError), e:
@@ -104,9 +106,14 @@ class FakeORM(object):
     def make_model(self, app, name, data):
         "Makes a Model class out of the given app name, model name and pickled data."
         
+        # Extract any bases out of Meta
+        if "_bases" in data['Meta']:
+            bases = data['Meta']['_bases']
+        else:
+            bases = ['django.db.models.Model']
+        
         # Turn the Meta dict into a basic class
         meta = self.make_meta(app, name, data['Meta'])
-        del data['Meta']
         
         failed_fields = {}
         fields = {}
@@ -116,6 +123,8 @@ class FakeORM(object):
         for fname, params in data.items():
             if fname == "_stub":
                 stub = bool(params)
+                continue
+            elif fname == "Meta":
                 continue
             elif not params:
                 raise ValueError("Field '%s' on model '%s.%s' has no definition." % (fname, app, name))
@@ -156,9 +165,10 @@ class FakeORM(object):
         
         # Make our model
         fields.update(more_kwds)
+        
         model = type(
             name,
-            (models.Model,),
+            tuple(map(ask_for_it_by_name, bases)),
             fields,
         )
         
@@ -197,3 +207,11 @@ class WhinyManager(object):
     
     def __getattr__(self, key):
         raise AttributeError("You cannot use items from a stub model.")
+
+
+def ask_for_it_by_name(name):
+    "Returns an object referenced by absolute path."
+    bits = name.split(".")
+    modulename = ".".join(bits[:-1])
+    module = __import__(modulename, fromlist=bits[-1])
+    return getattr(module, bits[-1])
