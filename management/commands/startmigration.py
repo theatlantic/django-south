@@ -285,7 +285,7 @@ class Command(BaseCommand):
             try:
                 field = model._meta.get_field(field_name)
             except FieldDoesNotExist:
-                print "Model '%s' doesn't have a field '%s'" % (model_name, field_name)
+                print "Model '%s' doesn't have a field '%s'" % (mkey, field_name)
                 return
             
             # ManyToMany fields need special attention.
