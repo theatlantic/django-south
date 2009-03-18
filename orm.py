@@ -88,12 +88,17 @@ class FakeORM(object):
         return eval(code, globals(), fake_locals)
     
     
-    def make_meta(self, app, model, data):
+    def make_meta(self, app, model, data, stub=False):
         "Makes a Meta class out of a dict of eval-able arguments."
         results = {}
         for key, code in data.items():
+            # Some things we never want to use.
             if key in ["_bases"]:
                 continue
+            # Some things we don't want with stubs.
+            if stub and key in ["order_with_respect_to"]:
+                continue
+            # OK, add it.
             try:
                 results[key] = self.eval_in_context(code, app)
             except (NameError, AttributeError), e:
@@ -113,7 +118,7 @@ class FakeORM(object):
             bases = ['django.db.models.Model']
         
         # Turn the Meta dict into a basic class
-        meta = self.make_meta(app, name, data['Meta'])
+        meta = self.make_meta(app, name, data['Meta'], data.get("_stub", False))
         
         failed_fields = {}
         fields = {}
