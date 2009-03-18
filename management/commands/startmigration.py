@@ -235,6 +235,8 @@ class Command(BaseCommand):
             for mkey in dm:
                 model = last_orm[mkey]
                 fields = last_models[mkey]
+                if "Meta" in fields:
+                    del fields['Meta']
                 deleted_models.append((model, fields))
             
             # For deleted fields, we tag the instance on the end too
@@ -403,6 +405,8 @@ class Command(BaseCommand):
                 model._meta.object_name,
                 model._meta.db_table,
                 "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
+                model._meta.app_label,
+                model._meta.object_name,
             )
         
         
