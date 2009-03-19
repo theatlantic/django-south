@@ -496,7 +496,7 @@ class Command(BaseCommand):
 ### Cleaning functions for freezing
 
 def prep_for_freeze(model):
-    fields = modelsparser.get_model_fields(model)
+    fields = modelsparser.get_model_fields(model, m2m=True)
     # Remove useless attributes (like 'choices')
     for name, field in fields.items():
         fields[name] = remove_useless_attributes(field)
