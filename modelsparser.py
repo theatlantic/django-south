@@ -301,7 +301,7 @@ def extract_field(tree):
     
 
 
-def get_model_fields(model):
+def get_model_fields(model, m2m=False):
     """
     Given a model class, will return the dict of name: field_constructor
     mappings.
@@ -325,8 +325,11 @@ def get_model_fields(model):
             inherited_fields.update(get_model_fields(base))
     
     # Now, go through all the fields and try to get their definition
+    source = model._meta.local_fields[:]
+    if m2m:
+        source += model._meta.many_to_many
     fields = {}
-    for field in model._meta.local_fields:
+    for field in source:
         # Get its name
         fieldname = field.name
         if isinstance(field, models.related.RelatedObject):
