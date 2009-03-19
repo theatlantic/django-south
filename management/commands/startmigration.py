@@ -145,6 +145,7 @@ class Command(BaseCommand):
         deleted_models = [] # Special: contains instances _not_ string keys
         added_fields = set()
         deleted_fields = [] # Similar to deleted_models
+        changed_fields = [] # (mkey, fname, old_def, new_def)
         
         # --initial means 'add all models in this app'.
         if initial:
@@ -230,6 +231,7 @@ class Command(BaseCommand):
             # Add items to the todo lists
             added_models.update(am)
             added_fields.update(af)
+            changed_fields.extend(cf)
             
             # Deleted models are from the past, and so we use instances instead.
             for mkey in dm:
@@ -416,6 +418,11 @@ class Command(BaseCommand):
                 model._meta.app_label,
                 model._meta.object_name,
             )
+        
+        
+        ### Changed fields ###
+        for mkey, field_name, old_triple, new_triple in changed_fields:
+            print " ~ Changed field '%s.%s'. NOT YET IMPLEMENTED; PLEASE ADD THIS TO THE FILE." % (mkey, field_name)
         
         
         # Default values for forwards/backwards
@@ -615,7 +622,7 @@ def models_diff(old, new):
     deleted_models = set()
     added_fields = set()
     deleted_fields = set()
-    changed_fields = set()
+    changed_fields = []
     
     # See if anything's vanished
     for key in old:
@@ -644,7 +651,7 @@ def models_diff(old, new):
             # For the ones that exist in both models, see if they were changed
             for fieldname in still_there:
                 if fieldname != "Meta" and new[key][fieldname] != old[key][fieldname]:
-                    changed_fields.add((key, fieldname))
+                    changed_fields.append((key, fieldname, old[key][fieldname], new[key][fieldname]))
     
     return added_models, deleted_models, added_fields, deleted_fields, changed_fields
 
