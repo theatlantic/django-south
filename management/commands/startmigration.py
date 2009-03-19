@@ -422,7 +422,31 @@ class Command(BaseCommand):
         
         ### Changed fields ###
         for mkey, field_name, old_triple, new_triple in changed_fields:
-            print " ~ Changed field '%s.%s'. NOT YET IMPLEMENTED; PLEASE ADD THIS TO THE FILE." % (mkey, field_name)
+            print " ~ Changed field '%s.%s'." % (mkey, field_name)
+            
+            model = model_unkey(mkey)
+            old_def = triples_to_defs(app, model, {
+                field_name: old_triple,
+            })[field_name]
+            new_def = triples_to_defs(app, model, {
+                field_name: new_triple,
+            })[field_name]
+            
+            forwards += CHANGE_FIELD_SNIPPET % (
+                model._meta.object_name,
+                field_name,
+                model._meta.db_table,
+                field_name,
+                new_def,
+            )
+            
+            backwards += CHANGE_FIELD_SNIPPET % (
+                model._meta.object_name,
+                field_name,
+                model._meta.db_table,
+                field_name,
+                old_def,
+            )
         
         
         # Default values for forwards/backwards
@@ -717,6 +741,10 @@ CREATE_FIELD_SNIPPET = '''
 DELETE_FIELD_SNIPPET = '''
         # Deleting field '%s.%s'
         db.delete_column(%r, %r)
+        '''
+CHANGE_FIELD_SNIPPET = '''
+        # Changing field '%s.%s'
+        db.alter_column(%r, %r, %s)
         '''
 CREATE_M2MFIELD_SNIPPET = '''
         # Adding ManyToManyField '%s.%s'
