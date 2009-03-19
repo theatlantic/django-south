@@ -252,6 +252,8 @@ class Command(BaseCommand):
         ### Added model ###
         for mkey in added_models:
             
+            print " + Added model '%s'" % (mkey,)
+            
             model = model_unkey(mkey)
             
             # Add the model's dependencies to the stubs
@@ -280,6 +282,8 @@ class Command(BaseCommand):
         
         ### Added fields ###
         for mkey, field_name in added_fields:
+            
+            print " + Added field '%s.%s'" % (mkey, field_name)
             
             # Get the model
             model = model_unkey(mkey)
@@ -339,6 +343,8 @@ class Command(BaseCommand):
         ### Deleted fields ###
         for mkey, field_name, field, triple in deleted_fields:
             
+            print " - Deleted field '%s.%s'" % (mkey, field_name)
+            
             # Get the model
             model = model_unkey(mkey)
             
@@ -388,6 +394,8 @@ class Command(BaseCommand):
         
         ### Deleted model ###
         for model, fields in deleted_models:
+            
+            print " - Deleted model '%s.%s'" % (model._meta.app_label,model._meta.object_name)
             
             # Add the model's dependencies to the stubs
             stub_models.update(model_dependencies(model))
