@@ -353,6 +353,8 @@ class DatabaseOperations(object):
         )
 
 
+    max_index_name_length = 63
+    
     def create_index_name(self, table_name, column_names):
         """
         Generate a unique name for the index
@@ -360,8 +362,8 @@ class DatabaseOperations(object):
         index_unique_name = ''
         if len(column_names) > 1:
             index_unique_name = '_%x' % abs(hash((table_name, ','.join(column_names))))
-
-        return '%s_%s%s' % (table_name, column_names[0], index_unique_name)
+        
+        return ('%s_%s%s' % (table_name, column_names[0], index_unique_name))[:self.max_index_name_length]
 
 
     def create_index_sql(self, table_name, column_names, unique=False, db_tablespace=''):
