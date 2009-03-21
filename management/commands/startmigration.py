@@ -565,7 +565,7 @@ def model_dependencies(model, last_models=None):
     OneToOneFields as ID, ForeignKeys everywhere, etc.
     """
     depends = {}
-    for field in model._meta.fields:
+    for field in model._meta.fields + model._meta.many_to_many:
         depends.update(field_dependencies(field, last_models))
     return depends
 
@@ -599,10 +599,13 @@ def pprint_fields(fields):
 
 
 USELESS_KEYWORDS = ["choices", "help_text"]
-def remove_useless_attributes(field):
+USELESS_DB_KEYWORDS = ["related_name"] # Important for ORM, not for DB.
+
+def remove_useless_attributes(field, db=False):
     "Removes useless (for database) attributes from the field's defn."
+    keywords = db and USELESS_DB_KEYWORDS or USELESS_KEYWORDS
     if field:
-        for name in USELESS_KEYWORDS:
+        for name in keywords:
             if name in field[2]:
                 del field[2][name]
     return field
@@ -701,7 +704,9 @@ def models_diff(old, new):
                     added_fields.add((key, fieldname))
             # For the ones that exist in both models, see if they were changed
             for fieldname in still_there:
-                if fieldname != "Meta" and new[key][fieldname] != old[key][fieldname]:
+                if fieldname != "Meta" and \
+                   remove_useless_attributes(new[key][fieldname], True) != \
+                   remove_useless_attributes(old[key][fieldname], True):
                     changed_fields.append((key, fieldname, old[key][fieldname], new[key][fieldname]))
     
     return added_models, deleted_models, added_fields, deleted_fields, changed_fields
