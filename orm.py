@@ -8,6 +8,25 @@ import inspect
 from django.db import models
 from django.db.models.loading import cache
 
+
+class ModelsLocals(object):
+    
+    """
+    Custom dictionary-like class to be locals();
+    falls back to lowercase search for items that don't exist
+    (because we store model names as lowercase).
+    """
+    
+    def __init__(self, data):
+        self.data = data
+    
+    def __getitem__(self, key):
+        try:
+            return self.data[key]
+        except KeyError:
+            return self.data[key.lower()]
+
+
 class FakeORM(object):
     
     """
@@ -70,11 +89,19 @@ class FakeORM(object):
         # Drag in the migration module's locals (hopefully including models.py)
         fake_locals = dict(inspect.getmodule(self.cls).__dict__)
         
+        # Remove all models from that (i.e. from modern models.py), to stop pollution
+        removed_models = []
+        for key, value in fake_locals.items():
+            if isinstance(value, type) and issubclass(value, models.Model):
+                removed_models.append("%s.%s" % (value._meta.app_label.lower(), key))
+                del fake_locals[key]
+        
         # We add our models into the locals for the eval
         fake_locals.update(dict([
             (name.split(".")[-1], model)
             for name, model in self.models.items()
         ]))
+        
         # Make sure the ones for this app override.
         fake_locals.update(dict([
             (name.split(".")[-1], model)
@@ -84,6 +111,9 @@ class FakeORM(object):
         
         # And a fake _ function
         fake_locals['_'] = lambda x: x
+        
+        # Use ModelsLocals to make lookups work right for CapitalisedModels
+        fake_locals = ModelsLocals(fake_locals)
         
         return eval(code, globals(), fake_locals)
     
@@ -191,8 +221,8 @@ class FakeORM(object):
     
     def retry_failed_fields(self):
         "Tries to re-evaluate the _failed_fields for each model."
-        for modelname, model in self.models.items():
-            app, model = modelname.split(".", 1)
+        for modelkey, model in self.models.items():
+            app, modelname = modelkey.split(".", 1)
             if hasattr(model, "_failed_fields"):
                 for fname, code in model._failed_fields.items():
                     try:

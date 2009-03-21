@@ -136,8 +136,8 @@ class Command(BaseCommand):
         # Initialise forwards, backwards and models to blank things
         forwards = ""
         backwards = ""
-        frozen_models = set() # Frozen models, used by the Fake ORM
-        stub_models = set() # Frozen models, but only enough for relation ends (old mock models)
+        frozen_models = {} # Frozen models, used by the Fake ORM
+        stub_models = {} # Frozen models, but only enough for relation ends (old mock models)
         complete_apps = set() # Apps that are completely frozen - useable for diffing.
         
         # Sets of actions
@@ -178,10 +178,10 @@ class Command(BaseCommand):
                     if model is None:
                         print "Cannot find the model '%s' to freeze it." % item
                         return
-                    frozen_models.add(model)
+                    frozen_models[model] = None
                 else:
                     # Get everything in an app!
-                    frozen_models.update(models.get_models(models.get_app(item)))
+                    frozen_models.update(dict([(x, None) for x in models.get_models(models.get_app(item))]))
                     complete_apps.add(item.split(".")[-1])
             # For every model in the freeze list, add in dependency stubs
             for model in frozen_models:
@@ -239,7 +239,7 @@ class Command(BaseCommand):
                 fields = last_models[mkey]
                 if "Meta" in fields:
                     del fields['Meta']
-                deleted_models.append((model, fields))
+                deleted_models.append((model, fields, last_models))
             
             # For deleted fields, we tag the instance on the end too
             for mkey, fname in df:
@@ -248,6 +248,7 @@ class Command(BaseCommand):
                     fname,
                     last_orm[mkey]._meta.get_field_by_name(fname)[0],
                     last_models[mkey][fname],
+                    last_models,
                 ))
         
         
@@ -299,8 +300,8 @@ class Command(BaseCommand):
             # ManyToMany fields need special attention.
             if isinstance(field, models.ManyToManyField):
                 # Add a stub model for each side
-                stub_models.add(model)
-                stub_models.add(field.rel.to)
+                stub_models[model] = None
+                stub_models[field.rel.to] = None
                 # And a field defn, that's actually a table creation
                 forwards += CREATE_M2MFIELD_SNIPPET % (
                     model._meta.object_name,
@@ -343,7 +344,7 @@ class Command(BaseCommand):
         
         
         ### Deleted fields ###
-        for mkey, field_name, field, triple in deleted_fields:
+        for mkey, field_name, field, triple, last_models in deleted_fields:
             
             print " - Deleted field '%s.%s'" % (mkey, field_name)
             
@@ -352,9 +353,12 @@ class Command(BaseCommand):
             
             # ManyToMany fields need special attention.
             if isinstance(field, models.ManyToManyField):
-                # Add a stub model for each side
-                stub_models.add(model)
-                stub_models.add(field.rel.to)
+                # Add a stub model for each side, if they're not already there
+                # (if we just added old versions, we might override new ones)
+                if model not in stub_models:
+                    stub_models[model] = last_models
+                if field.rel.to not in last_models:
+                    stub_models[field.rel.to] = last_models
                 # And a field defn, that's actually a table deletion
                 forwards += DELETE_M2MFIELD_SNIPPET % (
                     model._meta.object_name,
@@ -373,7 +377,9 @@ class Command(BaseCommand):
                 continue
             
             # Add any dependencies
-            stub_models.update(field_dependencies(field))
+            deps = field_dependencies(field, last_models)
+            deps.update(stub_models)
+            stub_models = deps
             
             # Work out the definition
             triple = remove_useless_attributes(triple)
@@ -395,12 +401,14 @@ class Command(BaseCommand):
         
         
         ### Deleted model ###
-        for model, fields in deleted_models:
+        for model, fields, last_models in deleted_models:
             
             print " - Deleted model '%s.%s'" % (model._meta.app_label,model._meta.object_name)
             
             # Add the model's dependencies to the stubs
-            stub_models.update(model_dependencies(model))
+            deps = model_dependencies(model, last_models)
+            deps.update(stub_models)
+            stub_models = deps
             
             # Turn the (class, args, kwargs) format into a string
             fields = triples_to_defs(app, model, fields)
@@ -457,14 +465,14 @@ class Command(BaseCommand):
         all_models = {}
         
         # Fill out frozen model definitions
-        for model in frozen_models:
-            all_models[model_key(model)] = prep_for_freeze(model)
+        for model, last_models in frozen_models.items():
+            all_models[model_key(model)] = prep_for_freeze(model, last_models)
         
         # Fill out stub model definitions
-        for model in stub_models:
+        for model, last_models in stub_models.items():
             if model in frozen_models:
                 continue # We'd rather use full models than stubs.
-            all_models[model_key(model)] = prep_for_stub(model)
+            all_models[model_key(model)] = prep_for_stub(model, last_models)
         
         # Do some model cleanup, and warnings
         for modelname, model in all_models.items():
@@ -495,20 +503,29 @@ class Command(BaseCommand):
 
 ### Cleaning functions for freezing
 
-def prep_for_freeze(model):
-    fields = modelsparser.get_model_fields(model, m2m=True)
+def prep_for_freeze(model, last_models=None):
+    if last_models:
+        fields = last_models[model_key(model)]
+    else:
+        fields = modelsparser.get_model_fields(model, m2m=True)
     # Remove useless attributes (like 'choices')
     for name, field in fields.items():
         fields[name] = remove_useless_attributes(field)
     # See if there's a Meta
-    meta = modelsparser.get_model_meta(model)
+    if last_models:
+        meta = last_models[model_key(model)].get("Meta", {})
+    else:
+        meta = modelsparser.get_model_meta(model)
     if meta:
         fields['Meta'] = remove_useless_meta(meta)
     return fields
 
 
-def prep_for_stub(model):
-    fields = modelsparser.get_model_fields(model)
+def prep_for_stub(model, last_models=None):
+    if last_models:
+        fields = last_models[model_key(model)]
+    else:
+        fields = modelsparser.get_model_fields(model)
     # Now, take only the PK (and a 'we're a stub' field) and freeze 'em
     pk = model._meta.pk.name
     fields = {
@@ -516,7 +533,10 @@ def prep_for_stub(model):
         "_stub": True,
     }
     # Meta is important too.
-    meta = modelsparser.get_model_meta(model)
+    if last_models:
+        meta = last_models[model_key(model)].get("Meta", {})
+    else:
+        meta = modelsparser.get_model_meta(model)
     if meta:
         fields['Meta'] = remove_useless_meta(meta)
     return fields
@@ -539,20 +559,23 @@ def model_unkey(key):
 
 ### Dependency resolvers
 
-def model_dependencies(model):
+def model_dependencies(model, last_models=None):
     """
     Returns a set of models this one depends on to be defined; things like
     OneToOneFields as ID, ForeignKeys everywhere, etc.
     """
-    depends = set()
+    depends = {}
     for field in model._meta.fields:
-        depends.update(field_dependencies(field))
+        depends.update(field_dependencies(field, last_models))
     return depends
 
-def field_dependencies(field):
-    depends = set()
+def field_dependencies(field, last_models=None):
+    depends = {}
     if isinstance(field, (models.OneToOneField, models.ForeignKey, models.ManyToManyField)):
-        depends.add(field.rel.to)
+        if last_models:
+            depends[field.rel.to] = last_models
+        else:
+            depends[field.rel.to] = None
     return depends
     
 
@@ -629,7 +652,7 @@ def poss_ormise(default_app, rel_to, arg):
     else:
         real_name = "orm.%s" % rel_name
     # Now see if we can replace it.
-    if arg == rel_name:
+    if arg.lower() == rel_name.lower():
         return real_name
     return arg
 
@@ -644,6 +667,7 @@ def models_diff(old, new):
     
     added_models = set()
     deleted_models = set()
+    ignored_models = set() # Stubs for backwards
     added_fields = set()
     deleted_fields = set()
     changed_fields = []
@@ -651,7 +675,10 @@ def models_diff(old, new):
     # See if anything's vanished
     for key in old:
         if key not in new:
-            deleted_models.add(key)
+            if "_stub" not in old[key]:
+                deleted_models.add(key)
+            else:
+                ignored_models.add(key)
     
     # Or appeared
     for key in new:
@@ -660,7 +687,7 @@ def models_diff(old, new):
     
     # Now, for every model that's stayed the same, check its fields.
     for key in old:
-        if key not in deleted_models:
+        if key not in deleted_models and key not in ignored_models:
             still_there = set()
             # Find fields that have vanished.
             for fieldname in old[key]:
