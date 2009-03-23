@@ -55,6 +55,34 @@ class DatabaseOperations(generic.DatabaseOperations):
         else:
             self.execute(sql)
     
+    def delete_column(self, table_name, name):
+        qn = connection.ops.quote_name
+        db_name = connection.settings_dict.get('DATABASE_NAME')
+        
+        # See if there is a foreign key on this column
+        cursor = connection.cursor()
+        get_fkeyname_query = "SELECT tc.constraint_name FROM \
+                              information_schema.table_constraints tc, \
+                              information_schema.key_column_usage kcu \
+                              WHERE tc.table_name=kcu.table_name \
+                              AND tc.table_schema=kcu.table_schema \
+                              AND tc.constraint_name=kcu.constraint_name \
+                              AND tc.constraint_type='FOREIGN KEY' \
+                              AND tc.table_schema='%s' \
+                              AND tc.table_name='%s' \
+                              AND kcu.column_name='%s'"
+
+        result = cursor.execute(get_fkeyname_query % (db_name, table_name, name))
+        
+        # if a foreign key exists, we need to delete it first
+        if result > 0:
+            assert result == 1 #we should only have one result
+            fkey_name = cursor.fetchone()[0]
+            drop_query = "ALTER TABLE %s DROP FOREIGN KEY %s"
+            cursor.execute(drop_query % (qn(table_name), qn(fkey_name)))
+
+        super(DatabaseOperations, self).delete_column(table_name, name)
+
     
     def rename_table(self, old_table_name, table_name):
         """
