@@ -40,3 +40,8 @@ class DatabaseOperations(generic.DatabaseOperations):
         Not supported under SQLite.
         """
         raise NotImplementedError("SQLite does not support renaming columns.")
+    
+    # No cascades on deletes
+    def delete_table(self, table_name, cascade=True):
+        generic.DatabaseOperations.delete_table(self, table_name, False)
+    
