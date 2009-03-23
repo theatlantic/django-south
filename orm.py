@@ -90,7 +90,6 @@ class FakeORM(object):
         fake_locals = dict(inspect.getmodule(self.cls).__dict__)
         
         # Remove all models from that (i.e. from modern models.py), to stop pollution
-        removed_models = []
         for key, value in fake_locals.items():
             if isinstance(value, type) and issubclass(value, models.Model) and hasattr(value, "_meta"):
                 del fake_locals[key]
