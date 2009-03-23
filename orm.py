@@ -93,7 +93,6 @@ class FakeORM(object):
         removed_models = []
         for key, value in fake_locals.items():
             if isinstance(value, type) and issubclass(value, models.Model) and hasattr(value, "_meta"):
-                removed_models.append("%s.%s" % (value._meta.app_label.lower(), key))
                 del fake_locals[key]
         
         # We add our models into the locals for the eval
