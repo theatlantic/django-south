@@ -327,7 +327,7 @@ def get_model_fields(model, m2m=False):
     # Now, go through all the fields and try to get their definition
     source = model._meta.local_fields[:]
     if m2m:
-        source += model._meta.many_to_many
+        source += model._meta.local_many_to_many
     fields = {}
     for field in source:
         # Get its name
