@@ -273,7 +273,10 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                         print
                         print " ! You *might* be able to recover with:"
                         db.debug = db.dry_run = True
-                        klass().backwards()
+                        if len(args[0]) == 1:
+                            klass().backwards()
+                        else:
+                            klass().backwards(klass.orm)
                     print
                     print " ! The South developers regret this has happened, and would"
                     print " ! like to gently persuade you to consider a slightly"
