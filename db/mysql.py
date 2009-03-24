@@ -57,7 +57,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     
     def delete_column(self, table_name, name):
         qn = connection.ops.quote_name
-        db_name = connection.settings_dict.get('DATABASE_NAME')
+        db_name = settings.DATABASE_NAME
         
         # See if there is a foreign key on this column
         cursor = connection.cursor()
