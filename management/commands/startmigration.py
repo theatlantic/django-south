@@ -470,9 +470,10 @@ class Command(BaseCommand):
         
         # Fill out stub model definitions
         for model, last_models in stub_models.items():
-            if model in frozen_models:
+            key = model_key(model)
+            if key in frozen_models:
                 continue # We'd rather use full models than stubs.
-            all_models[model_key(model)] = prep_for_stub(model, last_models)
+            all_models[key] = prep_for_stub(model, last_models)
         
         # Do some model cleanup, and warnings
         for modelname, model in all_models.items():
