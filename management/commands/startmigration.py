@@ -471,7 +471,7 @@ class Command(BaseCommand):
         # Fill out stub model definitions
         for model, last_models in stub_models.items():
             key = model_key(model)
-            if key in frozen_models:
+            if key in all_models:
                 continue # We'd rather use full models than stubs.
             all_models[key] = prep_for_stub(model, last_models)
         
