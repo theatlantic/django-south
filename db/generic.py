@@ -93,12 +93,17 @@ class DatabaseOperations(object):
         self.deferred_sql = []
     
     
-    def clear_run_data(self):
+    def clear_run_data(self, pending_creates = None):
         """
         Resets variables to how they should be before a run. Used for dry runs.
+        If you want, pass in an old panding_creates to reset to.
         """
         self.clear_deferred_sql()
-        self.pending_create_signals = []
+        self.pending_create_signals = pending_creates or []
+    
+    
+    def get_pending_creates(self):
+        return self.pending_create_signals
 
 
     def create_table(self, table_name, fields):
