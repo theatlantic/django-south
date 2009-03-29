@@ -236,6 +236,7 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
             if not db.has_ddl_transactions:
                 db.dry_run = True
                 db.debug, old_debug = False, db.debug
+                pending_creates = db.get_pending_creates()
                 try:
                     if len(args[0]) == 1:  # They don't want an ORM param
                         runfunc()
@@ -246,7 +247,7 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                     print " ! Error found during dry run of migration! Aborting."
                     return False
                 db.debug = old_debug
-                db.clear_run_data()
+                db.clear_run_data(pending_creates)
             
             db.dry_run = bool(db_dry_run)
             
@@ -519,7 +520,7 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
                 if (mapp, mname) not in current_migrations:
                     result = run_forwards(mapp, [mname], fake=fake, db_dry_run=db_dry_run, silent=silent)
                     if result is False: # The migrations errored, but nicely.
-                        return
+                        return False
         finally:
             # Call any pending post_syncdb signals
             db.send_pending_create_signals()
