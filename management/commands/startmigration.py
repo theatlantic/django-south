@@ -643,6 +643,8 @@ def make_field_constructor(default_app, field, triple):
     kwds = ["%s=%s" % (k, poss_ormise(default_app, rel_to, v)) for k,v in triple[2].items()]
     return "%s(%s)" % (triple[0], ", ".join(args+kwds))
 
+QUOTES = ['"""', "'''", '"', "'"]
+
 def poss_ormise(default_app, rel_to, arg):
     """
     Given the name of something that needs orm. stuck on the front and
@@ -658,8 +660,17 @@ def poss_ormise(default_app, rel_to, arg):
         real_name = "orm['%s.%s']" % (rel_to._meta.app_label, rel_name)
     else:
         real_name = "orm.%s" % rel_name
+    # If it's surrounded by quotes, get rid of those
+    for quote_type in QUOTES:
+        l = len(quote_type)
+        if arg[:l] == quote_type and arg[-l:] == quote_type:
+            arg = arg[l:-l]
+            break
     # Now see if we can replace it.
     if arg.lower() == rel_name.lower():
+        return real_name
+    # Or perhaps it's app.model?
+    if arg.lower() == rel_to._meta.app_label.lower() + "." + rel_name.lower():
         return real_name
     return arg
 
