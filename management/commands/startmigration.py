@@ -440,11 +440,14 @@ class Command(BaseCommand):
                 field_name: new_triple,
             })[field_name]
             
+            # We need to create the field, to see if it needs _id
+            field = model._meta.get_field_by_name(field_name)[0]
+            
             forwards += CHANGE_FIELD_SNIPPET % (
                 model._meta.object_name,
                 field_name,
                 model._meta.db_table,
-                field_name,
+                field.get_attname(),
                 new_def,
             )
             
@@ -452,7 +455,7 @@ class Command(BaseCommand):
                 model._meta.object_name,
                 field_name,
                 model._meta.db_table,
-                field_name,
+                field.get_attname(),
                 old_def,
             )
         
