@@ -650,6 +650,7 @@ def poss_ormise(default_app, rel_to, arg):
     Given the name of something that needs orm. stuck on the front and
     a python eval-able string, possibly add orm. to it.
     """
+    orig_arg = arg
     # If it's not a relative field, short-circuit out
     if not rel_to:
         return arg
@@ -672,7 +673,7 @@ def poss_ormise(default_app, rel_to, arg):
     # Or perhaps it's app.model?
     if arg.lower() == rel_to._meta.app_label.lower() + "." + rel_name.lower():
         return real_name
-    return arg
+    return orig_arg
 
 
 ### Diffing functions between sets of models
