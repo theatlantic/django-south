@@ -603,7 +603,7 @@ def pprint_fields(fields):
 
 
 USELESS_KEYWORDS = ["choices", "help_text"]
-USELESS_DB_KEYWORDS = ["related_name"] # Important for ORM, not for DB.
+USELESS_DB_KEYWORDS = ["related_name", "upload_to"] # Important for ORM, not for DB.
 
 def remove_useless_attributes(field, db=False):
     "Removes useless (for database) attributes from the field's defn."
