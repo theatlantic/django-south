@@ -22,5 +22,4 @@ setup(
         "Topic :: Software Development"
     ],
     packages=["south", "south.db", "south.management", "south.management.commands", "south.tests", "south.tests.fakeapp", "south.tests.fakeapp.migrations"],
-    package_dir = {"south" : ""},
 )
