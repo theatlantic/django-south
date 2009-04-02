@@ -161,8 +161,8 @@ class TestOperations(unittest.TestCase):
         # Delete them both
         db.delete_index("test3", ["SELECT"])
         db.delete_index("test3", ["SELECT", "eggs"])
-        # Delete the unique index
-        db.delete_index("test3", ["eggs"])
+        # Delete the unique index/constraint
+        db.delete_unique("test3", ["eggs"])
         db.rollback_transaction()
         db.delete_table("test3")
     

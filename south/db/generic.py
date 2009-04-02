@@ -305,7 +305,7 @@ class DatabaseOperations(object):
         if not isinstance(columns, (list, tuple)):
             columns = [columns]
         
-        name = "south_unique_" + "".join(random.choice(string.letters) for i in range(16))
+        name = self.create_index_name(table_name, columns)
         
         cols = ", ".join(map(qn, columns))
         self.execute("ALTER TABLE %s ADD CONSTRAINT %s UNIQUE (%s)" % (qn(table_name), qn(name), cols))
