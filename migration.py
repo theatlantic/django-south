@@ -82,6 +82,7 @@ def get_migration(app, name):
         module = __import__(app.__name__ + "." + name, '', '', ['Migration'])
         migclass = module.Migration
         migclass.orm = FakeORM(migclass, get_app_name(app))
+        module._ = lambda x: x  # Fake i18n
         return migclass
     except ImportError:
         print " ! Migration %s:%s probably doesn't exist." % (get_app_name(app), name)
