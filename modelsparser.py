@@ -369,7 +369,7 @@ def get_model_meta(model):
     # First, try to get any unusual inherited classes
     for base in model.__bases__:
         if base is not models.Model:
-            if not base._meta.abstract:
+            if hasattr(base, '_meta') and not base._meta.abstract:
                 # Abstract models' fields are included anyway, and we don't
                 # want extra dependencies
                 if "_bases" not in result:
