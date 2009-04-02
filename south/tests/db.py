@@ -203,3 +203,53 @@ class TestOperations(unittest.TestCase):
         
         db.rollback_transaction()
         db.delete_table("test4")
+    
+    def test_unique(self):
+        """
+        Tests creating/deleting unique constraints.
+        """
+        db.create_table("test_unique", [
+            ('spam', models.BooleanField(default=False)),
+            ('eggs', models.IntegerField()),
+        ])
+        # Add a constraint
+        db.create_unique("test_unique", ["spam"])
+        db.delete_unique("test_unique", ["spam"])
+        db.create_unique("test_unique", ["spam"])
+        db.start_transaction()
+        # Test it works
+        db.execute("INSERT INTO test_unique (spam, eggs) VALUES (true, 0), (false, 1)")
+        try:
+            db.execute("INSERT INTO test_unique (spam, eggs) VALUES (true, 2)")
+        except:
+            db.rollback_transaction()
+        else:
+            self.fail("Could insert non-unique item.")
+        # Drop that, add one only on eggs
+        db.delete_unique("test_unique", ["spam"])
+        db.execute("DELETE FROM test_unique")
+        db.create_unique("test_unique", ["eggs"])
+        db.start_transaction()
+        # Test similarly
+        db.execute("INSERT INTO test_unique (spam, eggs) VALUES (true, 0), (false, 1)")
+        try:
+            db.execute("INSERT INTO test_unique (spam, eggs) VALUES (true, 1)")
+        except:
+            db.rollback_transaction()
+        else:
+            self.fail("Could insert non-unique item.")
+        # Drop those, test combined constraints
+        db.delete_unique("test_unique", ["eggs"])
+        db.execute("DELETE FROM test_unique")
+        db.create_unique("test_unique", ["spam", "eggs"])
+        db.start_transaction()
+        # Test similarly
+        db.execute("INSERT INTO test_unique (spam, eggs) VALUES (true, 0), (false, 1), (true, 1)")
+        try:
+            db.execute("INSERT INTO test_unique (spam, eggs) VALUES (true, 0)")
+        except:
+            db.rollback_transaction()
+        else:
+            self.fail("Could insert non-unique pair.")
+        
+        

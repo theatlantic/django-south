@@ -16,6 +16,8 @@ class DatabaseOperations(generic.DatabaseOperations):
     drop_primary_key_string = "ALTER TABLE %(table)s DROP PRIMARY KEY"
     allows_combined_alters = False
     has_ddl_transactions = False
+    delete_unique_sql = "ALTER TABLE %s DROP INDEX %s"
+    
     
     def execute(self, sql, params=[]):
         if hasattr(settings, "DATABASE_STORAGE_ENGINE") and \
@@ -25,6 +27,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         return generic.DatabaseOperations.execute(self, sql, params)
     execute.__doc__ = generic.DatabaseOperations.execute.__doc__
 
+    
     def rename_column(self, table_name, old, new):
         if old == new or self.dry_run:
             return []
@@ -54,6 +57,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             self.execute(sql, (rows[0][4],))
         else:
             self.execute(sql)
+    
     
     def delete_column(self, table_name, name):
         qn = connection.ops.quote_name
@@ -94,3 +98,34 @@ class DatabaseOperations(generic.DatabaseOperations):
         qn = connection.ops.quote_name
         params = (qn(old_table_name), qn(table_name))
         self.execute('RENAME TABLE %s TO %s;' % params)
+    
+    
+    def _constraints_affecting_columns(self, table_name, columns, type="UNIQUE"):
+        """
+        Gets the names of the constraints affecting the given columns.
+        """
+        columns = set(columns)
+        db_name = settings.DATABASE_NAME
+        # First, load all constraint->col mappings for this table.
+        rows = self.execute("""
+            SELECT kc.constraint_name, kc.column_name
+            FROM information_schema.key_column_usage AS kc
+            JOIN information_schema.table_constraints AS c ON
+                kc.table_schema = c.table_schema AND
+                kc.table_name = c.table_name AND
+                kc.constraint_name = c.constraint_name
+            WHERE
+                kc.table_schema = %s AND
+                kc.table_catalog IS NULL AND
+                kc.table_name = %s AND
+                c.constraint_type = %s
+        """, [db_name, table_name, type])
+        # Load into a dict
+        mapping = {}
+        for constraint, column in rows:
+            mapping.setdefault(constraint, set())
+            mapping[constraint].add(column)
+        # Find ones affecting these columns
+        for constraint, itscols in mapping.items():
+            if itscols == columns:
+                yield constraint
