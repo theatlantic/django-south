@@ -234,23 +234,28 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
             
             # If the database doesn't support running DDL inside a transaction
             # *cough*MySQL*cough* then do a dry run first.
-            if not db.has_ddl_transactions:
-                db.dry_run = True
-                db.debug, old_debug = False, db.debug
-                pending_creates = db.get_pending_creates()
-                try:
-                    if len(args[0]) == 1:  # They don't want an ORM param
-                        runfunc()
-                    else:
-                        runfunc(klass.orm)
-                except:
-                    traceback.print_exc()
-                    print " ! Error found during dry run of migration! Aborting."
-                    return False
-                db.debug = old_debug
-                db.clear_run_data(pending_creates)
-            
-            db.dry_run = bool(db_dry_run)
+            if not db.has_ddl_transactions or db_dry_run:
+                if not (hasattr(klass, "no_dry_run") and klass.no_dry_run):
+                    db.dry_run = True
+                    db.debug, old_debug = False, db.debug
+                    pending_creates = db.get_pending_creates()
+                    try:
+                        if len(args[0]) == 1:  # They don't want an ORM param
+                            runfunc()
+                        else:
+                            runfunc(klass.orm)
+                    except:
+                        traceback.print_exc()
+                        print " ! Error found during dry run of migration! Aborting."
+                        return False
+                    db.debug = old_debug
+                    db.clear_run_data(pending_creates)
+                    db.dry_run = False
+                elif db_dry_run:
+                    print " - Migration '%s' is marked for no-dry-run."
+                # If they really wanted to dry-run, then quit!
+                if db_dry_run:
+                    return
             
             if db.has_ddl_transactions:
                 db.start_transaction()
