@@ -1,5 +1,7 @@
 
 import datetime
+import string
+import random
 import re
 
 from django.core.management.color import no_style
@@ -263,6 +265,69 @@ class DatabaseOperations(object):
             # Databases like e.g. MySQL don't like more than one alter at once.
             for sql, values in sqls:
                 self.execute("ALTER TABLE %s %s;" % (qn(table_name), sql), values)
+    
+    
+    def _constraints_affecting_columns(self, table_name, columns, type="UNIQUE"):
+        """
+        Gets the names of the constraints affecting the given columns.
+        """
+        columns = set(columns)
+        # First, load all constraint->col mappings for this table.
+        rows = self.execute("""
+            SELECT kc.constraint_name, kc.column_name
+            FROM information_schema.key_column_usage AS kc
+            JOIN information_schema.table_constraints AS c ON
+                kc.table_schema = c.table_schema AND
+                kc.table_name = c.table_name AND
+                kc.constraint_name = c.constraint_name
+            WHERE
+                kc.table_schema = %s AND
+                kc.table_name = %s AND
+                c.constraint_type = %s
+        """, ['public', table_name, type])
+        # Load into a dict
+        mapping = {}
+        for constraint, column in rows:
+            mapping.setdefault(constraint, set())
+            mapping[constraint].add(column)
+        # Find ones affecting these columns
+        for constraint, itscols in mapping.items():
+            if itscols == columns:
+                yield constraint
+    
+    
+    def create_unique(self, table_name, columns):
+        """
+        Creates a UNIQUE constraint on the columns on the given table.
+        """
+        qn = connection.ops.quote_name
+        
+        if not isinstance(columns, (list, tuple)):
+            columns = [columns]
+        
+        name = "south_unique_" + "".join(random.choice(string.letters) for i in range(16))
+        
+        cols = ", ".join(map(qn, columns))
+        self.execute("ALTER TABLE %s ADD CONSTRAINT %s UNIQUE (%s)" % (qn(table_name), qn(name), cols))
+        return name
+    
+    
+    delete_unique_sql = "ALTER TABLE %s DROP CONSTRAINT %s"
+    
+    def delete_unique(self, table_name, columns):
+        """
+        Deletes a UNIQUE constraint on precisely the columns on the given table.
+        """
+        qn = connection.ops.quote_name
+        
+        if not isinstance(columns, (list, tuple)):
+            columns = [columns]
+        
+        constraints = list(self._constraints_affecting_columns(table_name, columns))
+        if not constraints:
+            raise ValueError("Cannot find a UNIQUE constraint on table %s, columns %r" % (table_name, columns))
+        for constraint in constraints:
+            self.execute(self.delete_unique_sql % (qn(table_name), qn(constraint)))
 
 
     def column_sql(self, table_name, field_name, field, tablespace=''):
