@@ -68,6 +68,7 @@ class DatabaseOperations(object):
         for st in re.split(regex, sql)[1:][::2]:
             self.execute(st)
 
+    
     def add_deferred_sql(self, sql):
         """
         Add a SQL statement to the deferred list, that won't be executed until
@@ -165,6 +166,7 @@ class DatabaseOperations(object):
         params = (qn(table_name), )
         self.execute('DELETE FROM %s;' % params)
 
+    
     add_column_string = 'ALTER TABLE %s ADD COLUMN %s;'
 
     def add_column(self, table_name, name, field, keep_default=True):
@@ -192,6 +194,7 @@ class DatabaseOperations(object):
                 field.default = NOT_PROVIDED
                 self.alter_column(table_name, name, field, explicit_name=False)
 
+    
     alter_string_set_type = 'ALTER COLUMN %(column)s TYPE %(type)s'
     alter_string_set_null = 'ALTER COLUMN %(column)s DROP NOT NULL'
     alter_string_drop_null = 'ALTER COLUMN %(column)s SET NOT NULL'
@@ -418,6 +421,7 @@ class DatabaseOperations(object):
 
     drop_index = alias('delete_index')
 
+    
     delete_column_string = 'ALTER TABLE %s DROP COLUMN %s CASCADE;'
 
     def delete_column(self, table_name, name):
@@ -551,6 +555,7 @@ class DatabaseOperations(object):
                                                 app=app, created_models=created_models,
                                                 verbosity=verbosity, interactive=interactive)
 
+    
     def mock_model(self, model_name, db_table, db_tablespace='', 
                    pk_field_name='id', pk_field_type=models.AutoField,
                    pk_field_args=[], pk_field_kwargs={}):
@@ -561,6 +566,8 @@ class DatabaseOperations(object):
         Migrations should prefer to use these rather than actual models
         as models could get deleted over time, but these can remain in
         migration files forever.
+        
+        Depreciated.
         """
         class MockOptions(object):
             def __init__(self):
@@ -592,10 +599,10 @@ class DatabaseOperations(object):
         MockModel._meta.model = MockModel
         return MockModel
 
+
 # Single-level flattening of lists
 def flatten(ls):
     nl = []
     for l in ls:
         nl += l
     return nl
-
