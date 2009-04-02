@@ -8,6 +8,8 @@ import inspect
 from django.db import models
 from django.db.models.loading import cache
 
+from south.db import db
+
 
 class ModelsLocals(object):
     
@@ -211,6 +213,8 @@ class FakeORM(object):
         # If this is a stub model, change Objects to a whiny class
         if stub:
             model.objects = WhinyManager()
+        else:
+            model.objects = NoDryRunManager(model.objects)
         
         if failed_fields:
             model._failed_fields = failed_fields
@@ -240,6 +244,21 @@ class WhinyManager(object):
     
     def __getattr__(self, key):
         raise AttributeError("You cannot use items from a stub model.")
+
+
+class NoDryRunManager(object):
+    """
+    A manager that always proxies through to the real manager,
+    unless a dry run is in progress.
+    """
+    
+    def __init__(self, real):
+        self.real = real
+    
+    def __getattr__(self, name):
+        if db.dry_run:
+            raise AttributeError("You are in a dry run, and cannot access the ORM.\nWrap ORM sections in 'if not db.dry_run:', or if the whole migration is only a data migration, set no_dry_run = True on the Migration class.")
+        return getattr(self.real, name)
 
 
 def ask_for_it_by_name(name):
