@@ -146,6 +146,8 @@ class Command(BaseCommand):
         added_fields = set()
         deleted_fields = [] # Similar to deleted_models
         changed_fields = [] # (mkey, fname, old_def, new_def)
+        added_uniques = set() # (mkey, field_names)
+        deleted_uniques = set() # (mkey, field_names)
         
         # --initial means 'add all models in this app'.
         if initial:
@@ -281,6 +283,9 @@ class Command(BaseCommand):
             # Now add M2M fields to be done
             for field in model._meta.local_many_to_many:
                 added_fields.add((mkey, field.attname))
+            # And unique_togethers to be added
+            for ut in model._meta.unique_together:
+                added_uniques.add((mkey, tuple(ut)))
         
         
         ### Added fields ###
@@ -457,6 +462,48 @@ class Command(BaseCommand):
                 model._meta.db_table,
                 field.get_attname(),
                 old_def,
+            )
+        
+        
+        ### Added unique_togethers ###
+        for mkey, ut in added_uniques:
+            
+            model = model_unkey(mkey)
+            print " + Added unique_together for [%s] on %s." % (", ".join(ut), model._meta.object_name)
+            
+            forwards += CREATE_UNIQUE_SNIPPET % (
+                ", ".join(ut),
+                model._meta.object_name,
+                model._meta.db_table,
+                ut,
+            )
+            
+            backwards += DELETE_UNIQUE_SNIPPET % (
+                ", ".join(ut),
+                model._meta.object_name,
+                model._meta.db_table,
+                ut,
+            )
+        
+        
+        ### Deleted unique_togethers ###
+        for mkey, ut in deleted_uniques:
+            
+            model = model_unkey(mkey)
+            print " - Deleted unique_together for [%s] on %s." % (", ".join(ut), model._meta.object_name)
+            
+            forwards += DELETE_UNIQUE_SNIPPET % (
+                ", ".join(ut),
+                model._meta.object_name,
+                model._meta.db_table,
+                ut,
+            )
+            
+            backwards += CREATE_UNIQUE_SNIPPET % (
+                ", ".join(ut),
+                model._meta.object_name,
+                model._meta.db_table,
+                ut,
             )
         
         
@@ -805,5 +852,13 @@ CREATE_M2MFIELD_SNIPPET = '''
 DELETE_M2MFIELD_SNIPPET = '''
         # Dropping ManyToManyField '%s.%s'
         db.delete_table('%s')
+        '''
+CREATE_UNIQUE_SNIPPET = '''
+        # Creating unique_together for [%s] on %s.
+        db.create_unique(%r, %r)
+        '''
+DELETE_UNIQUE_SNIPPET = '''
+        # Deleting unique_together for [%s] on %s.
+        db.delete_unique(%r, %r)
         '''
 FIELD_NEEDS_DEF_SNIPPET = "<< PUT FIELD DEFINITION HERE >>"
