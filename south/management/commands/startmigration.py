@@ -471,18 +471,20 @@ class Command(BaseCommand):
             model = model_unkey(mkey)
             print " + Added unique_together for [%s] on %s." % (", ".join(ut), model._meta.object_name)
             
+            cols = [get_field_column(model, f) for f in ut]
+            
             forwards += CREATE_UNIQUE_SNIPPET % (
                 ", ".join(ut),
                 model._meta.object_name,
                 model._meta.db_table,
-                ut,
+                cols,
             )
             
             backwards += DELETE_UNIQUE_SNIPPET % (
                 ", ".join(ut),
                 model._meta.object_name,
                 model._meta.db_table,
-                ut,
+                cols,
             )
         
         
@@ -776,6 +778,12 @@ def models_diff(old, new):
                     changed_fields.append((key, fieldname, old[key][fieldname], new[key][fieldname]))
     
     return added_models, deleted_models, added_fields, deleted_fields, changed_fields
+
+
+### Used to work out what columns any fields affect ###
+
+def get_field_column(model, field_name):
+    return model._meta.get_field_by_name(field_name)[0].column
 
 
 ### Creates SQL snippets for various common operations
