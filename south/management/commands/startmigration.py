@@ -720,6 +720,9 @@ def poss_ormise(default_app, rel_to, arg):
     # Or perhaps it's app.model?
     if arg.lower() == rel_to._meta.app_label.lower() + "." + rel_name.lower():
         return real_name
+    # Or perhaps it's 'self'?
+    if arg == RECURSIVE_RELATIONSHIP_CONSTANT:
+        return real_name
     return orig_arg
 
 
