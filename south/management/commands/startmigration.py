@@ -79,8 +79,8 @@ class Command(BaseCommand):
             print "App '%s' doesn't seem to exist, isn't in INSTALLED_APPS, or has no models." % app
             return
         
-        # If they've set SOUTH_AUTO_FREEZE_APP = True, then add this app to freeze_list
-        if hasattr(settings, 'SOUTH_AUTO_FREEZE_APP') and settings.SOUTH_AUTO_FREEZE_APP:
+        # If they've set SOUTH_AUTO_FREEZE_APP = True (or not set it - defaults to True)
+        if not hasattr(settings, 'SOUTH_AUTO_FREEZE_APP') or settings.SOUTH_AUTO_FREEZE_APP:
             if freeze_list and app not in freeze_list:
                 freeze_list += [app]
             else:
@@ -435,7 +435,6 @@ class Command(BaseCommand):
         
         ### Changed fields ###
         for mkey, field_name, old_triple, new_triple in changed_fields:
-            print " ~ Changed field '%s.%s'." % (mkey, field_name)
             
             model = model_unkey(mkey)
             old_def = triples_to_defs(app, model, {
@@ -445,8 +444,14 @@ class Command(BaseCommand):
                 field_name: new_triple,
             })[field_name]
             
-            # We need to create the field, to see if it needs _id
+            # We need to create the field, to see if it needs _id, or if it's an M2M
             field = model._meta.get_field_by_name(field_name)[0]
+            
+            if hasattr(field, "m2m_db_table"):
+                # See if anything has ACTUALLY changed
+                pass
+            
+            print " ~ Changed field '%s.%s'." % (mkey, field_name)
             
             forwards += CHANGE_FIELD_SNIPPET % (
                 model._meta.object_name,
