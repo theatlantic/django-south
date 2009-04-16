@@ -304,24 +304,25 @@ class Command(BaseCommand):
             
             # ManyToMany fields need special attention.
             if isinstance(field, models.ManyToManyField):
-                # Add a stub model for each side
-                stub_models[model] = None
-                stub_models[field.rel.to] = None
-                # And a field defn, that's actually a table creation
-                forwards += CREATE_M2MFIELD_SNIPPET % (
-                    model._meta.object_name,
-                    field.name,
-                    field.m2m_db_table(),
-                    field.m2m_column_name()[:-3], # strip off the '_id' at the end
-                    model._meta.object_name,
-                    field.m2m_reverse_name()[:-3], # strip off the '_id' at the ned
-                    field.rel.to._meta.object_name
+                if not field.rel.through: # Bug #120
+                    # Add a stub model for each side
+                    stub_models[model] = None
+                    stub_models[field.rel.to] = None
+                    # And a field defn, that's actually a table creation
+                    forwards += CREATE_M2MFIELD_SNIPPET % (
+                        model._meta.object_name,
+                        field.name,
+                        field.m2m_db_table(),
+                        field.m2m_column_name()[:-3], # strip off the '_id' at the end
+                        model._meta.object_name,
+                        field.m2m_reverse_name()[:-3], # strip off the '_id' at the ned
+                        field.rel.to._meta.object_name
+                        )
+                    backwards += DELETE_M2MFIELD_SNIPPET % (
+                        model._meta.object_name,
+                        field.name,
+                        field.m2m_db_table()
                     )
-                backwards += DELETE_M2MFIELD_SNIPPET % (
-                    model._meta.object_name,
-                    field.name,
-                    field.m2m_db_table()
-                )
                 continue
             
             # Add any dependencies
