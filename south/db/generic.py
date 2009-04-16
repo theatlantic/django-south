@@ -424,6 +424,19 @@ class DatabaseOperations(object):
             qn(to_column_name),
             connection.ops.deferrable_sql() # Django knows this
         )
+    
+
+    delete_foreign_key_sql = 'ALTER TABLE %s DROP CONSTRAINT %s'
+
+    def delete_foreign_key(self, table_name, column):
+        "Drop a foreign key constraint"
+        constraints = list(self._constraints_affecting_columns(table_name, [column], "FOREIGN KEY"))
+        if not constraints:
+            raise ValueError("Cannot find a FOREIGN KEY constraint on table %s, column %s" % (table_name, column))
+        for constraint_name in constraints:
+            self.execute(self.delete_foreign_key_sql % (table_name, constraint_name))
+    
+    drop_foreign_key = alias('delete_foreign_key')
 
 
     max_index_name_length = 63
