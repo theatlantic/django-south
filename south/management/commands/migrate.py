@@ -18,8 +18,6 @@ class Command(BaseCommand):
             help='Will run out-of-order missing migrations as they are - no rollbacks.'),
         make_option('--no-initial-data', action='store_true', dest='no_initial_data', default=False,
             help='Skips loading initial data if specified.'),
-        make_option('--only', action='store_true', dest='only', default=False,
-            help='Only runs or rolls back the migration specified, and none around it.'),
         make_option('--fake', action='store_true', dest='fake', default=False,
             help="Pretends to do the migrations, but doesn't actually execute them."),
         make_option('--db-dry-run', action='store_true', dest='db_dry_run', default=False,
@@ -33,7 +31,7 @@ class Command(BaseCommand):
         )
     help = "Runs migrations for all apps."
 
-    def handle(self, app=None, target=None, skip=False, merge=False, only=False, backwards=False, fake=False, db_dry_run=False, list=False, **options):
+    def handle(self, app=None, target=None, skip=False, merge=False, backwards=False, fake=False, db_dry_run=False, list=False, **options):
 
         # Work out what the resolve mode is
         resolve_mode = merge and "merge" or (skip and "skip" or None)
