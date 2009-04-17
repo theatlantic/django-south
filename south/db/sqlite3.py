@@ -15,6 +15,9 @@ class DatabaseOperations(generic.DatabaseOperations):
     def add_column(self, table_name, name, field, *args, **kwds):
         # Run ALTER TABLE with no unique column
         unique, field._unique, field.db_index = field.unique, False, False
+        # If it's not nullable, and has no default, raise an error (SQLite is picky)
+        if not field.null and (not field.has_default() or field.get_default() is None):
+            raise ValueError("You cannot add a null=False column without a default value.")
         generic.DatabaseOperations.add_column(self, table_name, name, field, *args, **kwds)
         # If it _was_ unique, make an index on it.
         if unique:
