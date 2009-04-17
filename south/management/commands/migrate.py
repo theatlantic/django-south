@@ -8,12 +8,16 @@ import sys
 
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
+        make_option('--all', action='store_true', dest='all_apps', default=False,
+            help='Run the specified migration for all apps.'),
         make_option('--list', action='store_true', dest='list', default=False,
             help='List migrations noting those that have been applied'),
         make_option('--skip', action='store_true', dest='skip', default=False,
             help='Will skip over out-of-order missing migrations'),
         make_option('--merge', action='store_true', dest='merge', default=False,
             help='Will run out-of-order missing migrations as they are - no rollbacks.'),
+        make_option('--no-initial-data', action='store_true', dest='no_initial_data', default=False,
+            help='Skips loading initial data if specified.'),
         make_option('--only', action='store_true', dest='only', default=False,
             help='Only runs or rolls back the migration specified, and none around it.'),
         make_option('--fake', action='store_true', dest='fake', default=False,
@@ -51,6 +55,11 @@ class Command(BaseCommand):
                     raise
         # END DJANGO DUPE CODE
         
+        # if all_apps flag is set, shift app over to target
+        if options['all_apps']:
+            target = app
+            app = None
+
         # Migrate each app
         if app:
             apps = [migration.get_app(app.split(".")[-1])]
@@ -70,7 +79,7 @@ class Command(BaseCommand):
                     fake = fake,
                     db_dry_run = db_dry_run,
                     silent = silent,
-                    load_inital_data = True,
+                    load_inital_data = not options['no_initial_data'],
                 )
                 if result is False:
                     return
