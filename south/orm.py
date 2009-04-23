@@ -213,6 +213,8 @@ class FakeORM(object):
         # If this is a stub model, change Objects to a whiny class
         if stub:
             model.objects = WhinyManager()
+            # Also, make sure they can't instantiate it
+            model.__init__ = whiny_method
         else:
             model.objects = NoDryRunManager(model.objects)
         
@@ -267,3 +269,7 @@ def ask_for_it_by_name(name):
     modulename = ".".join(bits[:-1])
     module = __import__(modulename, {}, {}, bits[-1])
     return getattr(module, bits[-1])
+
+
+def whiny_method(*a, **kw):
+    raise ValueError("You cannot instantiate a stub model.")
