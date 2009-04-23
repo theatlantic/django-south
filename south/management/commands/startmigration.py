@@ -224,9 +224,20 @@ class Command(BaseCommand):
                 for key, fields in last_models.items()
                 if key.split(".", 1)[0] == app
             ])
-            am, dm, af, df, cf = models_diff(old, new)
+            am, dm, cm, af, df, cf = models_diff(old, new)
             
-            if not (am or dm or af or df or cf):
+            # For models that were there before and after, do a meta diff
+            was_meta_change = False
+            for mkey in cm:
+                au, du = meta_diff(old[mkey].get("Meta", {}), new[mkey].get("Meta", {}))
+                for entry in au:
+                    added_uniques.add((mkey, entry))
+                    was_meta_change = True
+                for entry in du:
+                    deleted_uniques.add((mkey, entry))
+                    was_meta_change = True
+            
+            if not (am or dm or af or df or cf or was_meta_change):
                 print "Nothing seems to have changed."
                 return
             
@@ -745,6 +756,7 @@ def models_diff(old, new):
     added_models = set()
     deleted_models = set()
     ignored_models = set() # Stubs for backwards
+    continued_models = set() # Models that existed before and after
     added_fields = set()
     deleted_fields = set()
     changed_fields = []
@@ -765,6 +777,7 @@ def models_diff(old, new):
     # Now, for every model that's stayed the same, check its fields.
     for key in old:
         if key not in deleted_models and key not in ignored_models:
+            continued_models.add(key)
             still_there = set()
             # Find fields that have vanished.
             for fieldname in old[key]:
@@ -783,7 +796,30 @@ def models_diff(old, new):
                    remove_useless_attributes(old[key][fieldname], True):
                     changed_fields.append((key, fieldname, old[key][fieldname], new[key][fieldname]))
     
-    return added_models, deleted_models, added_fields, deleted_fields, changed_fields
+    return added_models, deleted_models, continued_models, added_fields, deleted_fields, changed_fields
+
+
+def meta_diff(old, new):
+    """
+    Diffs the two provided Meta definitions (dicts).
+    """
+    
+    # First, diff unique_together
+    old_unique_together = eval(old.get('unique_together', "[]"))
+    new_unique_together = eval(new.get('unique_together', "[]"))
+    
+    added_uniques = set()
+    removed_uniques = set()
+    
+    for entry in old_unique_together:
+        if entry not in new_unique_together:
+            removed_uniques.add(tuple(entry))
+    
+    for entry in new_unique_together:
+        if entry not in old_unique_together:
+            added_uniques.add(tuple(entry))
+    
+    return added_uniques, removed_uniques
 
 
 ### Used to work out what columns any fields affect ###
