@@ -461,7 +461,9 @@ class Command(BaseCommand):
             
             if hasattr(field, "m2m_db_table"):
                 # See if anything has ACTUALLY changed
-                pass
+                if old_triple[1] != new_triple[1]:
+                    print " ! Detected change to the target model of M2M field '%s.%s'. South can't handle this; leaving this change out." % (mkey, field_name)
+                continue
             
             print " ~ Changed field '%s.%s'." % (mkey, field_name)
             
