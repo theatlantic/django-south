@@ -9,6 +9,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     MySQL implementation of database operations.
     """
     
+    backend_name = "mysql"
     alter_string_set_type = ''
     alter_string_set_null = 'MODIFY %(column)s %(type)s NULL;'
     alter_string_drop_null = 'MODIFY %(column)s %(type)s NOT NULL;'
