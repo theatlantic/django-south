@@ -221,14 +221,14 @@ class DatabaseOperations(object):
         qn = connection.ops.quote_name
         
         # Add _id or whatever if we need to
+        field.set_attributes_from_name(name)
         if not explicit_name:
-            field.set_attributes_from_name(name)
             name = field.column
 
         # First, change the type
         params = {
             "column": qn(name),
-            "type": field.db_type(),
+            "type": field.db_type().split(" ")[0], # The type might have CHECK... in it.
         }
 
         # SQLs is a list of (SQL, values) pairs.
