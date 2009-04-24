@@ -209,29 +209,30 @@ class TestOperations(unittest.TestCase):
         Tests altering columns with multiple words in Postgres types (issue #125)
         e.g. 'datetime with time zone', look at django/db/backends/postgresql/creation.py
         """
-        db.create_table("postgres_multiword", [
-            (('datetime'), models.DateTimeField(null=True)),
-            (('integer'), models.PositiveIntegerField(null=True)),
-            (('smallint'), models.PositiveSmallIntegerField(null=True)),
-            (('float'), models.FloatField(null=True)),
+        db.create_table("test_multiword", [
+            ('col_datetime', models.DateTimeField(null=True)),
+            ('col_integer', models.PositiveIntegerField(null=True)),
+            ('col_smallint', models.PositiveSmallIntegerField(null=True)),
+            ('col_float', models.FloatField(null=True)),
         ])
         
         # test if 'double precision' is preserved
-        db.alter_column('postgres_multiword', 'float', models.FloatField('float', null=True))
+        db.alter_column('test_multiword', 'col_float', models.FloatField('float', null=True))
 
         # test if 'CHECK ("%(column)s" >= 0)' is stripped
-        db.alter_column('postgres_multiword', 'integer', models.PositiveIntegerField(null=True))
-        db.alter_column('postgres_multiword', 'smallint', models.PositiveSmallIntegerField(null=True))
+        db.alter_column('test_multiword', 'col_integer', models.PositiveIntegerField(null=True))
+        db.alter_column('test_multiword', 'col_smallint', models.PositiveSmallIntegerField(null=True))
 
         # test if 'with timezone' is preserved
-        db.start_transaction()
-        db.execute("INSERT INTO postgres_multiword (datetime) VALUES ('2009-04-24 14:20:55+02')")
-        db.alter_column('postgres_multiword', 'datetime', models.DateTimeField(auto_now=True))
-        assert db.execute("SELECT datetime = '2009-04-24 14:20:55+02' FROM postgres_multiword")[0][0]
-        db.rollback_transaction()
+        if db.backend_name == "postgres":
+            db.start_transaction()
+            db.execute("INSERT INTO test_multiword (col_datetime) VALUES ('2009-04-24 14:20:55+02')")
+            db.alter_column('test_multiword', 'col_datetime', models.DateTimeField(auto_now=True))
+            assert db.execute("SELECT col_datetime = '2009-04-24 14:20:55+02' FROM test_multiword")[0][0]
+            db.rollback_transaction()
 
         
-        db.delete_table("postgres_multiword")
+        db.delete_table("test_multiword")
     
     def test_alter_constraints(self):
         """

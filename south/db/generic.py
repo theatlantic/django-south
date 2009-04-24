@@ -47,6 +47,7 @@ class DatabaseOperations(object):
     delete_column_string = 'ALTER TABLE %s DROP COLUMN %s CASCADE;'
     create_primary_key_string = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s PRIMARY KEY (%(columns)s)"
     drop_primary_key_string = "ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s"
+    backend_name = None
 
     def __init__(self):
         self.debug = False

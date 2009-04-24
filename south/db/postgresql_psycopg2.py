@@ -7,6 +7,8 @@ class DatabaseOperations(generic.DatabaseOperations):
     """
     PsycoPG2 implementation of database operations.
     """
+    
+    backend_name = "postgres"
 
     def rename_column(self, table_name, old, new):
         if old == new:
