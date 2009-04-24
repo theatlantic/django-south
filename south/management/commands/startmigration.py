@@ -641,13 +641,18 @@ def model_dependencies(model, last_models=None):
         depends.update(field_dependencies(field, last_models))
     return depends
 
+def stub_model_dependencies(model, last_models=None):
+    """
+    Returns a set of models this one depends on to be defined as a stub model
+    (i.e. deps of the PK).
+    """
+    return field_dependencies(model._meta.pk, last_models)
+
 def field_dependencies(field, last_models=None):
     depends = {}
     if isinstance(field, (models.OneToOneField, models.ForeignKey, models.ManyToManyField)):
-        if last_models:
-            depends[field.rel.to] = last_models
-        else:
-            depends[field.rel.to] = None
+        depends[field.rel.to] = last_models
+        depends.update(stub_model_dependencies(field.rel.to, last_models))
     return depends
     
 
