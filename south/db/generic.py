@@ -32,6 +32,22 @@ class DatabaseOperations(object):
     # We assume the generic DB can handle DDL transactions. MySQL wil change this.
     has_ddl_transactions = True
 
+    alter_string_set_type = 'ALTER COLUMN %(column)s TYPE %(type)s'
+    alter_string_set_null = 'ALTER COLUMN %(column)s DROP NOT NULL'
+    alter_string_drop_null = 'ALTER COLUMN %(column)s SET NOT NULL'
+    has_check_constraints = True
+    delete_check_sql = 'ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s'
+    allows_combined_alters = True
+    add_column_string = 'ALTER TABLE %s ADD COLUMN %s;'
+    delete_unique_sql = "ALTER TABLE %s DROP CONSTRAINT %s"
+    delete_foreign_key_sql = 'ALTER TABLE %s DROP CONSTRAINT %s'
+    supports_foreign_keys = True
+    max_index_name_length = 63
+    drop_index_string = 'DROP INDEX %(index_name)s'
+    delete_column_string = 'ALTER TABLE %s DROP COLUMN %s CASCADE;'
+    create_primary_key_string = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s PRIMARY KEY (%(columns)s)"
+    drop_primary_key_string = "ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s"
+
     def __init__(self):
         self.debug = False
         self.deferred_sql = []
@@ -169,7 +185,6 @@ class DatabaseOperations(object):
         self.execute('DELETE FROM %s;' % params)
 
     
-    add_column_string = 'ALTER TABLE %s ADD COLUMN %s;'
 
     def add_column(self, table_name, name, field, keep_default=True):
         """
@@ -195,12 +210,7 @@ class DatabaseOperations(object):
             if not keep_default and field.default:
                 field.default = NOT_PROVIDED
                 self.alter_column(table_name, name, field, explicit_name=False)
-
     
-    alter_string_set_type = 'ALTER COLUMN %(column)s TYPE %(type)s'
-    alter_string_set_null = 'ALTER COLUMN %(column)s DROP NOT NULL'
-    alter_string_drop_null = 'ALTER COLUMN %(column)s SET NOT NULL'
-    allows_combined_alters = True
 
     def alter_column(self, table_name, name, field, explicit_name=True):
         """
@@ -224,6 +234,12 @@ class DatabaseOperations(object):
         field.set_attributes_from_name(name)
         if not explicit_name:
             name = field.column
+        
+        # Drop all check constraints. TODO: Add the right ones back.
+        if self.has_check_constraints:
+            check_constraints = self._constraints_affecting_columns(table_name, [name], "CHECK")
+            for constraint in check_constraints:
+                self.execute(self.delete_check_sql % {'table':table_name, 'constraint': constraint})
 
         # First, change the type
         params = {
@@ -251,8 +267,7 @@ class DatabaseOperations(object):
             sqls.append((self.alter_string_set_null % params, []))
         else:
             sqls.append((self.alter_string_drop_null % params, []))
-
-
+        
         # TODO: Unique
 
         if self.allows_combined_alters:
@@ -272,19 +287,25 @@ class DatabaseOperations(object):
         Gets the names of the constraints affecting the given columns.
         """
         columns = set(columns)
+        
+        if type == "CHECK":
+            ifsc_table = "constraint_column_usage"
+        else:
+            ifsc_table = "key_column_usage"
+        
         # First, load all constraint->col mappings for this table.
         rows = self.execute("""
             SELECT kc.constraint_name, kc.column_name
-            FROM information_schema.key_column_usage AS kc
+            FROM information_schema.%s AS kc
             JOIN information_schema.table_constraints AS c ON
                 kc.table_schema = c.table_schema AND
                 kc.table_name = c.table_name AND
                 kc.constraint_name = c.constraint_name
             WHERE
-                kc.table_schema = %s AND
-                kc.table_name = %s AND
-                c.constraint_type = %s
-        """, ['public', table_name, type])
+                kc.table_schema = %%s AND
+                kc.table_name = %%s AND
+                c.constraint_type = %%s
+        """ % ifsc_table, ['public', table_name, type])
         # Load into a dict
         mapping = {}
         for constraint, column in rows:
@@ -312,7 +333,6 @@ class DatabaseOperations(object):
         return name
     
     
-    delete_unique_sql = "ALTER TABLE %s DROP CONSTRAINT %s"
     
     def delete_unique(self, table_name, columns):
         """
@@ -399,9 +419,7 @@ class DatabaseOperations(object):
             return sql % sqlparams
         else:
             return None
-
-
-    supports_foreign_keys = True
+    
 
     def foreign_key_sql(self, from_table_name, from_column_name, to_table_name, to_column_name):
         """
@@ -417,9 +435,7 @@ class DatabaseOperations(object):
             qn(to_column_name),
             connection.ops.deferrable_sql() # Django knows this
         )
-    
 
-    delete_foreign_key_sql = 'ALTER TABLE %s DROP CONSTRAINT %s'
 
     def delete_foreign_key(self, table_name, column):
         "Drop a foreign key constraint"
@@ -431,8 +447,6 @@ class DatabaseOperations(object):
     
     drop_foreign_key = alias('delete_foreign_key')
 
-
-    max_index_name_length = 63
     
     def create_index_name(self, table_name, column_names):
         """
@@ -475,8 +489,6 @@ class DatabaseOperations(object):
         self.execute(sql)
 
 
-    drop_index_string = 'DROP INDEX %(index_name)s'
-
     def delete_index(self, table_name, column_names, db_tablespace=''):
         """
         Deletes an index created with create_index.
@@ -491,9 +503,7 @@ class DatabaseOperations(object):
         self.execute(sql)
 
     drop_index = alias('delete_index')
-
     
-    delete_column_string = 'ALTER TABLE %s DROP COLUMN %s CASCADE;'
 
     def delete_column(self, table_name, name):
         """
@@ -513,8 +523,6 @@ class DatabaseOperations(object):
         raise NotImplementedError("rename_column has no generic SQL syntax")
 
     
-    drop_primary_key_string = "ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s"
-    
     def drop_primary_key(self, table_name):
         """
         Drops the old primary key.
@@ -527,8 +535,6 @@ class DatabaseOperations(object):
 
     delete_primary_key = alias('drop_primary_key')
 
-
-    create_primary_key_string = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s PRIMARY KEY (%(columns)s)"
     
     def create_primary_key(self, table_name, columns):
         """
