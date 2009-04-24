@@ -109,6 +109,9 @@ class FakeORM(object):
             if name.split(".")[0] == app
         ]))
         
+        # Ourselves as orm, to allow non-fail cross-app referencing
+        fake_locals['orm'] = self
+        
         # And a fake _ function
         fake_locals['_'] = lambda x: x
         
