@@ -204,13 +204,41 @@ class TestOperations(unittest.TestCase):
         db.rollback_transaction()
         db.delete_table("test4")
     
+    def test_alter_constraints(self):
+        """
+        Tests that going from a PostiveIntegerField to an IntegerField drops
+        the constraint on the database.
+        """
+        db.create_table("test_alterc", [
+            ('num', models.PositiveIntegerField()),
+        ])
+        # Add in some test values
+        db.execute("INSERT INTO test_alterc (num) VALUES (1), (2)")
+        # Ensure that adding a negative number is bad
+        db.start_transaction()
+        try:
+            db.execute("INSERT INTO test_alterc (num) VALUES (-3)")
+        except:
+            db.rollback_transaction()
+        else:
+            self.fail("Could insert a negative integer into a PositiveIntegerField.")
+        # Alter it to a normal IntegerField
+        db.alter_column("test_alterc", "num", models.IntegerField())
+        # It should now work
+        db.execute("INSERT INTO test_alterc (num) VALUES (-3)")
+        db.delete_table("test_alterc")
+    
     def test_unique(self):
         """
         Tests creating/deleting unique constraints.
         """
+        db.create_table("test_unique2", [
+            ('id', models.AutoField(primary_key=True)),
+        ])
         db.create_table("test_unique", [
             ('spam', models.BooleanField(default=False)),
             ('eggs', models.IntegerField()),
+            ('ham', models.ForeignKey(db.mock_model('Unique2', 'test_unique2'))),
         ])
         # Add a constraint
         db.create_unique("test_unique", ["spam"])
@@ -218,9 +246,10 @@ class TestOperations(unittest.TestCase):
         db.create_unique("test_unique", ["spam"])
         db.start_transaction()
         # Test it works
-        db.execute("INSERT INTO test_unique (spam, eggs) VALUES (true, 0), (false, 1)")
+        db.execute("INSERT INTO test_unique2 (id) VALUES (1), (2)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1), (false, 1, 2)")
         try:
-            db.execute("INSERT INTO test_unique (spam, eggs) VALUES (true, 2)")
+            db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 2, 1)")
         except:
             db.rollback_transaction()
         else:
@@ -231,9 +260,9 @@ class TestOperations(unittest.TestCase):
         db.create_unique("test_unique", ["eggs"])
         db.start_transaction()
         # Test similarly
-        db.execute("INSERT INTO test_unique (spam, eggs) VALUES (true, 0), (false, 1)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1), (false, 1, 2)")
         try:
-            db.execute("INSERT INTO test_unique (spam, eggs) VALUES (true, 1)")
+            db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 1, 1)")
         except:
             db.rollback_transaction()
         else:
@@ -241,15 +270,15 @@ class TestOperations(unittest.TestCase):
         # Drop those, test combined constraints
         db.delete_unique("test_unique", ["eggs"])
         db.execute("DELETE FROM test_unique")
-        db.create_unique("test_unique", ["spam", "eggs"])
+        db.create_unique("test_unique", ["spam", "eggs", "ham_id"])
         db.start_transaction()
         # Test similarly
-        db.execute("INSERT INTO test_unique (spam, eggs) VALUES (true, 0), (false, 1), (true, 1)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1), (false, 1, 1)")
         try:
-            db.execute("INSERT INTO test_unique (spam, eggs) VALUES (true, 0)")
+            db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1)")
         except:
             db.rollback_transaction()
         else:
             self.fail("Could insert non-unique pair.")
-        
+        db.delete_unique("test_unique", ["spam", "eggs", "ham_id"])
         

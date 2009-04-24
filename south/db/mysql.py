@@ -16,6 +16,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     drop_primary_key_string = "ALTER TABLE %(table)s DROP PRIMARY KEY"
     allows_combined_alters = False
     has_ddl_transactions = False
+    has_check_constraints = False
     delete_unique_sql = "ALTER TABLE %s DROP INDEX %s"
     
     
