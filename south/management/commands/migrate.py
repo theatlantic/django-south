@@ -78,6 +78,7 @@ class Command(BaseCommand):
                     db_dry_run = db_dry_run,
                     silent = silent,
                     load_inital_data = not options['no_initial_data'],
+                    skip = skip,
                 )
                 if result is False:
                     return
