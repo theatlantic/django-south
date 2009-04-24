@@ -377,7 +377,7 @@ def backwards_problems(tree, backwards, done, silent=False):
     return problems
 
 
-def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, silent=False, load_inital_data=False):
+def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, silent=False, load_inital_data=False, skip=False):
     
     app_name = get_app_name(app)
     
@@ -430,8 +430,7 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
                 ghost_migrations.append(m)
         except ImproperlyConfigured:
             pass
-            
-        
+    
     if ghost_migrations:
         if not silent:
             print " ! These migrations are in the database but not on disk:"
@@ -511,7 +510,7 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
                 bad = True
             direction = -1
     
-    if bad and resolve_mode not in ['merge']:
+    if bad and resolve_mode not in ['merge'] and not skip:
         if not silent:
             print " ! Inconsistent migration history"
             print " ! The following options are available:"
