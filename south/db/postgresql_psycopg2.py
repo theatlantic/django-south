@@ -1,5 +1,5 @@
 
-from django.db import connection
+from django.db import connection, models
 from south.db import generic
 
 class DatabaseOperations(generic.DatabaseOperations):
@@ -50,3 +50,13 @@ class DatabaseOperations(generic.DatabaseOperations):
     def rename_index(self, old_index_name, index_name):
         "Rename an index individually"
         generic.DatabaseOperations.rename_table(self, old_index_name, index_name)
+
+    def _db_type_for_alter_column(self, field):
+        """
+        Returns a field's type suitable for ALTER COLUMN.
+        Strips CHECKs from PositiveSmallIntegerField) and PositiveIntegerField
+        @param field: The field to generate type for
+        """
+        if isinstance(field, models.PositiveSmallIntegerField) or isinstance(field, models.PositiveIntegerField):
+            return field.db_type().split(" ")[0]
+        return super(DatabaseOperations, self)._db_type_for_alter_column(field)

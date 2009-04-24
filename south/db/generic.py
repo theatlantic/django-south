@@ -212,6 +212,15 @@ class DatabaseOperations(object):
                 self.alter_column(table_name, name, field, explicit_name=False)
     
 
+    def _db_type_for_alter_column(self, field):
+        """
+        Returns a field's type suitable for ALTER COLUMN.
+        By default it just returns field.db_type().
+        To be overriden by backend specific subclasses
+        @param field: The field to generate type for
+        """
+        return field.db_type()
+    
     def alter_column(self, table_name, name, field, explicit_name=True):
         """
         Alters the given column name so it will match the given field.
@@ -244,7 +253,7 @@ class DatabaseOperations(object):
         # First, change the type
         params = {
             "column": qn(name),
-            "type": field.db_type().split(" ")[0], # The type might have CHECK... in it.
+            "type": self._db_type_for_alter_column(field)            
         }
 
         # SQLs is a list of (SQL, values) pairs.
