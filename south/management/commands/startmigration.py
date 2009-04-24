@@ -336,6 +336,10 @@ class Command(BaseCommand):
                     )
                 continue
             
+            # GenericRelations need ignoring
+            if isinstance(field, GenericRelation):
+                continue
+            
             # Add any dependencies
             stub_models.update(field_dependencies(field))
             
