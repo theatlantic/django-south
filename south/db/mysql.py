@@ -106,6 +106,10 @@ class DatabaseOperations(generic.DatabaseOperations):
         """
         Gets the names of the constraints affecting the given columns.
         """
+        
+        if self.dry_run:
+            raise ValueError("Cannot get constraints for columns during a dry run.")
+        
         columns = set(columns)
         db_name = settings.DATABASE_NAME
         # First, load all constraint->col mappings for this table.

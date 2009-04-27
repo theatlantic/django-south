@@ -272,6 +272,10 @@ class TestOperations(unittest.TestCase):
         ])
         # Add a constraint
         db.create_unique("test_unique", ["spam"])
+        # Shouldn't do anything during dry-run
+        db.dry_run = True
+        db.delete_unique("test_unique", ["spam"])
+        db.dry_run = False
         db.delete_unique("test_unique", ["spam"])
         db.create_unique("test_unique", ["spam"])
         db.start_transaction()
