@@ -296,6 +296,10 @@ class DatabaseOperations(object):
         """
         Gets the names of the constraints affecting the given columns.
         """
+        
+        if self.dry_run:
+            raise ValueError("Cannot get constraints for columns during a dry run.")
+        
         columns = set(columns)
         
         if type == "CHECK":
@@ -352,6 +356,10 @@ class DatabaseOperations(object):
         
         if not isinstance(columns, (list, tuple)):
             columns = [columns]
+        
+        # Dry runs mean we can't do anything.
+        if self.dry_run:
+            return
         
         constraints = list(self._constraints_affecting_columns(table_name, columns))
         if not constraints:
@@ -449,6 +457,8 @@ class DatabaseOperations(object):
 
     def delete_foreign_key(self, table_name, column):
         "Drop a foreign key constraint"
+        if self.dry_run:
+            return # We can't look at the DB to get the constraints
         constraints = list(self._constraints_affecting_columns(table_name, [column], "FOREIGN KEY"))
         if not constraints:
             raise ValueError("Cannot find a FOREIGN KEY constraint on table %s, column %s" % (table_name, column))
