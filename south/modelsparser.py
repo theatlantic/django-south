@@ -355,6 +355,28 @@ def get_model_fields(model, m2m=False):
         else:
             fields[fieldname] = None
     
+    # Now, try seeing if we can resolve the values of defaults.
+    for field, defn in fields.items():
+        
+        if not isinstance(defn, (list, tuple)):
+            continue # We don't have a defn for this one, or it's a string
+        
+        for arg, val in defn[2].items():
+            if arg in ['default', 'upload_to']:
+                try:
+                    # Evaluate it in a close-to-real fake model context
+                    real_val = eval(val, __import__(model.__module__, {}, {}, ['']).__dict__, model.__dict__)
+                # If we can't resolve it, stick it in verbatim
+                except NameError:
+                    pass # TODO: Raise nice error here?
+                # Hm, OK, we got a value. Callables are called, then frozen.
+                else:
+                    if callable(real_val):
+                        defn[2][arg] = repr(real_val())
+                    else:
+                        defn[2][arg] = repr(real_val)
+        
+    
     return fields
 
 
