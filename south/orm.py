@@ -184,7 +184,7 @@ class FakeORM(object):
             
             try:
                 field = self.eval_in_context(code, app)
-            except (NameError, AttributeError, AssertionError):
+            except (NameError, AttributeError, AssertionError, KeyError):
                 # It might rely on other models being around. Add it to the
                 # model for the second pass.
                 failed_fields[fname] = code
@@ -234,7 +234,7 @@ class FakeORM(object):
                 for fname, code in model._failed_fields.items():
                     try:
                         field = self.eval_in_context(code, app)
-                    except (NameError, AttributeError, AssertionError), e:
+                    except (NameError, AttributeError, AssertionError, KeyError), e:
                         # It's failed again. Complain.
                         raise ValueError("Cannot successfully create field '%s' for model '%s': %s." % (
                             fname, modelname, e
