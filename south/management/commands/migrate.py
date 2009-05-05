@@ -54,13 +54,16 @@ class Command(BaseCommand):
         # END DJANGO DUPE CODE
         
         # if all_apps flag is set, shift app over to target
-        if options['all_apps']:
+        if options.get('all_apps', False):
             target = app
             app = None
 
         # Migrate each app
         if app:
             apps = [migration.get_app(app.split(".")[-1])]
+            if apps == [None]:
+                print "The app '%s' does not appear to use migrations." % app
+                return
         else:
             apps = migration.get_migrated_apps()
         silent = options.get('verbosity', 0) == 0
@@ -77,7 +80,7 @@ class Command(BaseCommand):
                     fake = fake,
                     db_dry_run = db_dry_run,
                     silent = silent,
-                    load_inital_data = not options['no_initial_data'],
+                    load_inital_data = not options.get('no_initial_data', False),
                     skip = skip,
                 )
                 if result is False:
