@@ -362,7 +362,7 @@ def get_model_fields(model, m2m=False):
             continue # We don't have a defn for this one, or it's a string
         
         for arg, val in defn[2].items():
-            if arg in ['default', 'upload_to']:
+            if arg in ['default']:
                 try:
                     # Evaluate it in a close-to-real fake model context
                     real_val = eval(val, __import__(model.__module__, {}, {}, ['']).__dict__, model.__dict__)
