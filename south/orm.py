@@ -4,6 +4,7 @@ Roughly emulates the real Django ORM, to a point.
 """
 
 import inspect
+import datetime
 
 from django.db import models
 from django.db.models.loading import cache
@@ -111,6 +112,9 @@ class FakeORM(object):
         
         # Ourselves as orm, to allow non-fail cross-app referencing
         fake_locals['orm'] = self
+        
+        # Inject datetime to fix bug #135.
+        fake_locals['datetime'] = datetime
         
         # And a fake _ function
         fake_locals['_'] = lambda x: x
