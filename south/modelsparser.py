@@ -322,7 +322,7 @@ def get_model_fields(model, m2m=False):
     # Go through all bases (that are themselves models, but not Model)
     for base in model.__bases__:
         if base != models.Model and issubclass(base, models.Model):
-            inherited_fields.update(get_model_fields(base))
+            inherited_fields.update(get_model_fields(base, m2m))
     
     # Now, go through all the fields and try to get their definition
     source = model._meta.local_fields[:]
