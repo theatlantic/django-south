@@ -24,7 +24,7 @@ try:
 except NameError:
     from sets import Set as set
 
-from south import migration, modelsparser, modelsinspector
+from south import migration, modelsparser
 
 
 class Command(BaseCommand):
@@ -593,7 +593,6 @@ def prep_for_freeze(model, last_models=None):
         fields = last_models[model_key(model)]
     else:
         fields = modelsparser.get_model_fields(model, m2m=True)
-        print modelsinspector.get_model_fields(model, m2m=True)
     # Remove useless attributes (like 'choices')
     for name, field in fields.items():
         fields[name] = remove_useless_attributes(field)
