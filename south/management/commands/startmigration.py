@@ -41,6 +41,7 @@ class Command(BaseCommand):
             help='Freeze the specified model(s). Pass in either an app name (to freeze the whole app) or a single model, as appname.modelname.'),
     )
     help = "Creates a new template migration for the given app"
+    usage_str = "Usage: ./manage.py startmigration appname migrationname [--initial] [--auto] [--model ModelName] [--add-field ModelName.field_name] [--freeze]"
     
     def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, freeze_list=None, auto=False, **options):
         
@@ -51,9 +52,11 @@ class Command(BaseCommand):
         # Make sure options are compatable
         if initial and (added_model_list or added_field_list or auto):
             print "You cannot use --initial and other options together"
+            print self.usage_str
             return
         if auto and (added_model_list or added_field_list or initial):
             print "You cannot use --auto and other options together"
+            print self.usage_str
             return
         
         # specify the default name 'initial' if a name wasn't specified and we're
@@ -64,10 +67,12 @@ class Command(BaseCommand):
         # if not name, there's an error
         if not name:
             print "You must name this migration"
+            print self.usage_str
             return
         
         if not app:
             print "Please provide an app in which to create the migration."
+            print self.usage_str
             return
         
         # Make sure the app is short form
@@ -77,6 +82,7 @@ class Command(BaseCommand):
         app_models_module = models.get_app(app)
         if not app_models_module:
             print "App '%s' doesn't seem to exist, isn't in INSTALLED_APPS, or has no models." % app
+            print self.usage_str
             return
         
         # If they've set SOUTH_AUTO_FREEZE_APP = True (or not set it - defaults to True)
@@ -92,6 +98,7 @@ class Command(BaseCommand):
             app_module = __import__('.'.join(app_module_path), {}, {}, [''])
         except ImportError:
             print "Couldn't find path to App '%s'." % app
+            print self.usage_str
             return
             
         migrations_dir = os.path.join(
@@ -179,6 +186,7 @@ class Command(BaseCommand):
                     model = models.get_model(app_name, model_name)
                     if model is None:
                         print "Cannot find the model '%s' to freeze it." % item
+                        print self.usage_str
                         return
                     frozen_models[model] = None
                 else:
@@ -211,6 +219,7 @@ class Command(BaseCommand):
             
             # Right, did we manage to get the last set of models?
             if last_models is None:
+                print self.usage_str
                 return
             
             # Good! Get new things.
