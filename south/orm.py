@@ -113,9 +113,6 @@ class FakeORM(object):
         # Ourselves as orm, to allow non-fail cross-app referencing
         fake_locals['orm'] = self
         
-        # Inject datetime to fix bug #135.
-        fake_locals['datetime'] = datetime
-        
         # And a fake _ function
         fake_locals['_'] = lambda x: x
         

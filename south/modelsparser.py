@@ -369,10 +369,10 @@ def get_model_fields(model, m2m=False):
                 # If we can't resolve it, stick it in verbatim
                 except NameError:
                     pass # TODO: Raise nice error here?
-                # Hm, OK, we got a value. Callables are called, then frozen.
+                # Hm, OK, we got a value. Callables are not frozen (see #132, #135)
                 else:
                     if callable(real_val):
-                        defn[2][arg] = repr(real_val())
+                        pass
                     else:
                         defn[2][arg] = repr(real_val)
         
