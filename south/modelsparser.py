@@ -46,6 +46,26 @@ def prettyprint(tree, indent=0, omit_singles=False):
         return " " + repr(tree)
 
 
+def isclass(obj):
+    "Simple test to see if something is a class."
+    return issubclass(type(obj), type)
+
+
+def aliased_models(module):
+    """
+    Given a models module, returns a dict mapping all alias imports of models
+    (e.g. import Foo as Bar) back to their original names. Bug #134.
+    """
+    aliases = {}
+    for name, obj in module.__dict__.items():
+        if isclass(obj) and issubclass(obj, models.Model):
+            # Test to see if this has a different name to what it should
+            if name != obj._meta.object_name:
+                aliases[name] = obj._meta.object_name
+    return aliases
+    
+
+
 class STTree(object):
     
     "A syntax tree wrapper class."
@@ -312,6 +332,9 @@ def get_model_fields(model, m2m=False):
     possible_field_defs = tree.find("^ > classdef > suite > stmt > simple_stmt > small_stmt > expr_stmt")
     field_defs = {}
     
+    # Get aliases, ready for alias fixing (#134)
+    aliases = aliased_models(models.get_app(model._meta.app_label))
+    
     # Go through all the found defns, and try to parse them
     for pfd in possible_field_defs:
         field = extract_field(pfd)
@@ -355,12 +378,18 @@ def get_model_fields(model, m2m=False):
         else:
             fields[fieldname] = None
     
-    # Now, try seeing if we can resolve the values of defaults.
+    # Now, try seeing if we can resolve the values of defaults, and fix aliases.
     for field, defn in fields.items():
         
         if not isinstance(defn, (list, tuple)):
             continue # We don't have a defn for this one, or it's a string
         
+        # Fix aliases if we can (#134)
+        for i, arg in enumerate(defn[1]):
+            if arg in aliases:
+                defn[1][i] = aliases[arg]
+        
+        # Fix defaults if we can
         for arg, val in defn[2].items():
             if arg in ['default']:
                 try:

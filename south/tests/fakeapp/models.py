@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User as UserAlias
 
 def default_func():
     return "yays"
@@ -25,7 +25,7 @@ class HorribleModel(models.Model):
     o2 = models.ForeignKey('Other2')
     
     # Now to something outside
-    user = models.ForeignKey(User, related_name="horribles")
+    user = models.ForeignKey(UserAlias, related_name="horribles")
     
     # Unicode!
     code = models.CharField(max_length=25, default="↑↑↓↓←→←→BA")
