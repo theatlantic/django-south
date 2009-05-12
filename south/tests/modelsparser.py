@@ -34,7 +34,7 @@ class TestModelParsing(Monkeypatcher):
                 'code': ('models.CharField', [], {'max_length': '25', 'default': "'\\xe2\\x86\\x91\\xe2\\x86\\x91\\xe2\\x86\\x93\\xe2\\x86\\x93\\xe2\\x86\\x90\\xe2\\x86\\x92\\xe2\\x86\\x90\\xe2\\x86\\x92BA'"}),
                 
                 'class_attr': ('models.IntegerField', [], {'default': '0'}),
-                'func': ('models.CharField', [], {'default': "'yays'", 'max_length': '25'}),
+                'func': ('models.CharField', [], {'default': "default_func", 'max_length': '25'}),
                 
                 'choiced': ('models.CharField', [], {'max_length': '20', 'choices': 'choices'}),
                 
