@@ -311,8 +311,6 @@ class Command(BaseCommand):
         ### Added fields ###
         for mkey, field_name in added_fields:
             
-            print " + Added field '%s.%s'" % (mkey, field_name)
-            
             # Get the model
             model = model_unkey(mkey)
             # Get the field
@@ -343,11 +341,14 @@ class Command(BaseCommand):
                         field.name,
                         field.m2m_db_table()
                     )
+                    print " + Added M2M '%s.%s'" % (mkey, field_name)
                 continue
             
             # GenericRelations need ignoring
             if isinstance(field, GenericRelation):
                 continue
+            
+            print " + Added field '%s.%s'" % (mkey, field_name)
             
             # Add any dependencies
             stub_models.update(field_dependencies(field))
@@ -715,7 +716,7 @@ def remove_useless_meta(meta):
 def make_field_constructor(default_app, field, triple):
     """
     Given the defualt app, the field class,
-    and the defn triple (or string), make the defition string.
+    and the defn triple (or string), make the definition string.
     """
     # It might be a defn string already...
     if isinstance(triple, (str, unicode)):
