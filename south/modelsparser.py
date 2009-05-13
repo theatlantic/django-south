@@ -11,6 +11,7 @@ import token
 import keyword
 
 from django.db import models
+from django.utils.datastructures import SortedDict
 
 
 def name_that_thing(thing):
@@ -351,7 +352,7 @@ def get_model_fields(model, m2m=False):
     source = model._meta.local_fields[:]
     if m2m:
         source += model._meta.local_many_to_many
-    fields = {}
+    fields = SortedDict()
     for field in source:
         # Get its name
         fieldname = field.name
