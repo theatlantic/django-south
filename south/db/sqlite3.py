@@ -44,6 +44,20 @@ class DatabaseOperations(generic.DatabaseOperations):
         """
         raise NotImplementedError("SQLite does not support renaming columns.")
     
+    # Nor unique creation
+    def create_unique(self, table_name, columns):
+        """
+        Not supported under SQLite.
+        """
+        raise NotImplementedError("SQLite does not support adding unique constraints.")
+    
+    # Nor unique deletion
+    def delete_unique(self, table_name, columns):
+        """
+        Not supported under SQLite.
+        """
+        raise NotImplementedError("SQLite does not support removing unique constraints.")
+    
     # No cascades on deletes
     def delete_table(self, table_name, cascade=True):
         generic.DatabaseOperations.delete_table(self, table_name, False)
