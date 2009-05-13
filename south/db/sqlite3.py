@@ -49,14 +49,14 @@ class DatabaseOperations(generic.DatabaseOperations):
         """
         Not supported under SQLite.
         """
-        raise NotImplementedError("SQLite does not support adding unique constraints.")
+        print "WARNING: SQLite does not support adding unique constraints. Ignored."
     
     # Nor unique deletion
     def delete_unique(self, table_name, columns):
         """
         Not supported under SQLite.
         """
-        raise NotImplementedError("SQLite does not support removing unique constraints.")
+        print "WARNING: SQLite does not support removing unique constraints. Ignored."
     
     # No cascades on deletes
     def delete_table(self, table_name, cascade=True):
