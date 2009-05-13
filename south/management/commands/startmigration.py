@@ -589,6 +589,25 @@ class Command(BaseCommand):
 
 ### Cleaning functions for freezing
 
+
+def ormise_triple(field, triple):
+    "Given a 'triple' definition, runs poss_ormise on each arg."
+    
+    # If it's a string defn, return it plain.
+    if not isinstance(triple, (list, tuple)):
+        return triple
+    
+    # For each arg, if it's a related type, try ORMising it.
+    args = []
+    for arg in triple[1]:
+        if hasattr(field, "rel") and hasattr(field.rel, "to") and field.rel.to:
+            args.append(poss_ormise(None, field.rel.to, arg))
+        else:
+            args.append(arg)
+    
+    return (triple[0], args, triple[2])
+
+
 def prep_for_freeze(model, last_models=None):
     if last_models:
         fields = last_models[model_key(model)]
@@ -596,7 +615,8 @@ def prep_for_freeze(model, last_models=None):
         fields = modelsparser.get_model_fields(model, m2m=True)
     # Remove useless attributes (like 'choices')
     for name, field in fields.items():
-        fields[name] = remove_useless_attributes(field)
+        real_field = model._meta.get_field_by_name(name)[0]
+        fields[name] = ormise_triple(real_field, remove_useless_attributes(field))
     # See if there's a Meta
     if last_models:
         meta = last_models[model_key(model)].get("Meta", {})
@@ -615,7 +635,7 @@ def prep_for_stub(model, last_models=None):
     # Now, take only the PK (and a 'we're a stub' field) and freeze 'em
     pk = model._meta.pk.name
     fields = {
-        pk: remove_useless_attributes(fields[pk]),
+        pk: ormise_triple(model._meta.pk, remove_useless_attributes(fields[pk])),
         "_stub": True,
     }
     # Meta is important too.
