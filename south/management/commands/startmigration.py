@@ -332,9 +332,9 @@ class Command(BaseCommand):
                         field.name,
                         field.m2m_db_table(),
                         field.m2m_column_name()[:-3], # strip off the '_id' at the end
-                        model._meta.object_name,
+                        poss_ormise(app, model, model._meta.object_name),
                         field.m2m_reverse_name()[:-3], # strip off the '_id' at the ned
-                        field.rel.to._meta.object_name
+                        poss_ormise(app, field.rel.to, field.rel.to._meta.object_name)
                         )
                     backwards += DELETE_M2MFIELD_SNIPPET % (
                         model._meta.object_name,
@@ -401,9 +401,9 @@ class Command(BaseCommand):
                     field.name,
                     field.m2m_db_table(),
                     field.m2m_column_name()[:-3], # strip off the '_id' at the end
-                    model._meta.object_name,
+                    poss_ormise(app, model, model._meta.object_name),
                     field.m2m_reverse_name()[:-3], # strip off the '_id' at the ned
-                    field.rel.to._meta.object_name
+                    poss_ormise(app, field.rel.to, field.rel.to._meta.object_name)
                     )
                 continue
             
