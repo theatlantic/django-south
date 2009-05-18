@@ -832,12 +832,35 @@ def models_diff(old, new):
                     added_fields.add((key, fieldname))
             # For the ones that exist in both models, see if they were changed
             for fieldname in still_there:
-                if fieldname != "Meta" and \
-                   remove_useless_attributes(new[key][fieldname], True) != \
-                   remove_useless_attributes(old[key][fieldname], True):
+                if fieldname != "Meta" and different_attributes(
+                   remove_useless_attributes(old[key][fieldname], True),
+                   remove_useless_attributes(new[key][fieldname], True)):
                     changed_fields.append((key, fieldname, old[key][fieldname], new[key][fieldname]))
     
     return added_models, deleted_models, continued_models, added_fields, deleted_fields, changed_fields
+
+
+# Backwards-compat comparison that ignores orm. on the RHS and not the left
+def different_attributes(old, new):
+    # If they're not triples, just do normal comparison
+    if not isinstance(old, (list, tuple)) or not isinstance(new, (list, tuple)):
+        return old != new
+    # If the first or third bits or end of second are different, it really is different.
+    if old[0] != new[0] or old[2] != new[2] or old[1][1:] != new[1][1:]:
+        return True
+    if not old[1] and not new[1]:
+        return False
+    # Compare first positional arg
+    if "orm" in new[1][0] and "orm" not in old[1][0]:
+        # Do special comparison to fix #153
+        try:
+            print old[1][0], new[1][0].split("'")[1].split(".")[1]
+            return old[1][0] != new[1][0].split("'")[1].split(".")[1]
+        except IndexError:
+            pass # Fall back to next comparison
+    return old[1][0] != new[1][0]
+    
+    
 
 
 def meta_diff(old, new):
