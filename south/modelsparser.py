@@ -59,7 +59,7 @@ def aliased_models(module):
     """
     aliases = {}
     for name, obj in module.__dict__.items():
-        if isclass(obj) and issubclass(obj, models.Model):
+        if isclass(obj) and issubclass(obj, models.Model) and obj is not models.Model:
             # Test to see if this has a different name to what it should
             if name != obj._meta.object_name:
                 aliases[name] = obj._meta.object_name
