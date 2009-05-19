@@ -652,7 +652,7 @@ def prep_for_stub(model, last_models=None):
 
 def model_key(model):
     "For a given model, return 'appname.modelname'."
-    return ("%s.%s" % (model._meta.app_label, model._meta.object_name)).lower()
+    return "%s.%s" % (model._meta.app_label, model._meta.object_name.lower())
 
 def model_unkey(key):
     "For 'appname.modelname', return the model."
