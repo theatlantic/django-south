@@ -709,7 +709,7 @@ def pprint_fields(fields):
 ### Output sanitisers
 
 
-USELESS_KEYWORDS = ["choices", "help_text", "upload_to"]
+USELESS_KEYWORDS = ["choices", "help_text", "upload_to", "verbose_name"]
 USELESS_DB_KEYWORDS = ["related_name"] # Important for ORM, not for DB.
 
 def remove_useless_attributes(field, db=False):
@@ -854,7 +854,6 @@ def different_attributes(old, new):
     if "orm" in new[1][0] and "orm" not in old[1][0]:
         # Do special comparison to fix #153
         try:
-            print old[1][0], new[1][0].split("'")[1].split(".")[1]
             return old[1][0] != new[1][0].split("'")[1].split(".")[1]
         except IndexError:
             pass # Fall back to next comparison
