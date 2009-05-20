@@ -116,6 +116,9 @@ class FakeORM(object):
         # And a fake _ function
         fake_locals['_'] = lambda x: x
         
+        # Datetime; there should be no datetime direct accesses
+        fake_locals['datetime'] = datetime
+        
         # Use ModelsLocals to make lookups work right for CapitalisedModels
         fake_locals = ModelsLocals(fake_locals)
         

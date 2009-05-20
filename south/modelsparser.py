@@ -9,6 +9,7 @@ import parser
 import symbol
 import token
 import keyword
+import datetime
 
 from django.db import models
 from django.utils.datastructures import SortedDict
@@ -402,7 +403,15 @@ def get_model_fields(model, m2m=False):
                 # Hm, OK, we got a value. Callables are not frozen (see #132, #135)
                 else:
                     if callable(real_val):
-                        pass
+                        # HACK
+                        # However, if it's datetime.now, etc., that's special
+                        for datetime_key in datetime.datetime.__dict__.keys():
+                            # No, you can't use __dict__.values. It's different.
+                            dtm = getattr(datetime.datetime, datetime_key)
+                            if real_val == dtm:
+                                if not val.startswith("datetime.datetime"):
+                                    defn[2][arg] = "datetime." + val
+                                break
                     else:
                         defn[2][arg] = repr(real_val)
         
