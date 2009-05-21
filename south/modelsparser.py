@@ -13,6 +13,7 @@ import datetime
 
 from django.db import models
 from django.utils.datastructures import SortedDict
+from django.core.exceptions import ImproperlyConfigured
 
 
 def name_that_thing(thing):
@@ -335,7 +336,10 @@ def get_model_fields(model, m2m=False):
     field_defs = {}
     
     # Get aliases, ready for alias fixing (#134)
-    aliases = aliased_models(models.get_app(model._meta.app_label))
+    try:
+        aliases = aliased_models(models.get_app(model._meta.app_label))
+    except ImproperlyConfigured:
+        aliases = {}
     
     # Go through all the found defns, and try to parse them
     for pfd in possible_field_defs:
