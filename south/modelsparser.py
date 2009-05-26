@@ -12,6 +12,7 @@ import keyword
 import datetime
 
 from django.db import models
+from django.contrib.contenttypes import generic
 from django.utils.datastructures import SortedDict
 from django.core.exceptions import ImproperlyConfigured
 
@@ -361,7 +362,7 @@ def get_model_fields(model, m2m=False):
     for field in source:
         # Get its name
         fieldname = field.name
-        if isinstance(field, models.related.RelatedObject):
+        if isinstance(field, (models.related.RelatedObject, generic.GenericRel)):
             continue
         # Now, try to get the defn
         if fieldname in field_defs:
