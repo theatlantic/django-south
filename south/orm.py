@@ -203,7 +203,7 @@ class FakeORM(object):
         more_kwds['Meta'] = meta
         
         # Stop AppCache from changing!
-        cache.app_models[app], old_app_models = {}, cache.app_models[app]
+        cache.app_models[app], old_app_models = {}, cache.app_models.get(app, {})
         
         # Make our model
         fields.update(more_kwds)
