@@ -1,10 +1,11 @@
 #!/usr/bin/python
 
 from setuptools import setup, find_packages
+from south import __version__
 
 setup(
     name='South',
-    version='0.5.1',
+    version=__version__,
     description='South: Migrations for Django',
     long_description='South is an intelligent database migrations library for the Django web framework. It is database-independent and DVCS-friendly, as well as a whole host of other features.',
     author='Andrew Godwin & Andy McCurdy',
