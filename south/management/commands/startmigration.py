@@ -24,7 +24,7 @@ try:
 except NameError:
     from sets import Set as set
 
-from south import migration, modelsparser
+from south import migration, modelsinspector
 
 
 class Command(BaseCommand):
@@ -284,14 +284,14 @@ class Command(BaseCommand):
             # Add the model's dependencies to the stubs
             stub_models.update(model_dependencies(model))
             # Get the field definitions
-            fields = modelsparser.get_model_fields(model)
+            fields = modelsinspector.get_model_fields(model)
             # Turn the (class, args, kwargs) format into a string
             fields = triples_to_defs(app, model, fields)
             # Make the code
             forwards += CREATE_TABLE_SNIPPET % (
                 model._meta.object_name,
                 model._meta.db_table,
-                "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
+                "\n            ".join(["('%s', orm[%r])," % (fname, mkey + ":" + fname) for fname, fdef in fields.items()]),
                 model._meta.app_label,
                 model._meta.object_name,
             )
@@ -355,7 +355,7 @@ class Command(BaseCommand):
             
             # Work out the definition
             triple = remove_useless_attributes(
-                modelsparser.get_model_fields(model)[field_name])
+                modelsinspector.get_model_fields(model)[field_name])
             
             field_definition = make_field_constructor(app, field, triple)
             
@@ -364,7 +364,7 @@ class Command(BaseCommand):
                 field.name,
                 model._meta.db_table,
                 field.name,
-                field_definition,
+                "orm[%r]" % (mkey + ":" + field.name),
             )
             backwards += DELETE_FIELD_SNIPPET % (
                 model._meta.object_name,
@@ -427,7 +427,7 @@ class Command(BaseCommand):
                 field.name,
                 model._meta.db_table,
                 field.name,
-                field_definition,
+                "orm[%r]" % (mkey + ":" + field.name),
             )
         
         
@@ -453,7 +453,7 @@ class Command(BaseCommand):
             backwards += CREATE_TABLE_SNIPPET % (
                 model._meta.object_name,
                 model._meta.db_table,
-                "\n            ".join(["('%s', %s)," % (fname, fdef) for fname, fdef in fields.items()]),
+                "\n            ".join(["('%s', orm[%r])," % (fname, mkey + ":" + fname) for fname, fdef in fields.items()]),
                 model._meta.app_label,
                 model._meta.object_name,
             )
@@ -484,17 +484,19 @@ class Command(BaseCommand):
             forwards += CHANGE_FIELD_SNIPPET % (
                 model._meta.object_name,
                 field_name,
+                new_def,
                 model._meta.db_table,
                 field.get_attname(),
-                new_def,
+                "orm[%r]" % (mkey + ":" + field.name),
             )
             
             backwards += CHANGE_FIELD_SNIPPET % (
                 model._meta.object_name,
                 field_name,
+                old_def,
                 model._meta.db_table,
                 field.get_attname(),
-                old_def,
+                "orm[%r]" % (mkey + ":" + field.name),
             )
         
         
@@ -609,10 +611,11 @@ def ormise_triple(field, triple):
 
 
 def prep_for_freeze(model, last_models=None):
+    # If we have a set of models to use, use them.
     if last_models:
         fields = last_models[model_key(model)]
     else:
-        fields = modelsparser.get_model_fields(model, m2m=True)
+        fields = modelsinspector.get_model_fields(model, m2m=True)
     # Remove useless attributes (like 'choices')
     for name, field in fields.items():
         real_field = model._meta.get_field_by_name(name)[0]
@@ -621,7 +624,7 @@ def prep_for_freeze(model, last_models=None):
     if last_models:
         meta = last_models[model_key(model)].get("Meta", {})
     else:
-        meta = modelsparser.get_model_meta(model)
+        meta = modelsinspector.get_model_meta(model)
     if meta:
         fields['Meta'] = remove_useless_meta(meta)
     return fields
@@ -631,7 +634,7 @@ def prep_for_stub(model, last_models=None):
     if last_models:
         fields = last_models[model_key(model)]
     else:
-        fields = modelsparser.get_model_fields(model)
+        fields = modelsinspector.get_model_fields(model)
     # Now, take only the PK (and a 'we're a stub' field) and freeze 'em
     pk = model._meta.pk.name
     fields = {
@@ -642,7 +645,7 @@ def prep_for_stub(model, last_models=None):
     if last_models:
         meta = last_models[model_key(model)].get("Meta", {})
     else:
-        meta = modelsparser.get_model_meta(model)
+        meta = modelsinspector.get_model_meta(model)
     if meta:
         fields['Meta'] = remove_useless_meta(meta)
     return fields
@@ -955,6 +958,7 @@ DELETE_FIELD_SNIPPET = '''
         '''
 CHANGE_FIELD_SNIPPET = '''
         # Changing field '%s.%s'
+        # (to signature: %s)
         db.alter_column(%r, %r, %s)
         '''
 CREATE_M2MFIELD_SNIPPET = '''
