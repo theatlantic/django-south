@@ -10,6 +10,8 @@ from django.db.models.base import ModelBase
 from django.db.models.fields import NOT_PROVIDED
 from django.conf import settings
 
+NOISY = True
+
 # Gives information about how to introspect certain fields.
 # This is a list of triples; the first item is a list of fields it applies to,
 # (note that isinstance is used, so superclasses are perfectly valid here)
@@ -150,11 +152,13 @@ def get_model_fields(model, m2m=False):
     for field in source:
         # Does it define a south_field_triple method?
         if hasattr(field, "south_field_triple"):
-            print "Nativing field: %s" % field.name
+            if NOISY:
+                print "Nativing field: %s" % field.name
             field_defs[field.name] = field.south_field_triple()
         # Can we introspect it?
         elif can_introspect(field):
-            print "Introspecting field: %s" % field.name
+            if NOISY:
+                print "Introspecting field: %s" % field.name
             # Get the full field class path.
             field_class = field.__class__.__module__ + "." + field.__class__.__name__
             # Run this field through the introspector
@@ -163,11 +167,13 @@ def get_model_fields(model, m2m=False):
             field_defs[field.name] = (field_class, args, kwargs)
         # Hmph. Is it parseable?
         elif parser_fields.get(field.name, None):
-            print "Parsing field: %s" % field.name
+            if NOISY:
+                print "Parsing field: %s" % field.name
             field_defs[field.name] = parser_fields[field.name]
         # Shucks, no definition!
         else:
-            print "Nodefing field: %s" % field.name
+            if NOISY:
+                print "Nodefing field: %s" % field.name
             field_defs[field.name] = None
     
     return field_defs
