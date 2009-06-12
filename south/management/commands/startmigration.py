@@ -24,7 +24,7 @@ try:
 except NameError:
     from sets import Set as set
 
-from south import migration, modelsparser, modelsinspector
+from south import migration, modelsparser
 
 
 class Command(BaseCommand):
@@ -311,8 +311,6 @@ class Command(BaseCommand):
         ### Added fields ###
         for mkey, field_name in added_fields:
             
-            print " + Added field '%s.%s'" % (mkey, field_name)
-            
             # Get the model
             model = model_unkey(mkey)
             # Get the field
@@ -334,20 +332,23 @@ class Command(BaseCommand):
                         field.name,
                         field.m2m_db_table(),
                         field.m2m_column_name()[:-3], # strip off the '_id' at the end
-                        model._meta.object_name,
+                        poss_ormise(app, model, model._meta.object_name),
                         field.m2m_reverse_name()[:-3], # strip off the '_id' at the ned
-                        field.rel.to._meta.object_name
+                        poss_ormise(app, field.rel.to, field.rel.to._meta.object_name)
                         )
                     backwards += DELETE_M2MFIELD_SNIPPET % (
                         model._meta.object_name,
                         field.name,
                         field.m2m_db_table()
                     )
+                    print " + Added M2M '%s.%s'" % (mkey, field_name)
                 continue
             
             # GenericRelations need ignoring
             if isinstance(field, GenericRelation):
                 continue
+            
+            print " + Added field '%s.%s'" % (mkey, field_name)
             
             # Add any dependencies
             stub_models.update(field_dependencies(field))
@@ -400,9 +401,9 @@ class Command(BaseCommand):
                     field.name,
                     field.m2m_db_table(),
                     field.m2m_column_name()[:-3], # strip off the '_id' at the end
-                    model._meta.object_name,
+                    poss_ormise(app, model, model._meta.object_name),
                     field.m2m_reverse_name()[:-3], # strip off the '_id' at the ned
-                    field.rel.to._meta.object_name
+                    poss_ormise(app, field.rel.to, field.rel.to._meta.object_name)
                     )
                 continue
             
@@ -588,15 +589,34 @@ class Command(BaseCommand):
 
 ### Cleaning functions for freezing
 
+
+def ormise_triple(field, triple):
+    "Given a 'triple' definition, runs poss_ormise on each arg."
+    
+    # If it's a string defn, return it plain.
+    if not isinstance(triple, (list, tuple)):
+        return triple
+    
+    # For each arg, if it's a related type, try ORMising it.
+    args = []
+    for arg in triple[1]:
+        if hasattr(field, "rel") and hasattr(field.rel, "to") and field.rel.to:
+            args.append(poss_ormise(None, field.rel.to, arg))
+        else:
+            args.append(arg)
+    
+    return (triple[0], args, triple[2])
+
+
 def prep_for_freeze(model, last_models=None):
     if last_models:
         fields = last_models[model_key(model)]
     else:
         fields = modelsparser.get_model_fields(model, m2m=True)
-        print modelsinspector.get_model_fields(model, m2m=True)
     # Remove useless attributes (like 'choices')
     for name, field in fields.items():
-        fields[name] = remove_useless_attributes(field)
+        real_field = model._meta.get_field_by_name(name)[0]
+        fields[name] = ormise_triple(real_field, remove_useless_attributes(field))
     # See if there's a Meta
     if last_models:
         meta = last_models[model_key(model)].get("Meta", {})
@@ -615,7 +635,7 @@ def prep_for_stub(model, last_models=None):
     # Now, take only the PK (and a 'we're a stub' field) and freeze 'em
     pk = model._meta.pk.name
     fields = {
-        pk: remove_useless_attributes(fields[pk]),
+        pk: ormise_triple(model._meta.pk, remove_useless_attributes(fields[pk])),
         "_stub": True,
     }
     # Meta is important too.
@@ -632,7 +652,7 @@ def prep_for_stub(model, last_models=None):
 
 def model_key(model):
     "For a given model, return 'appname.modelname'."
-    return ("%s.%s" % (model._meta.app_label, model._meta.object_name)).lower()
+    return "%s.%s" % (model._meta.app_label, model._meta.object_name.lower())
 
 def model_unkey(key):
     "For 'appname.modelname', return the model."
@@ -689,7 +709,7 @@ def pprint_fields(fields):
 ### Output sanitisers
 
 
-USELESS_KEYWORDS = ["choices", "help_text", "upload_to"]
+USELESS_KEYWORDS = ["choices", "help_text", "upload_to", "verbose_name"]
 USELESS_DB_KEYWORDS = ["related_name"] # Important for ORM, not for DB.
 
 def remove_useless_attributes(field, db=False):
@@ -716,7 +736,7 @@ def remove_useless_meta(meta):
 def make_field_constructor(default_app, field, triple):
     """
     Given the defualt app, the field class,
-    and the defn triple (or string), make the defition string.
+    and the defn triple (or string), make the definition string.
     """
     # It might be a defn string already...
     if isinstance(triple, (str, unicode)):
@@ -812,12 +832,34 @@ def models_diff(old, new):
                     added_fields.add((key, fieldname))
             # For the ones that exist in both models, see if they were changed
             for fieldname in still_there:
-                if fieldname != "Meta" and \
-                   remove_useless_attributes(new[key][fieldname], True) != \
-                   remove_useless_attributes(old[key][fieldname], True):
+                if fieldname != "Meta" and different_attributes(
+                   remove_useless_attributes(old[key][fieldname], True),
+                   remove_useless_attributes(new[key][fieldname], True)):
                     changed_fields.append((key, fieldname, old[key][fieldname], new[key][fieldname]))
     
     return added_models, deleted_models, continued_models, added_fields, deleted_fields, changed_fields
+
+
+# Backwards-compat comparison that ignores orm. on the RHS and not the left
+def different_attributes(old, new):
+    # If they're not triples, just do normal comparison
+    if not isinstance(old, (list, tuple)) or not isinstance(new, (list, tuple)):
+        return old != new
+    # If the first or third bits or end of second are different, it really is different.
+    if old[0] != new[0] or old[2] != new[2] or old[1][1:] != new[1][1:]:
+        return True
+    if not old[1] and not new[1]:
+        return False
+    # Compare first positional arg
+    if "orm" in new[1][0] and "orm" not in old[1][0]:
+        # Do special comparison to fix #153
+        try:
+            return old[1][0] != new[1][0].split("'")[1].split(".")[1]
+        except IndexError:
+            pass # Fall back to next comparison
+    return old[1][0] != new[1][0]
+    
+    
 
 
 def meta_diff(old, new):

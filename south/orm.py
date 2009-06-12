@@ -116,6 +116,9 @@ class FakeORM(object):
         # And a fake _ function
         fake_locals['_'] = lambda x: x
         
+        # Datetime; there should be no datetime direct accesses
+        fake_locals['datetime'] = datetime
+        
         # Use ModelsLocals to make lookups work right for CapitalisedModels
         fake_locals = ModelsLocals(fake_locals)
         
@@ -200,7 +203,7 @@ class FakeORM(object):
         more_kwds['Meta'] = meta
         
         # Stop AppCache from changing!
-        cache.app_models[app], old_app_models = {}, cache.app_models[app]
+        cache.app_models[app], old_app_models = {}, cache.app_models.get(app, {})
         
         # Make our model
         fields.update(more_kwds)

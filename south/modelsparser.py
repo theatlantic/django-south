@@ -9,8 +9,12 @@ import parser
 import symbol
 import token
 import keyword
+import datetime
 
 from django.db import models
+from django.contrib.contenttypes import generic
+from django.utils.datastructures import SortedDict
+from django.core.exceptions import ImproperlyConfigured
 
 
 def name_that_thing(thing):
@@ -44,6 +48,26 @@ def prettyprint(tree, indent=0, omit_singles=False):
         return (" " * indent) + name_that_thing(tree)
     else:
         return " " + repr(tree)
+
+
+def isclass(obj):
+    "Simple test to see if something is a class."
+    return issubclass(type(obj), type)
+
+
+def aliased_models(module):
+    """
+    Given a models module, returns a dict mapping all alias imports of models
+    (e.g. import Foo as Bar) back to their original names. Bug #134.
+    """
+    aliases = {}
+    for name, obj in module.__dict__.items():
+        if isclass(obj) and issubclass(obj, models.Model) and obj is not models.Model:
+            # Test to see if this has a different name to what it should
+            if name != obj._meta.object_name:
+                aliases[name] = obj._meta.object_name
+    return aliases
+    
 
 
 class STTree(object):
@@ -312,6 +336,12 @@ def get_model_fields(model, m2m=False):
     possible_field_defs = tree.find("^ > classdef > suite > stmt > simple_stmt > small_stmt > expr_stmt")
     field_defs = {}
     
+    # Get aliases, ready for alias fixing (#134)
+    try:
+        aliases = aliased_models(models.get_app(model._meta.app_label))
+    except ImproperlyConfigured:
+        aliases = {}
+    
     # Go through all the found defns, and try to parse them
     for pfd in possible_field_defs:
         field = extract_field(pfd)
@@ -322,17 +352,17 @@ def get_model_fields(model, m2m=False):
     # Go through all bases (that are themselves models, but not Model)
     for base in model.__bases__:
         if base != models.Model and issubclass(base, models.Model):
-            inherited_fields.update(get_model_fields(base))
+            inherited_fields.update(get_model_fields(base, m2m))
     
     # Now, go through all the fields and try to get their definition
     source = model._meta.local_fields[:]
     if m2m:
         source += model._meta.local_many_to_many
-    fields = {}
+    fields = SortedDict()
     for field in source:
         # Get its name
         fieldname = field.name
-        if isinstance(field, models.related.RelatedObject):
+        if isinstance(field, (models.related.RelatedObject, generic.GenericRel)):
             continue
         # Now, try to get the defn
         if fieldname in field_defs:
@@ -355,12 +385,18 @@ def get_model_fields(model, m2m=False):
         else:
             fields[fieldname] = None
     
-    # Now, try seeing if we can resolve the values of defaults.
+    # Now, try seeing if we can resolve the values of defaults, and fix aliases.
     for field, defn in fields.items():
         
         if not isinstance(defn, (list, tuple)):
             continue # We don't have a defn for this one, or it's a string
         
+        # Fix aliases if we can (#134)
+        for i, arg in enumerate(defn[1]):
+            if arg in aliases:
+                defn[1][i] = aliases[arg]
+        
+        # Fix defaults if we can
         for arg, val in defn[2].items():
             if arg in ['default']:
                 try:
@@ -372,7 +408,15 @@ def get_model_fields(model, m2m=False):
                 # Hm, OK, we got a value. Callables are not frozen (see #132, #135)
                 else:
                     if callable(real_val):
-                        pass
+                        # HACK
+                        # However, if it's datetime.now, etc., that's special
+                        for datetime_key in datetime.datetime.__dict__.keys():
+                            # No, you can't use __dict__.values. It's different.
+                            dtm = getattr(datetime.datetime, datetime_key)
+                            if real_val == dtm:
+                                if not val.startswith("datetime.datetime"):
+                                    defn[2][arg] = "datetime." + val
+                                break
                     else:
                         defn[2][arg] = repr(real_val)
         
