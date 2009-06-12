@@ -332,7 +332,7 @@ def get_model_fields(model, m2m=False):
     """
     tree = get_model_tree(model)
     if tree is None:
-        raise ValueError("Cannot find source for model '%s'." % model)
+        return None
     possible_field_defs = tree.find("^ > classdef > suite > stmt > simple_stmt > small_stmt > expr_stmt")
     field_defs = {}
     
@@ -429,6 +429,10 @@ def get_model_meta(model):
     Given a model class, will return the dict representing the Meta class.
     """
     tree = get_model_tree(model)
+    
+    # No tree? No response.
+    if tree is None:
+        return None
     
     result = {}
     
