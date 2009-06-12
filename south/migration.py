@@ -384,15 +384,6 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
     
     db.debug = not silent
     
-    # If any of their app names in the DB contain a ., they're 0.2 or below, so migrate em
-    longuns = MigrationHistory.objects.filter(app_name__contains=".")
-    if longuns:
-        for mh in longuns:
-            mh.app_name = short_from_long(mh.app_name)
-            mh.save()
-        if not silent:
-            print "- Updated your South 0.2 database."
-    
     # Find out what delightful migrations we have
     tree = dependency_tree()
     migrations = get_migration_names(app)
