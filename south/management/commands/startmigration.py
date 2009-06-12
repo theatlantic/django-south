@@ -844,12 +844,18 @@ def models_diff(old, new):
 
 
 # Backwards-compat comparison that ignores orm. on the RHS and not the left
+# and which knows django.db.models.fields.CharField = models.CharField
 def different_attributes(old, new):
     # If they're not triples, just do normal comparison
     if not isinstance(old, (list, tuple)) or not isinstance(new, (list, tuple)):
         return old != new
-    # If the first or third bits or end of second are different, it really is different.
-    if old[0] != new[0] or old[2] != new[2] or old[1][1:] != new[1][1:]:
+    # If the first bit is different, check it's not by dj.db.models...
+    if old[0] != new[0]:
+        if old[0].startswith("models.") and (new[0].startswith("django.db.models") \
+         or new[0].startswith("django.contrib.gis")):
+            return old[0].split(".")[-1] != new[0].split(".")[-1] 
+    # If the third bits or end of second are different, it really is different.
+    if old[2] != new[2] or old[1][1:] != new[1][1:]:
         return True
     if not old[1] and not new[1]:
         return False
