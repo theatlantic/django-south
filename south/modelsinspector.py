@@ -3,13 +3,16 @@ Like south.modelsparser, but using introspection where possible
 rather than direct inspection of models.py.
 """
 
+import modelsparser
+
 from django.db import models
 from django.db.models.base import ModelBase
-
+from django.db.models.fields import NOT_PROVIDED
+from django.conf import settings
 
 # Gives information about how to introspect certain fields.
 # This is a list of triples; the first item is a list of fields it applies to,
-# (note that isinstance is used, so superclasses are perfectly valuid here)
+# (note that isinstance is used, so superclasses are perfectly valid here)
 # the second is a list of positional argument descriptors, and the third
 # is a list of keyword argument descriptors.
 # Descriptors are of the form:
@@ -25,6 +28,13 @@ introspection_details = [
         {
             "null": ["null", {"default": False}],
             "blank": ["blank", {"default": False}],
+            "primary_key": ["primary_key", {"default": False}],
+            "max_length": ["max_length", {"default": None}],
+            "unique": ["_unique", {"default": False}],
+            "db_index": ["db_index", {"default": False}],
+            "default": ["default", {"default": NOT_PROVIDED}],
+            "db_column": ["db_column", {"default": None}],
+            "db_tablespace": ["db_tablespace", {"default": settings.DEFAULT_INDEX_TABLESPACE}],
         },
     ),
     (
@@ -41,6 +51,20 @@ introspection_details = [
 any = lambda x: reduce(lambda y, z: y or z, x, False)
 
 
+def can_introspect(field):
+    """
+    Returns True if we are allowed to introspect this field, False otherwise.
+    ('allowed' means 'in core'. Custom fields can declare they are introspectable
+    by the default South rules by adding the attribute _south_introspects = True.)
+    """
+    # Check for special attribute
+    if hasattr(field, "_south_introspects") and field._south_introspects:
+        return True
+    # Check it's a core field (one I've written for)
+    module = field.__class__.__module__
+    return module.startswith("django.db")
+
+
 def matching_details(field):
     """
     Returns the union of all matching entries in introspection_details for the field.
@@ -54,11 +78,16 @@ def matching_details(field):
     return our_args, our_kwargs
 
 
-# Raised when fields have their default values.
-class IsDefault(Exception): pass
+class IsDefault(Exception):
+    """
+    Exception for when a field contains its default value.
+    """
 
 
 def get_value(field, descriptor):
+    """
+    Gets an attribute value from a Field instance and formats it.
+    """
     attrname, options = descriptor
     value = field
     for part in attrname.split("."):
@@ -68,6 +97,9 @@ def get_value(field, descriptor):
     # Models get their own special repr()
     if type(value) is ModelBase:
         return "orm['%s.%s']" % (value._meta.app_label, value._meta.object_name)
+    # Callables get called.
+    elif callable(value):
+        return repr(value())
     else:
         return repr(value)
 
@@ -107,19 +139,42 @@ def get_model_fields(model, m2m=False):
             # Looks like we need their fields, Ma.
             inherited_fields.update(get_model_fields(base))
     
+    # Now, ask the parser to have a look at this model too.
+    parser_fields = modelsparser.get_model_fields(model, m2m) or {}
+    
     # Now, go through all the fields and try to get their definition
     source = model._meta.local_fields[:]
     if m2m:
         source += model._meta.local_many_to_many
     
     for field in source:
-        
-        # Get the full field class path.
-        field_class = field.__class__.__module__ + "." + field.__class__.__name__
-        
-        # Run this field through the introspector
-        args, kwargs = introspector(field)
-        
-        field_defs[field.name] = (field_class, args, kwargs)
+        # Does it define a south_field_triple method?
+        if hasattr(field, "south_field_triple"):
+            print "Nativing field: %s" % field.name
+            field_defs[field.name] = field.south_field_triple()
+        # Can we introspect it?
+        elif can_introspect(field):
+            print "Introspecting field: %s" % field.name
+            # Get the full field class path.
+            field_class = field.__class__.__module__ + "." + field.__class__.__name__
+            # Run this field through the introspector
+            args, kwargs = introspector(field)
+            # That's our definition!
+            field_defs[field.name] = (field_class, args, kwargs)
+        # Hmph. Is it parseable?
+        elif parser_fields.get(field.name, None):
+            print "Parsing field: %s" % field.name
+            field_defs[field.name] = parser_fields[field.name]
+        # Shucks, no definition!
+        else:
+            print "Nodefing field: %s" % field.name
+            field_defs[field.name] = None
     
     return field_defs
+
+
+def get_model_meta(model):
+    """
+    Given a model class, will return the dict representing the Meta class.
+    """
+    return modelsparser.get_model_meta(model)

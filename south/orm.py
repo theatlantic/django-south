@@ -74,9 +74,15 @@ class FakeORM(object):
     
     
     def __getitem__(self, key):
+        # Detect if they asked for a field on a model or not.
+        if ":" in key:
+            key, fname = key.split(":")
+        else:
+            fname = None
+        # Now, try getting the model
         key = key.lower()
         try:
-            return self.models[key]
+            model = self.models[key]
         except KeyError:
             try:
                 app, model = key.split(".", 1)
@@ -84,6 +90,11 @@ class FakeORM(object):
                 raise KeyError("The model '%s' is not in appname.modelname format." % key)
             else:
                 raise KeyError("The model '%s' from the app '%s' is not available in this migration." % (model, app))
+        # If they asked for a field, get it.
+        if fname:
+            return model._meta.get_field_by_name(fname)
+        else:
+            return model
     
     
     def eval_in_context(self, code, app):
