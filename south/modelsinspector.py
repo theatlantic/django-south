@@ -41,13 +41,40 @@ introspection_details = [
     ),
     (
         (models.ForeignKey, models.OneToOneField),
-        [
-            ["rel.to", {}],
-        ],
-        {},
+        [],
+        {
+            "to": ["rel.to", {}],
+            "to_field": ["rel.field_name", {"default_attr": "rel.to._meta.pk.name"}],
+            "related_name": ["rel.related_name", {"default": None}],
+            "db_index": ["db_index", {"default": True}],
+        },
+    ),
+    (
+        (models.DateField, models.TimeField),
+        [],
+        {
+            "auto_now": ["auto_now", {"default": False}],
+            "auto_now_add": ["auto_now_add", {"default": False}],
+        },
+    ),
+    (
+        (models.DecimalField, ),
+        [],
+        {
+            "max_digits": ["max_digits", {"default": None}],
+            "decimal_places": ["decimal_places", {"default": None}],
+        },
+    ),
+    (
+        (models.FilePathField, ),
+        [],
+        {
+            "path": ["path", {"default": ''}],
+            "match": ["match", {"default": None}],
+            "recursive": ["recursive", {"default": False}],
+        },
     ),
 ]
-
 
 # 2.4 compatability
 any = lambda x: reduce(lambda y, z: y or z, x, False)
@@ -86,16 +113,30 @@ class IsDefault(Exception):
     """
 
 
+def get_attribute(item, attribute):
+    """
+    Like getattr, but recursive (i.e. you can ask for 'foo.bar.yay'.)
+    """
+    value = item
+    for part in attribute.split("."):
+        value = getattr(value, part)
+    return value
+
+
 def get_value(field, descriptor):
     """
     Gets an attribute value from a Field instance and formats it.
     """
     attrname, options = descriptor
-    value = field
-    for part in attrname.split("."):
-        value = getattr(value, part)
+    value = get_attribute(field, attrname)
+    # If the value is the same as the default, omit it for clarity
     if "default" in options and value == options['default']:
         raise IsDefault
+    # Some default values need to be gotten from an attribute too.
+    if "default_attr" in options:
+        default_value = get_attribute(field, options['default_attr'])
+        if value == default_value:
+            raise IsDefault
     # Models get their own special repr()
     if type(value) is ModelBase:
         return "orm['%s.%s']" % (value._meta.app_label, value._meta.object_name)
