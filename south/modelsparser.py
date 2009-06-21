@@ -1,6 +1,7 @@
 """
 Parsing module for models.py files. Extracts information in a more reliable
 way than inspect + regexes.
+Now only used as a fallback when introspection and the South custom hook both fail.
 """
 
 import re
@@ -422,47 +423,3 @@ def get_model_fields(model, m2m=False):
         
     
     return fields
-
-
-def get_model_meta(model):
-    """
-    Given a model class, will return the dict representing the Meta class.
-    """
-    tree = get_model_tree(model)
-    
-    # No tree? No response.
-    if tree is None:
-        return None
-    
-    result = {}
-    
-    # First, try to get any unusual inherited classes
-    for base in model.__bases__:
-        if base is not models.Model:
-            if hasattr(base, '_meta') and not base._meta.abstract:
-                # Abstract models' fields are included anyway, and we don't
-                # want extra dependencies
-                if "_bases" not in result:
-                    result['_bases'] = []
-                result['_bases'].append(base.__module__ + "." + base.__name__)
-    
-    # Find all classes exactly two levels deep
-    possible_meta_classes = set(tree.find("classdef classdef"))
-    possible_meta_classes.difference(set(tree.find("classdef classdef classdef")))
-    
-    # Select only those called 'Meta', and expand all their assignments
-    possible_meta_classes = [
-        tree.find("^ > suite > stmt > simple_stmt > small_stmt > expr_stmt")
-        for tree in possible_meta_classes
-        if tree.value[2][1] == "Meta"
-    ]
-    
-    if possible_meta_classes:
-        # Now, for each possible definition, try it. (Only for last Meta,
-        # since that's how python interprets it)
-        for defn in possible_meta_classes[-1]:
-            bits = defn.flatten()
-            if len(bits) > 1 and bits[1] == token.EQUAL:
-                result[bits[0][1]] = reform(bits[2:])
-    
-    return result or None
