@@ -76,6 +76,13 @@ introspection_details = [
     ),
 ]
 
+# Similar, but for Meta, so just the inner level (kwds).
+meta_details = {
+    "db_table": ["db_table", {"default_attr_concat": ["%s_%s", "app_label", "module_name"]}],
+    "db_tablespace": ["db_tablespace", {"default": settings.DEFAULT_TABLESPACE}],
+    "unique_together": ["unique_together", {"default": []}],
+}
+
 # 2.4 compatability
 any = lambda x: reduce(lambda y, z: y or z, x, False)
 
@@ -135,6 +142,12 @@ def get_value(field, descriptor):
     # Some default values need to be gotten from an attribute too.
     if "default_attr" in options:
         default_value = get_attribute(field, options['default_attr'])
+        if value == default_value:
+            raise IsDefault
+    # Some are made from a formatting string and several attrs (e.g. db_table)
+    if "default_attr_concat" in options:
+        format, attrs = options['default_attr_concat'][0], options['default_attr_concat'][1:]
+        default_value = format % tuple(map(lambda x: get_attribute(field, x), attrs))
         if value == default_value:
             raise IsDefault
     # Models get their own special repr()
@@ -198,8 +211,8 @@ def get_model_fields(model, m2m=False):
             field_defs[field.name] = field.south_field_triple()
         # Can we introspect it?
         elif can_introspect(field):
-            if NOISY:
-                print "Introspecting field: %s" % field.name
+            #if NOISY:
+            #    print "Introspecting field: %s" % field.name
             # Get the full field class path.
             field_class = field.__class__.__module__ + "." + field.__class__.__name__
             # Run this field through the introspector
@@ -224,4 +237,13 @@ def get_model_meta(model):
     """
     Given a model class, will return the dict representing the Meta class.
     """
-    return modelsparser.get_model_meta(model)
+    
+    # Get the introspected attributes
+    meta_def = {}
+    for kwd, defn in meta_details.items():
+        try:
+            meta_def[kwd] = get_value(model._meta, defn)
+        except IsDefault:
+            pass
+    
+    return meta_def
