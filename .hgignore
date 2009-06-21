@@ -1,2 +1,4 @@
-.*\.pyc
-\.hgignore
+# Globbing is cool.
+syntax: glob
+# No python bytecode
+*.pyc
