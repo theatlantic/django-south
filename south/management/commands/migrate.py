@@ -1,16 +1,10 @@
-"""
-Migrate management command.
-"""
-
-import sys
-from optparse import make_option
-
 from django.core.management.base import BaseCommand
 from django.core.management.color import no_style
 from django.conf import settings
 from django.db import models
-
+from optparse import make_option
 from south import migration
+import sys
 
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
@@ -36,7 +30,7 @@ class Command(BaseCommand):
             help='Verbosity level; 0=minimal output, 1=normal output, 2=all output'),
         )
     help = "Runs migrations for all apps."
-    args = "[appname] [migrationname|zero] [--all] [--list] [--skip] [--merge] [--no-initial-data] [--fake] [--db-dry-run]"
+    usage_str = "Usage: ./manage.py migrate [appname] [migrationname|zero] [--all] [--list] [--skip] [--merge] [--no-initial-data] [--fake] [--db-dry-run]"
 
     def handle(self, app=None, target=None, skip=False, merge=False, backwards=False, fake=False, db_dry_run=False, list=False, **options):
 
@@ -70,7 +64,7 @@ class Command(BaseCommand):
             apps = [migration.get_app(app.split(".")[-1])]
             if apps == [None]:
                 print "The app '%s' does not appear to use migrations." % app
-                print "./manage.py migrate " + self.args
+                print self.usage_str
                 return
         else:
             apps = migration.get_migrated_apps()

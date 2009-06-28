@@ -21,15 +21,13 @@ class DatabaseOperations(generic.DatabaseOperations):
     delete_unique_sql = "ALTER TABLE %s DROP INDEX %s"
     
     
-    def connection_init(self):
-        """
-        Run before any SQL to let database-specific config be sent as a command,
-        e.g. which storage engine (MySQL) or transaction serialisability level.
-        """
+    def execute(self, sql, params=[]):
         if hasattr(settings, "DATABASE_STORAGE_ENGINE") and \
            settings.DATABASE_STORAGE_ENGINE:
-            cursor = connection.cursor()
-            cursor.execute("SET storage_engine=%s;" % settings.DATABASE_STORAGE_ENGINE)
+            generic.DatabaseOperations.execute(self, "SET storage_engine=%s;" %
+                settings.DATABASE_STORAGE_ENGINE)
+        return generic.DatabaseOperations.execute(self, sql, params)
+    execute.__doc__ = generic.DatabaseOperations.execute.__doc__
 
     
     def rename_column(self, table_name, old, new):
@@ -49,12 +47,13 @@ class DatabaseOperations(generic.DatabaseOperations):
             qn(new),
             rows[0][1],
             rows[0][2] == "YES" and "NULL" or "NOT NULL",
+            rows[0][3] == "PRI" and "PRIMARY KEY" or "",
             rows[0][4] and "DEFAULT " or "",
             rows[0][4] and "%s" or "",
             rows[0][5] or "",
         )
         
-        sql = 'ALTER TABLE %s CHANGE COLUMN %s %s %s %s %s %s %s;' % params
+        sql = 'ALTER TABLE %s CHANGE COLUMN %s %s %s %s %s %s %s %s;' % params
         
         if rows[0][4]:
             self.execute(sql, (rows[0][4],))
@@ -136,12 +135,3 @@ class DatabaseOperations(generic.DatabaseOperations):
         for constraint, itscols in mapping.items():
             if itscols == columns:
                 yield constraint
-    
-    
-    def _field_sanity(self, field):
-        """
-        This particular override stops us sending DEFAULTs for BLOB/TEXT columns.
-        """
-        if field.db_type().upper() in ["BLOB", "TEXT", "LONGTEXT"]:
-            field.null = True
-        return field
