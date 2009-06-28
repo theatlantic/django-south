@@ -1,11 +1,10 @@
 #!/usr/bin/python
 
 from setuptools import setup, find_packages
-from south import __version__
 
 setup(
     name='South',
-    version=__version__,
+    version='0.5.1',
     description='South: Migrations for Django',
     long_description='South is an intelligent database migrations library for the Django web framework. It is database-independent and DVCS-friendly, as well as a whole host of other features.',
     author='Andrew Godwin & Andy McCurdy',
@@ -22,5 +21,5 @@ setup(
         "Operating System :: OS Independent",
         "Topic :: Software Development"
     ],
-    packages=["south", "south.db", "south.hacks", "south.management", "south.management.commands", "south.tests", "south.tests.fakeapp", "south.tests.fakeapp.migrations", "south.tests.otherfakeapp", "south.tests.otherfakeapp.migrations"],
+    packages=["south", "south.db", "south.management", "south.management.commands", "south.tests", "south.tests.fakeapp", "south.tests.fakeapp.migrations"],
 )
