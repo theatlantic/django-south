@@ -10,6 +10,7 @@ from django.db import models
 from django.db.models.loading import cache
 
 from south.db import db
+from south.utils import ask_for_it_by_name
 
 
 class ModelsLocals(object):
@@ -97,7 +98,7 @@ class FakeORM(object):
             return model
     
     
-    def eval_in_context(self, code, app):
+    def eval_in_context(self, code, app, extra_imports={}):
         "Evaluates the given code in the context of the migration file."
         
         # Drag in the migration module's locals (hopefully including models.py)
@@ -129,6 +130,25 @@ class FakeORM(object):
         
         # Datetime; there should be no datetime direct accesses
         fake_locals['datetime'] = datetime
+        
+        # Now, go through the requested imports and import them.
+        for name, value in extra_imports.items():
+            # First, try getting it out of locals.
+            parts = value.split(".")
+            try:
+                obj = fake_locals[parts[0]]
+                for part in parts[1:]:
+                    obj = getattr(obj, part)
+            except (KeyError, AttributeError):
+                pass
+            else:
+                fake_locals[name] = obj
+                continue
+            # OK, try to import it directly
+            try:
+                fake_locals[name] = ask_for_it_by_name(value)
+            except ImportError:
+                print "WARNING: Cannot import '%s'" % value
         
         # Use ModelsLocals to make lookups work right for CapitalisedModels
         fake_locals = ModelsLocals(fake_locals)
@@ -174,6 +194,7 @@ class FakeORM(object):
         
         # Now, make some fields!
         for fname, params in data.items():
+            # If it's the stub marker, ignore it.
             if fname == "_stub":
                 stub = bool(params)
                 continue
@@ -184,25 +205,28 @@ class FakeORM(object):
             elif isinstance(params, (str, unicode)):
                 # It's a premade definition string! Let's hope it works...
                 code = params
-            elif len(params) == 1:
-                code = "%s()" % params[0]
-            elif len(params) == 3:
-                code = "%s(%s)" % (
-                    params[0],
-                    ", ".join(
+                extra_imports = {}
+            else:
+                # If there's only one parameter (backwards compat), make it 3.
+                if len(params) == 1:
+                    params = (params[0], [], {})
+                # There should be 3 parameters. Code is a tuple of (code, what-to-import)
+                if len(params) == 3:
+                    code = "SouthFieldClass(%s)" % ", ".join(
                         params[1] +
                         ["%s=%s" % (n, v) for n, v in params[2].items()]
-                    ),
-                )
-            else:
-                raise ValueError("Field '%s' on model '%s.%s' has a weird definition length (should be 1 or 3 items)." % (fname, app, name))
+                    )
+                    extra_imports = {"SouthFieldClass": params[0]}
+                else:
+                    raise ValueError("Field '%s' on model '%s.%s' has a weird definition length (should be 1 or 3 items)." % (fname, app, name))
             
             try:
-                field = self.eval_in_context(code, app)
+                # Execute it in a probably-correct context.
+                field = self.eval_in_context(code, app, extra_imports)
             except (NameError, AttributeError, AssertionError, KeyError):
                 # It might rely on other models being around. Add it to the
                 # model for the second pass.
-                failed_fields[fname] = code
+                failed_fields[fname] = (code, extra_imports)
             else:
                 fields[fname] = field
         
@@ -246,9 +270,9 @@ class FakeORM(object):
         for modelkey, model in self.models.items():
             app, modelname = modelkey.split(".", 1)
             if hasattr(model, "_failed_fields"):
-                for fname, code in model._failed_fields.items():
+                for fname, (code, extra_imports) in model._failed_fields.items():
                     try:
-                        field = self.eval_in_context(code, app)
+                        field = self.eval_in_context(code, app, extra_imports)
                     except (NameError, AttributeError, AssertionError, KeyError), e:
                         # It's failed again. Complain.
                         raise ValueError("Cannot successfully create field '%s' for model '%s': %s." % (
@@ -279,14 +303,6 @@ class NoDryRunManager(object):
         if db.dry_run:
             raise AttributeError("You are in a dry run, and cannot access the ORM.\nWrap ORM sections in 'if not db.dry_run:', or if the whole migration is only a data migration, set no_dry_run = True on the Migration class.")
         return getattr(self.real, name)
-
-
-def ask_for_it_by_name(name):
-    "Returns an object referenced by absolute path."
-    bits = name.split(".")
-    modulename = ".".join(bits[:-1])
-    module = __import__(modulename, {}, {}, bits[-1])
-    return getattr(module, bits[-1])
 
 
 def whiny_method(*a, **kw):
