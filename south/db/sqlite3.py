@@ -1,4 +1,4 @@
-
+import inspect
 from django.db import connection
 from south.db import generic
 
@@ -23,12 +23,14 @@ class DatabaseOperations(generic.DatabaseOperations):
         if unique:
             self.create_index(table_name, [name], unique=True)
     
-    def _alter_sqlite_table(self, table_name, orm):
+    def _alter_sqlite_table(self, table_name):
         """
         Not supported under SQLite.
         """
+        orm = _try_get_orm()
         if not orm:
-            raise NotImplementedError("SQLite does not directly support renaming columns. So inorder for this to work, you must pass the orm object as an argument.")
+            raise NotImplementedError("SQLite does not directly support renaming columns. "
+                "So inorder for this to work, you must except the orm object as an argument to the migration method.")
         model_name = table_name.replace('_', '.', 1)
         model = orm[model_name]
         if getattr(model, '_already_run_alter_schema_trick', False):
@@ -43,11 +45,11 @@ class DatabaseOperations(generic.DatabaseOperations):
         self.delete_table(temp_name, cascade=False)
         model._already_run_alter_schema_trick = True
     
-    def alter_column(self, table_name, name, field, orm=None, explicit_name=True):
-        self._alter_sqlite_table(table_name, orm)
+    def alter_column(self, table_name, name, field, explicit_name=True):
+        self._alter_sqlite_table(table_name)
 
-    def delete_column(self, table_name, column_name, orm=None):
-        self._alter_sqlite_table(table_name, orm)
+    def delete_column(self, table_name, column_name):
+        self._alter_sqlite_table(table_name)
     
     # Nor RENAME COLUMN
     def rename_column(self, table_name, old, new):
@@ -78,3 +80,12 @@ class DatabaseOperations(generic.DatabaseOperations):
     def copy_data(self, src, dst, fields):
         sql = "INSERT INTO '%s' SELECT %s FROM '%s';" % (dst, ','.join(fields), src)
         self.execute(sql)
+
+def _try_get_orm():
+    from south.orm import FakeORM
+    try:
+        migration_locals = inspect.currentframe().f_back.f_back.f_back.f_locals
+        orm = filter(lambda val: isinstance(val, FakeORM), migration_locals.values())[0]
+        return orm
+    except:
+        pass
