@@ -650,8 +650,20 @@ def model_dependencies(model, last_models=None):
     OneToOneFields as ID, ForeignKeys everywhere, etc.
     """
     depends = {}
+    # Get deps for each field
     for field in model._meta.fields + model._meta.many_to_many:
         depends.update(field_dependencies(field, last_models))
+    # Now recurse
+    new_to_check = list(depends.keys())
+    while new_to_check:
+        model = new_to_check.pop()
+        deps = model_dependencies(model, last_models)
+        # Loop through dependencies...
+        for dep, value in deps.items():
+            # If the new dep is not already checked, add to the queue
+            if dep not in depends:
+                new_to_check.append(dep)
+            depends[dep] = value
     return depends
 
 
