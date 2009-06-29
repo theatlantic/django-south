@@ -656,8 +656,10 @@ def model_dependencies(model, last_models=None):
     # Now recurse
     new_to_check = list(depends.keys())
     while new_to_check:
-        model = new_to_check.pop()
-        deps = model_dependencies(model, last_models)
+        checked_model = new_to_check.pop()
+        if checked_model == model:
+            continue
+        deps = model_dependencies(checked_model, last_models)
         # Loop through dependencies...
         for dep, value in deps.items():
             # If the new dep is not already checked, add to the queue
