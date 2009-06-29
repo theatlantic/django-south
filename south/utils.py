@@ -19,3 +19,7 @@ def get_attribute(item, attribute):
     for part in attribute.split("."):
         value = getattr(value, part)
     return value
+
+
+fst = lambda (x, y): x
+snd = lambda (x, y): y
