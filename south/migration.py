@@ -112,9 +112,11 @@ def dependency_tree():
     # Annotate tree with 'backwards edges'
     for app, classes in tree.items():
         for name, cls in classes.items():
-            cls.needs = []
-            if not hasattr(cls, "needed_by"):
-                cls.needed_by = []
+            if not hasattr(cls, "_dependency_parents"):
+                cls._dependency_parents = []
+            if not hasattr(cls, "_dependency_children"):
+                cls._dependency_children = []
+            # Get forwards dependencies
             if hasattr(cls, "depends_on"):
                 for dapp, dname in cls.depends_on:
                     dapp = get_app(dapp)
@@ -133,10 +135,33 @@ def dependency_tree():
                             get_app_name(dapp),
                         )
                         sys.exit(1)
-                    cls.needs.append((dapp, dname))
-                    if not hasattr(tree[dapp][dname], "needed_by"):
-                        tree[dapp][dname].needed_by = []
-                    tree[dapp][dname].needed_by.append((app, name))
+                    cls._dependency_parents.append((dapp, dname))
+                    if not hasattr(tree[dapp][dname], "_dependency_children"):
+                        tree[dapp][dname]._dependency_children = []
+                    tree[dapp][dname]._dependency_children.append((app, name))
+            # Get backwards dependencies
+            if hasattr(cls, "needed_by"):
+                for dapp, dname in cls.needed_by:
+                    dapp = get_app(dapp)
+                    if dapp not in tree:
+                        print "Migration %s in app %s claims to be needed by unmigrated app %s." % (
+                            name,
+                            get_app_name(app),
+                            dapp,
+                        )
+                        sys.exit(1)
+                    if dname not in tree[dapp]:
+                        print "Migration %s in app %s claims to be needed by nonexistent migration %s in app %s." % (
+                            name,
+                            get_app_name(app),
+                            dname,
+                            get_app_name(dapp),
+                        )
+                        sys.exit(1)
+                    cls._dependency_children.append((dapp, dname))
+                    if not hasattr(tree[dapp][dname], "_dependency_parents"):
+                        tree[dapp][dname]._dependency_parents = []
+                    tree[dapp][dname]._dependency_parents.append((app, name))
     
     # Sanity check whole tree
     for app, classes in tree.items():
@@ -169,7 +194,7 @@ def dependencies(tree, app, name, trace=[]):
     # Get the dependencies of a migration
     deps = []
     migration = tree[app][name]
-    for dapp, dname in migration.needs:
+    for dapp, dname in migration._dependency_parents:
         deps.extend(
             dependencies(tree, dapp, dname, trace+[(app,name)])
         )
@@ -196,7 +221,7 @@ def needed_before_forwards(tree, app, name, sameapp=True):
         for aname in app_migrations[:app_migrations.index(name)]:
             needed += needed_before_forwards(tree, app, aname, False)
             needed += [(app, aname)]
-    for dapp, dname in tree[app][name].needs:
+    for dapp, dname in tree[app][name]._dependency_parents:
         needed += needed_before_forwards(tree, dapp, dname)
         needed += [(dapp, dname)]
     return remove_duplicates(needed)
@@ -214,7 +239,7 @@ def needed_before_backwards(tree, app, name, sameapp=True):
         for aname in reversed(app_migrations[app_migrations.index(name)+1:]):
             needed += needed_before_backwards(tree, app, aname, False)
             needed += [(app, aname)]
-    for dapp, dname in tree[app][name].needed_by:
+    for dapp, dname in tree[app][name]._dependency_children:
         needed += needed_before_backwards(tree, dapp, dname)
         needed += [(dapp, dname)]
     return remove_duplicates(needed)
