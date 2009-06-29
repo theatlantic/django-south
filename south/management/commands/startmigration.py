@@ -661,7 +661,7 @@ def model_dependencies(model, last_models=None):
         # Loop through dependencies...
         for dep, value in deps.items():
             # If the new dep is not already checked, add to the queue
-            if dep not in depends:
+            if (dep not in depends) and (dep not in new_to_check):
                 new_to_check.append(dep)
             depends[dep] = value
     return depends
