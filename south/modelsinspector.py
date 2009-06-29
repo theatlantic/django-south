@@ -51,6 +51,13 @@ introspection_details = [
         },
     ),
     (
+        (models.ManyToManyField,),
+        [],
+        {
+            "to": ["rel.to", {}],
+        },
+    ),
+    (
         (models.DateField, models.TimeField),
         [],
         {
