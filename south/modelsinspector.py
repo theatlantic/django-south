@@ -4,6 +4,7 @@ rather than direct inspection of models.py.
 """
 
 import modelsparser
+from south.utils import get_attribute
 
 from django.db import models
 from django.db.models.base import ModelBase
@@ -118,16 +119,6 @@ class IsDefault(Exception):
     """
     Exception for when a field contains its default value.
     """
-
-
-def get_attribute(item, attribute):
-    """
-    Like getattr, but recursive (i.e. you can ask for 'foo.bar.yay'.)
-    """
-    value = item
-    for part in attribute.split("."):
-        value = getattr(value, part)
-    return value
 
 
 def get_value(field, descriptor):
