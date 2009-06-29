@@ -1,10 +1,16 @@
+"""
+Migrate management command.
+"""
+
+import sys
+from optparse import make_option
+
 from django.core.management.base import BaseCommand
 from django.core.management.color import no_style
 from django.conf import settings
 from django.db import models
-from optparse import make_option
+
 from south import migration
-import sys
 
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
