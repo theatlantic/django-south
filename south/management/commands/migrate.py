@@ -30,7 +30,7 @@ class Command(BaseCommand):
             help='Verbosity level; 0=minimal output, 1=normal output, 2=all output'),
         )
     help = "Runs migrations for all apps."
-    usage_str = "Usage: ./manage.py migrate [appname] [migrationname|zero] [--all] [--list] [--skip] [--merge] [--no-initial-data] [--fake] [--db-dry-run]"
+    args = "[appname] [migrationname|zero] [--all] [--list] [--skip] [--merge] [--no-initial-data] [--fake] [--db-dry-run]"
 
     def handle(self, app=None, target=None, skip=False, merge=False, backwards=False, fake=False, db_dry_run=False, list=False, **options):
 
