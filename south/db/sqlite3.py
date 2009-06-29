@@ -23,19 +23,31 @@ class DatabaseOperations(generic.DatabaseOperations):
         if unique:
             self.create_index(table_name, [name], unique=True)
     
-    # SQLite doesn't have ALTER COLUMN
-    def alter_column(self, table_name, name, field, explicit_name=True):
+    def _alter_sqlite_table(self, table_name, orm):
         """
         Not supported under SQLite.
         """
-        raise NotImplementedError("SQLite does not support altering columns.")
+        if not orm:
+            raise NotImplementedError("SQLite does not directly support renaming columns. So inorder for this to work, you must pass the orm object as an argument.")
+        model_name = table_name.replace('_', '.', 1)
+        model = orm[model_name]
+        if getattr(model, '_already_run_alter_schema_trick', False):
+            return
+        print "shit " + table_name
+        temp_name = table_name + "_temporary_for_schema_change"
+        self.rename_table(table_name, temp_name)
+        fields = [(fld.name, fld) for fld in model._meta.fields]
+        self.create_table(table_name, fields)
+        columns = [fld.column for name, fld in fields]
+        self.copy_data(temp_name, table_name, columns)
+        self.delete_table(temp_name, cascade=False)
+        model._already_run_alter_schema_trick = True
     
-    # Nor DROP COLUMN
-    def delete_column(self, table_name, name):
-        """
-        Not supported under SQLite.
-        """
-        raise NotImplementedError("SQLite does not support deleting columns.")
+    def alter_column(self, table_name, name, field, orm=None, explicit_name=True):
+        self._alter_sqlite_table(table_name, orm)
+
+    def delete_column(self, table_name, column_name, orm=None):
+        self._alter_sqlite_table(table_name, orm)
     
     # Nor RENAME COLUMN
     def rename_column(self, table_name, old, new):
@@ -61,4 +73,8 @@ class DatabaseOperations(generic.DatabaseOperations):
     # No cascades on deletes
     def delete_table(self, table_name, cascade=True):
         generic.DatabaseOperations.delete_table(self, table_name, False)
-    
+
+
+    def copy_data(self, src, dst, fields):
+        sql = "INSERT INTO '%s' SELECT %s FROM '%s';" % (dst, ','.join(fields), src)
+        self.execute(sql)
