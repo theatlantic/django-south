@@ -7,6 +7,7 @@ import modelsparser
 from south.utils import get_attribute
 
 from django.db import models
+from django.contrib.localflavor import us
 from django.db.models.base import ModelBase
 from django.db.models.fields import NOT_PROVIDED
 from django.conf import settings
@@ -106,7 +107,7 @@ def can_introspect(field):
         return True
     # Check it's a core field (one I've written for)
     module = field.__class__.__module__
-    return module.startswith("django.db")
+    return module.startswith("django.db") or module.startswith("django.contrib.gis") or module.startswith("django.contrib.localflavor")
 
 
 def matching_details(field):
