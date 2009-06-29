@@ -608,6 +608,9 @@ def prep_for_freeze(model, last_models=None):
         fields = last_models[model_key(model)]
     else:
         fields = modelsinspector.get_model_fields(model, m2m=True)
+    # Remove _stub if it stuck in
+    if "_stub" in fields:
+        del fields["_stub"]
     # Remove useless attributes (like 'choices')
     for name, field in fields.items():
         real_field = model._meta.get_field_by_name(name)[0]
