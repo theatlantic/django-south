@@ -193,7 +193,7 @@ class Command(BaseCommand):
                     frozen_models.update(dict([(x, None) for x in models.get_models(models.get_app(item))]))
                     complete_apps.add(item.split(".")[-1])
             # For every model in the freeze list, add in frozen dependencies
-            for model in frozen_models:
+            for model in list(frozen_models):
                 frozen_models.update(model_dependencies(model))
         
         
