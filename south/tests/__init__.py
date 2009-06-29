@@ -36,7 +36,7 @@ class Monkeypatcher(unittest.TestCase):
         """
         Changes the Django environment so we can run tests against our test apps.
         """
-        hacks.set_installed_apps(["fakeapp"])
+        hacks.set_installed_apps(["fakeapp", "otherfakeapp"])
     
     
     def tearDown(self):
