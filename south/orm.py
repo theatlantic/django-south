@@ -93,7 +93,7 @@ class FakeORM(object):
                 raise KeyError("The model '%s' from the app '%s' is not available in this migration." % (model, app))
         # If they asked for a field, get it.
         if fname:
-            return model._meta.get_field_by_name(fname)
+            return model._meta.get_field_by_name(fname)[0]
         else:
             return model
     
