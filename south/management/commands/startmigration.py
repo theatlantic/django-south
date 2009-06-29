@@ -613,6 +613,8 @@ def prep_for_freeze(model, last_models=None):
         del fields["_stub"]
     # Remove useless attributes (like 'choices')
     for name, field in fields.items():
+        if name == "Meta":
+            continue
         real_field = model._meta.get_field_by_name(name)[0]
         fields[name] = ormise_triple(real_field, remove_useless_attributes(field))
     # See if there's a Meta
