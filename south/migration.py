@@ -1,17 +1,22 @@
+"""
+Main migration logic.
+"""
 
 import datetime
 import os
 import sys
 import traceback
 import inspect
+
 from django.conf import settings
 from django.db import models
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
-from models import MigrationHistory
+
+from south.models import MigrationHistory
 from south.db import db
 from south.orm import FakeORM
-
+from south.signals import *
 
 def get_app(app):
     """
@@ -315,6 +320,9 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
         if not db_dry_run:
             # Record us as having done this
             recorder(app_name, migration)
+            if not fake:
+                # Send a signal saying it ran
+                ran_migration.send(None, app=app_name, migration=migration, method=torun)
 
 
 def run_forwards(app, migrations, fake=False, db_dry_run=False, silent=False):
@@ -399,8 +407,10 @@ def backwards_problems(tree, backwards, done, silent=False):
 def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, silent=False, load_inital_data=False, skip=False):
     
     app_name = get_app_name(app)
-    
     db.debug = not silent
+    
+    # Fire off the pre-migrate signal
+    pre_migrate.send(None, app=app_name)
     
     # Find out what delightful migrations we have
     tree = dependency_tree()
@@ -561,3 +571,6 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
     else:
         if not silent:
             print "- Nothing to migrate."
+    
+    # Finally, fire off the post-migrate signal
+    post_migrate.send(None, app=app_name)
