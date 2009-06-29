@@ -223,15 +223,33 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
         app_name = get_app_name(app)
         if not silent:
             print toprint % (app_name, migration)
+        
+        # Get migration class
         klass = get_migration(app, migration)
-
+        # Find its predecessor, and attach the ORM from that as prev_orm.
+        all_names = get_migration_names(app)
+        idx = all_names.index(migration)
+        # First migration? The 'previous ORM' is empty.
+        if idx == 0:
+            klass.prev_orm = FakeORM(None, app)
+        else:
+            klass.prev_orm = get_migration(app, all_names[idx-1]).orm
+        
+        # If this is a 'fake' migration, do nothing.
         if fake:
             if not silent:
                 print "   (faked)"
+        
+        # OK, we should probably do something then.
         else:
-            
             runfunc = getattr(klass(), torun)
             args = inspect.getargspec(runfunc)
+            
+            # Get the correct ORM.
+            if torun == "forwards":
+                orm = klass.orm
+            else:
+                orm = klass.prev_orm
             
             # If the database doesn't support running DDL inside a transaction
             # *cough*MySQL*cough* then do a dry run first.
@@ -244,7 +262,7 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                         if len(args[0]) == 1:  # They don't want an ORM param
                             runfunc()
                         else:
-                            runfunc(klass.orm)
+                            runfunc(orm)
                     except:
                         traceback.print_exc()
                         print " ! Error found during dry run of migration! Aborting."
@@ -264,7 +282,7 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                 if len(args[0]) == 1:  # They don't want an ORM param
                     runfunc()
                 else:
-                    runfunc(klass.orm)
+                    runfunc(orm)
                 db.execute_deferred_sql()
             except:
                 if db.has_ddl_transactions:
@@ -284,7 +302,7 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                         if len(args[0]) == 1:
                             klass().backwards()
                         else:
-                            klass().backwards(klass.orm)
+                            klass().backwards(klass.prev_orm)
                     print
                     print " ! The South developers regret this has happened, and would"
                     print " ! like to gently persuade you to consider a slightly"
@@ -383,15 +401,6 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
     app_name = get_app_name(app)
     
     db.debug = not silent
-    
-    # If any of their app names in the DB contain a ., they're 0.2 or below, so migrate em
-    longuns = MigrationHistory.objects.filter(app_name__contains=".")
-    if longuns:
-        for mh in longuns:
-            mh.app_name = short_from_long(mh.app_name)
-            mh.save()
-        if not silent:
-            print "- Updated your South 0.2 database."
     
     # Find out what delightful migrations we have
     tree = dependency_tree()
