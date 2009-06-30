@@ -27,12 +27,8 @@ class DatabaseOperations(generic.DatabaseOperations):
         """
         Not supported under SQLite.
         """
-        orm = _get_orm()
-        if not orm:
-            raise NotImplementedError("SQLite does not directly support renaming columns. "
-                "So inorder for this to work, you must except the orm object as an argument to the migration method.")
         model_name = table_name.replace('_', '.', 1)
-        model = orm[model_name]
+        model = current_orm[model_name]
         if getattr(model, '_already_run_alter_schema_trick', False):
             return
         print "shit " + table_name
@@ -80,8 +76,3 @@ class DatabaseOperations(generic.DatabaseOperations):
     def copy_data(self, src, dst, fields):
         sql = "INSERT INTO '%s' SELECT %s FROM '%s';" % (dst, ','.join(fields), src)
         self.execute(sql)
-
-def _get_orm():
-    from south.db import db
-    orm = db.current_orm
-    return orm
