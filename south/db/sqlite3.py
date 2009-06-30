@@ -23,12 +23,12 @@ class DatabaseOperations(generic.DatabaseOperations):
         if unique:
             self.create_index(table_name, [name], unique=True)
     
-    def _alter_sqlite_table(self, table_name):
+    def _alter_sqlite_table(self, table_name, field_renames={}):
         """
         Not supported under SQLite.
         """
         model_name = table_name.replace('_', '.', 1)
-        model = current_orm[model_name]
+        model = self.current_orm[model_name]
         if getattr(model, '_already_run_alter_schema_trick', False):
             return
         print "shit " + table_name
@@ -37,7 +37,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         fields = [(fld.name, fld) for fld in model._meta.fields]
         self.create_table(table_name, fields)
         columns = [fld.column for name, fld in fields]
-        self.copy_data(temp_name, table_name, columns)
+        self.copy_data(temp_name, table_name, columns, field_renames)
         self.delete_table(temp_name, cascade=False)
         model._already_run_alter_schema_trick = True
     
@@ -49,10 +49,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     
     # Nor RENAME COLUMN
     def rename_column(self, table_name, old, new):
-        """
-        Not supported under SQLite.
-        """
-        raise NotImplementedError("SQLite does not support renaming columns.")
+        self._alter_sqlite_table(table_name, {old:new})
     
     # Nor unique creation
     def create_unique(self, table_name, columns):
@@ -72,7 +69,10 @@ class DatabaseOperations(generic.DatabaseOperations):
     def delete_table(self, table_name, cascade=True):
         generic.DatabaseOperations.delete_table(self, table_name, False)
 
-
-    def copy_data(self, src, dst, fields):
-        sql = "INSERT INTO '%s' SELECT %s FROM '%s';" % (dst, ','.join(fields), src)
+    def copy_data(self, src, dst, fields, field_renames={}):
+        qn = connection.ops.quote_name
+        q_fields = [qn(fileds) for field in fields]
+        for key, value in field_renames.items():
+            q_fields[q_fields.index(value)] = "%s AS %s" % (qn(key), qn(value))
+        sql = "INSERT INTO '%s' SELECT %s FROM '%s';" % (qn(dst), ', '.join(q_fields), qn(src))
         self.execute(sql)
