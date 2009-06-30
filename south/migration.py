@@ -251,6 +251,8 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
             else:
                 orm = klass.prev_orm
             
+            db.current_orm = orm
+            
             # If the database doesn't support running DDL inside a transaction
             # *cough*MySQL*cough* then do a dry run first.
             if not db.has_ddl_transactions or db_dry_run:
