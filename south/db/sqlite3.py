@@ -27,7 +27,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         """
         Not supported under SQLite.
         """
-        orm = _try_get_orm()
+        orm = _get_orm()
         if not orm:
             raise NotImplementedError("SQLite does not directly support renaming columns. "
                 "So inorder for this to work, you must except the orm object as an argument to the migration method.")
@@ -81,11 +81,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         sql = "INSERT INTO '%s' SELECT %s FROM '%s';" % (dst, ','.join(fields), src)
         self.execute(sql)
 
-def _try_get_orm():
-    from south.orm import FakeORM
-    try:
-        migration_locals = inspect.currentframe().f_back.f_back.f_back.f_locals
-        orm = filter(lambda val: isinstance(val, FakeORM), migration_locals.values())[0]
-        return orm
-    except:
-        pass
+def _get_orm():
+    from south.db import db
+    orm = db.current_orm
+    return orm
