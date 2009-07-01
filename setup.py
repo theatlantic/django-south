@@ -22,5 +22,5 @@ setup(
         "Operating System :: OS Independent",
         "Topic :: Software Development"
     ],
-    packages=["south", "south.db", "south.management", "south.management.commands", "south.tests", "south.tests.fakeapp", "south.tests.fakeapp.migrations"],
+    packages=["south", "south.db", "south.hacks", "south.management", "south.management.commands", "south.tests", "south.tests.fakeapp", "south.tests.fakeapp.migrations", "south.tests.otherfakeapp", "south.tests.otherfakeapp.migrations"],
 )
