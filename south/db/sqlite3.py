@@ -31,7 +31,6 @@ class DatabaseOperations(generic.DatabaseOperations):
         model = self.current_orm[model_name]
         if getattr(model, '_already_run_alter_schema_trick', False):
             return
-        print "shit " + table_name
         temp_name = table_name + "_temporary_for_schema_change"
         self.rename_table(table_name, temp_name)
         fields = [(fld.name, fld) for fld in model._meta.fields]
@@ -71,8 +70,8 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     def copy_data(self, src, dst, fields, field_renames={}):
         qn = connection.ops.quote_name
-        q_fields = [qn(fileds) for field in fields]
+        q_fields = [qn(field) for field in fields]
         for key, value in field_renames.items():
             q_fields[q_fields.index(value)] = "%s AS %s" % (qn(key), qn(value))
-        sql = "INSERT INTO '%s' SELECT %s FROM '%s';" % (qn(dst), ', '.join(q_fields), qn(src))
+        sql = "INSERT INTO %s SELECT %s FROM %s;" % (qn(dst), ', '.join(q_fields), qn(src))
         self.execute(sql)
