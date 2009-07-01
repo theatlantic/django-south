@@ -150,7 +150,7 @@ def get_value(field, descriptor):
         if value == default_value:
             raise IsDefault
     # Models get their own special repr()
-    if type(value) is ModelBase:
+    if isinstance(value, ModelBase):
         return "orm['%s.%s']" % (value._meta.app_label, value._meta.object_name)
     # Callables get called.
     elif callable(value):
