@@ -32,7 +32,7 @@ introspection_details = [
         [],
         {
             "null": ["null", {"default": False}],
-            "blank": ["blank", {"default": False}],
+            "blank": ["blank", {"default": False, "ignore_if":"primary_key"}],
             "primary_key": ["primary_key", {"default": False}],
             "max_length": ["max_length", {"default": None}],
             "unique": ["_unique", {"default": False}],
@@ -143,6 +143,10 @@ def get_value(field, descriptor):
     # If the value is the same as the default, omit it for clarity
     if "default" in options and value == options['default']:
         raise IsDefault
+    # If there's an ignore_if, use it
+    if "ignore_if" in options:
+        if get_attribute(field, options['ignore_if']):
+            raise IsDefault
     # Some default values need to be gotten from an attribute too.
     if "default_attr" in options:
         default_value = get_attribute(field, options['default_attr'])

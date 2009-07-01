@@ -837,7 +837,8 @@ def different_attributes(old, new):
     if old[0] != new[0]:
         if old[0].startswith("models.") and (new[0].startswith("django.db.models") \
          or new[0].startswith("django.contrib.gis")):
-            return old[0].split(".")[-1] != new[0].split(".")[-1] 
+            if old[0].split(".")[-1] != new[0].split(".")[-1]:
+                return True
     # If the third bits or end of second are different, it really is different.
     if old[2] != new[2] or old[1][1:] != new[1][1:]:
         return True
