@@ -11,6 +11,7 @@ from django.db.models.loading import cache
 
 from south.db import db
 from south.utils import ask_for_it_by_name
+from south.hacks import hacks
 
 
 class ModelsLocals(object):
@@ -48,6 +49,9 @@ class FakeORM(object):
         except AttributeError:
             return
         
+        # Start a 'new' AppCache
+        hacks.clear_app_cache()
+        
         # Now, make each model's data into a FakeModel
         for name, data in self.models_source.items():
             # Make sure there's some kind of Meta
@@ -64,6 +68,13 @@ class FakeORM(object):
         
         # And perform the second run to iron out any circular/backwards depends.
         self.retry_failed_fields()
+        
+        # Force evaluation of relations on the models now
+        for model in self.models.values():
+            model._meta.get_all_field_names()
+        
+        # Reset AppCache
+        hacks.unclear_app_cache()
 
     
     def __getattr__(self, key):
@@ -237,9 +248,6 @@ class FakeORM(object):
         
         more_kwds['Meta'] = meta
         
-        # Stop AppCache from changing!
-        cache.app_models[app], old_app_models = {}, cache.app_models.get(app, {})
-        
         # Make our model
         fields.update(more_kwds)
         
@@ -248,9 +256,6 @@ class FakeORM(object):
             tuple(map(ask_for_it_by_name, bases)),
             fields,
         )
-        
-        # Send AppCache back in time
-        cache.app_models[app] = old_app_models
         
         # If this is a stub model, change Objects to a whiny class
         if stub:

@@ -4,6 +4,7 @@ Hacks for the Django 1.0/1.0.2 releases.
 
 from django.conf import settings
 from django.db import models
+from django.db.models.loading import AppCache, cache
 
 class Hacks:
     
@@ -41,7 +42,23 @@ class Hacks:
         """
         Used to repopulate AppCache after fiddling with INSTALLED_APPS.
         """
-        from django.db.models.loading import AppCache
         a = AppCache()
         a.loaded = False
         a._populate()
+    
+    
+    def clear_app_cache(self):
+        """
+        Clears the contents of AppCache to a blank state, so new models
+        from the ORM can be added.
+        """
+        self.old_app_models = cache.app_models
+        cache.app_models = {}
+    
+    
+    def unclear_app_cache(self):
+        """
+        Reversed the effects of clear_app_cache.
+        """
+        cache.app_models = self.old_app_models
+    
