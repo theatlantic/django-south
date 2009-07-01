@@ -671,7 +671,7 @@ def model_dependencies(model, last_models=None):
 
 def field_dependencies(field, last_models=None):
     depends = {}
-    if isinstance(field, (models.OneToOneField, models.ForeignKey, models.ManyToManyField)):
+    if isinstance(field, (models.OneToOneField, models.ForeignKey, models.ManyToManyField, GenericRelation)):
         depends[field.rel.to] = last_models
         depends.update(field_dependencies(field.rel.to._meta.pk, last_models))
     return depends
