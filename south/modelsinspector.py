@@ -11,6 +11,7 @@ from django.contrib.localflavor import us
 from django.db.models.base import ModelBase
 from django.db.models.fields import NOT_PROVIDED
 from django.conf import settings
+from django.utils.functional import Promise
 
 NOISY = True
 
@@ -137,7 +138,7 @@ def get_value(field, descriptor):
     value = get_attribute(field, attrname)
     # Lazy-eval functions get eval'd.
     # Annoyingly, we can't do an isinstance() test
-    if hasattr(value, "__class__") and value.__class__.__name__ == "__proxy__":
+    if isinstance(value, Promise):
         value = unicode(value)
     # If the value is the same as the default, omit it for clarity
     if "default" in options and value == options['default']:
