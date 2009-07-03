@@ -644,27 +644,29 @@ def model_unkey(key):
 
 ### Dependency resolvers
 
-def model_dependencies(model, last_models=None):
+def model_dependencies(model, last_models=None, checked_models=None):
     """
     Returns a set of models this one depends on to be defined; things like
     OneToOneFields as ID, ForeignKeys everywhere, etc.
     """
     depends = {}
+    checked_models = checked_models or set()
     # Get deps for each field
     for field in model._meta.fields + model._meta.many_to_many:
         depends.update(field_dependencies(field, last_models))
     # Now recurse
-    new_to_check = list(depends.keys())
+    new_to_check = set(depends.keys()) - checked_models
     while new_to_check:
         checked_model = new_to_check.pop()
-        if checked_model == model:
+        if checked_model == model or checked_model in checked_models:
             continue
+        checked_models.add(checked_model)
         deps = model_dependencies(checked_model, last_models)
         # Loop through dependencies...
         for dep, value in deps.items():
             # If the new dep is not already checked, add to the queue
-            if (dep not in depends) and (dep not in new_to_check):
-                new_to_check.append(dep)
+            if (dep not in depends) and (dep not in new_to_check) and (dep not in checked_models):
+                new_to_check.add(dep)
             depends[dep] = value
     return depends
 
