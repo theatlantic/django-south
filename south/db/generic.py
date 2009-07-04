@@ -373,13 +373,16 @@ class DatabaseOperations(object):
         Creates the SQL snippet for a column. Used by add_column and add_table.
         """
         qn = connection.ops.quote_name
-
+        
         field.set_attributes_from_name(field_name)
-
+        
         # hook for the field to do any resolution prior to it's attributes being queried
         if hasattr(field, 'south_init'):
             field.south_init()
-
+        
+        # Possible hook to fiddle with the fields (e.g. defaults & TEXT on MySQL)
+        field = self._field_sanity(field)
+        
         sql = field.db_type()
         if sql:        
             field_output = [qn(field.column), sql]
@@ -389,13 +392,13 @@ class DatabaseOperations(object):
             elif field.unique:
                 # Just use UNIQUE (no indexes any more, we have delete_unique)
                 field_output.append('UNIQUE')
-
+            
             tablespace = field.db_tablespace or tablespace
             if tablespace and connection.features.supports_tablespaces and field.unique:
                 # We must specify the index tablespace inline, because we
                 # won't be generating a CREATE INDEX statement for this field.
                 field_output.append(connection.ops.tablespace_sql(tablespace, inline=True))
-
+            
             sql = ' '.join(field_output)
             sqlparams = ()
             # if the field is "NOT NULL" and a default value is provided, create the column with it
@@ -437,6 +440,14 @@ class DatabaseOperations(object):
             return sql % sqlparams
         else:
             return None
+    
+    
+    def _field_sanity(self, field):
+        """
+        Placeholder for DBMS-specific field alterations (some combos aren't valid,
+        e.g. DEFAULT and TEXT on MySQL)
+        """
+        return field
     
 
     def foreign_key_sql(self, from_table_name, from_column_name, to_table_name, to_column_name):
