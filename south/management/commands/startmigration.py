@@ -661,7 +661,7 @@ def model_dependencies(model, last_models=None, checked_models=None):
         if checked_model == model or checked_model in checked_models:
             continue
         checked_models.add(checked_model)
-        deps = model_dependencies(checked_model, last_models)
+        deps = model_dependencies(checked_model, last_models, checked_models)
         # Loop through dependencies...
         for dep, value in deps.items():
             # If the new dep is not already checked, add to the queue
