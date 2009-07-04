@@ -135,3 +135,12 @@ class DatabaseOperations(generic.DatabaseOperations):
         for constraint, itscols in mapping.items():
             if itscols == columns:
                 yield constraint
+    
+    
+    def _field_sanity(self, field):
+        """
+        This particular override stops us sending DEFAULTs for BLOB/TEXT columns.
+        """
+        if field.db_type().upper() in ["BLOB", "TEXT", "LONGTEXT"]:
+            field.null = True
+        return field

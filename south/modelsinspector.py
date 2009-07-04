@@ -4,11 +4,15 @@ rather than direct inspection of models.py.
 """
 
 import modelsparser
+from south.utils import get_attribute
 
 from django.db import models
+from django.contrib.localflavor import us
 from django.db.models.base import ModelBase
 from django.db.models.fields import NOT_PROVIDED
 from django.conf import settings
+from django.utils.functional import Promise
+from django.contrib.contenttypes import generic
 
 NOISY = True
 
@@ -29,7 +33,7 @@ introspection_details = [
         [],
         {
             "null": ["null", {"default": False}],
-            "blank": ["blank", {"default": False}],
+            "blank": ["blank", {"default": False, "ignore_if":"primary_key"}],
             "primary_key": ["primary_key", {"default": False}],
             "max_length": ["max_length", {"default": None}],
             "unique": ["_unique", {"default": False}],
@@ -47,6 +51,13 @@ introspection_details = [
             "to_field": ["rel.field_name", {"default_attr": "rel.to._meta.pk.name"}],
             "related_name": ["rel.related_name", {"default": None}],
             "db_index": ["db_index", {"default": True}],
+        },
+    ),
+    (
+        (models.ManyToManyField,),
+        [],
+        {
+            "to": ["rel.to", {}],
         },
     ),
     (
@@ -74,6 +85,17 @@ introspection_details = [
             "recursive": ["recursive", {"default": False}],
         },
     ),
+    (
+        (generic.GenericRelation, ),
+        [],
+        {
+            "to": ["rel.to", {}],
+            "symmetrical": ["rel.symmetrical", {"default": True}],
+            "object_id_field": ["object_id_field_name", {"default": "object_id"}],
+            "content_type_field": ["content_type_field_name", {"default": "content_type"}],
+            "blank": ["blank", {"default": True}],
+        },
+    ),
 ]
 
 # Similar, but for Meta, so just the inner level (kwds).
@@ -98,7 +120,7 @@ def can_introspect(field):
         return True
     # Check it's a core field (one I've written for)
     module = field.__class__.__module__
-    return module.startswith("django.db")
+    return module.startswith("django.db") or module.startswith("django.contrib.gis") or module.startswith("django.contrib.localflavor") or module.startswith("django.contrib.contenttypes.generic")
 
 
 def matching_details(field):
@@ -120,25 +142,23 @@ class IsDefault(Exception):
     """
 
 
-def get_attribute(item, attribute):
-    """
-    Like getattr, but recursive (i.e. you can ask for 'foo.bar.yay'.)
-    """
-    value = item
-    for part in attribute.split("."):
-        value = getattr(value, part)
-    return value
-
-
 def get_value(field, descriptor):
     """
     Gets an attribute value from a Field instance and formats it.
     """
     attrname, options = descriptor
     value = get_attribute(field, attrname)
+    # Lazy-eval functions get eval'd.
+    # Annoyingly, we can't do an isinstance() test
+    if isinstance(value, Promise):
+        value = unicode(value)
     # If the value is the same as the default, omit it for clarity
     if "default" in options and value == options['default']:
         raise IsDefault
+    # If there's an ignore_if, use it
+    if "ignore_if" in options:
+        if get_attribute(field, options['ignore_if']):
+            raise IsDefault
     # Some default values need to be gotten from an attribute too.
     if "default_attr" in options:
         default_value = get_attribute(field, options['default_attr'])
@@ -151,7 +171,7 @@ def get_value(field, descriptor):
         if value == default_value:
             raise IsDefault
     # Models get their own special repr()
-    if type(value) is ModelBase:
+    if isinstance(value, ModelBase):
         return "orm['%s.%s']" % (value._meta.app_label, value._meta.object_name)
     # Callables get called.
     elif callable(value):

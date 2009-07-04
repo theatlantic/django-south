@@ -1,1 +1,4 @@
-regexp:.pyc
+# Globbing is cool.
+syntax: glob
+# No python bytecode
+*.pyc

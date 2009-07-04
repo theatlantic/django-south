@@ -6,6 +6,7 @@ import StringIO
 
 from south import migration
 from south.tests import Monkeypatcher
+from south.utils import snd
 
 # Add the tests directory so fakeapp is on sys.path
 test_root = os.path.dirname(__file__)
@@ -32,9 +33,10 @@ class TestMigrationLogic(Monkeypatcher):
     def test_get_migrated_apps(self):
         
         P1 = __import__("fakeapp.migrations", {}, {}, [''])
+        P2 = __import__("otherfakeapp.migrations", {}, {}, [''])
         
         self.assertEqual(
-            [P1],
+            [P1,P2],
             list(migration.get_migrated_apps()),
         )
     
@@ -105,13 +107,20 @@ class TestMigrationLogic(Monkeypatcher):
     def test_all_migrations(self):
         
         app = migration.get_app("fakeapp")
+        otherapp = migration.get_app("otherfakeapp")
         
-        self.assertEqual(
-            {app: {
-                "0001_spam": migration.get_migration(app, "0001_spam"),
-                "0002_eggs": migration.get_migration(app, "0002_eggs"),
-                "0003_alter_spam": migration.get_migration(app, "0003_alter_spam"),
-            }},
+        self.assertEqual({
+                app: {
+                    "0001_spam": migration.get_migration(app, "0001_spam"),
+                    "0002_eggs": migration.get_migration(app, "0002_eggs"),
+                    "0003_alter_spam": migration.get_migration(app, "0003_alter_spam"),
+                },
+                otherapp: {
+                    "0001_first": migration.get_migration(otherapp, "0001_first"),
+                    "0002_second": migration.get_migration(otherapp, "0002_second"),
+                    "0003_third": migration.get_migration(otherapp, "0003_third"),
+                },
+            },
             migration.all_migrations(),
         )
     
@@ -241,3 +250,21 @@ class TestMigrationLogic(Monkeypatcher):
         # finish with no migrations, otherwise other tests fail...
         migration.migrate_app(app, target_name="zero", resolve_mode=None, fake=False, silent=True)
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
+    
+    def test_dependencies(self):
+        
+        fakeapp = migration.get_app("fakeapp")
+        otherfakeapp = migration.get_app("otherfakeapp")
+        
+        # Test a simple path
+        tree = migration.dependency_tree()
+        self.assertEqual(
+            map(snd, migration.needed_before_forwards(tree, fakeapp, "0003_alter_spam")),
+            ['0001_spam', '0002_eggs'],
+        )
+        
+        # And a complex one, with both back and forwards deps
+        self.assertEqual(
+            map(snd, migration.needed_before_forwards(tree, otherfakeapp, "0003_third")),
+            ['0001_spam', '0001_first', '0002_second', '0002_eggs', '0003_alter_spam'],
+        )
