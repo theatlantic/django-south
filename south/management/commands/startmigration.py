@@ -671,11 +671,15 @@ def model_dependencies(model, last_models=None, checked_models=None):
     return depends
 
 
-def field_dependencies(field, last_models=None):
+def field_dependencies(field, last_models=None, checked_models=None):
+    checked_models = checked_models or set()
     depends = {}
     if isinstance(field, (models.OneToOneField, models.ForeignKey, models.ManyToManyField, GenericRelation)):
+        if field.rel.to in checked_models:
+            return depends
+        checked_models.add(field.rel.to)
         depends[field.rel.to] = last_models
-        depends.update(field_dependencies(field.rel.to._meta.pk, last_models))
+        depends.update(field_dependencies(field.rel.to._meta.pk, last_models, checked_models))
     return depends
     
 
