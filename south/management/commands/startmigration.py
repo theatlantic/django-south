@@ -528,18 +528,20 @@ class Command(BaseCommand):
             model = model_unkey(mkey)
             print " - Deleted unique_together for [%s] on %s." % (", ".join(ut), model._meta.object_name)
             
+            cols = [get_field_column(model, f) for f in ut]
+            
             forwards += DELETE_UNIQUE_SNIPPET % (
                 ", ".join(ut),
                 model._meta.object_name,
                 model._meta.db_table,
-                ut,
+                cols,
             )
             
             backwards += CREATE_UNIQUE_SNIPPET % (
                 ", ".join(ut),
                 model._meta.object_name,
                 model._meta.db_table,
-                ut,
+                cols,
             )
         
         
