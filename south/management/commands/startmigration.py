@@ -242,7 +242,7 @@ class Command(BaseCommand):
                     added_uniques.add((mkey, entry))
                     was_meta_change = True
                 for entry in du:
-                    deleted_uniques.add((mkey, entry))
+                    deleted_uniques.add((mkey, entry, last_orm[mkey]))
                     was_meta_change = True
             
             if not (am or dm or af or df or cf or was_meta_change):
@@ -523,9 +523,8 @@ class Command(BaseCommand):
         
         
         ### Deleted unique_togethers ###
-        for mkey, ut in deleted_uniques:
+        for mkey, ut, model in deleted_uniques:
             
-            model = model_unkey(mkey)
             print " - Deleted unique_together for [%s] on %s." % (", ".join(ut), model._meta.object_name)
             
             cols = [get_field_column(model, f) for f in ut]
