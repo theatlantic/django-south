@@ -690,7 +690,7 @@ def field_dependencies(field, last_models=None, checked_models=None):
 def pprint_frozen_models(models):
     return "{\n        %s\n    }" % ",\n        ".join([
         "%r: %s" % (name, pprint_fields(fields))
-        for name, fields in models.items()
+        for name, fields in sorted(models.items())
     ])
 
 def pprint_fields(fields):
