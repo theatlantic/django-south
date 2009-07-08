@@ -1,6 +1,6 @@
 
 import unittest
-
+from django.conf import settings
 from south.hacks import hacks
 
 # Note: the individual test files are imported below this.
