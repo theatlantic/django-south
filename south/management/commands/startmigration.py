@@ -39,15 +39,21 @@ class Command(BaseCommand):
             help='Attempt to automatically detect differences from the last migration.'),
         make_option('--freeze', action='append', dest='freeze_list', type='string',
             help='Freeze the specified model(s). Pass in either an app name (to freeze the whole app) or a single model, as appname.modelname.'),
+        make_option('--stdout', action='store_true', dest='stdout', default=False,
+            help='Print the migration to stdout instead of writing it to a file.'),
     )
     help = "Creates a new template migration for the given app"
-    usage_str = "Usage: ./manage.py startmigration appname migrationname [--initial] [--auto] [--model ModelName] [--add-field ModelName.field_name] [--freeze]"
+    usage_str = "Usage: ./manage.py startmigration appname migrationname [--initial] [--auto] [--model ModelName] [--add-field ModelName.field_name] [--freeze] [--stdout]"
     
-    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, freeze_list=None, auto=False, **options):
+    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, freeze_list=None, auto=False, stdout=False, **options):
         
         # Any supposed lists that are None become empty lists
         added_model_list = added_model_list or []
         added_field_list = added_field_list or []
+        
+        # --stdout means name = -
+        if stdout:
+            name = "-"
         
         # Make sure options are compatable
         if initial and (added_model_list or added_field_list or auto):
@@ -569,17 +575,23 @@ class Command(BaseCommand):
                     )
                     model[fieldname] = FIELD_NEEDS_DEF_SNIPPET
         
-        # Write the migration file
-        fp = open(os.path.join(migrations_dir, new_filename), "w")
-        fp.write(MIGRATION_SNIPPET % (
+        # So, what's in this file, then?
+        file_contents = MIGRATION_SNIPPET % (
             encoding or "", '.'.join(app_module_path), 
             forwards, 
             backwards, 
             pprint_frozen_models(all_models),
             complete_apps and "complete_apps = [%s]" % (", ".join(map(repr, complete_apps))) or ""
-        ))
-        fp.close()
-        print "Created %s." % new_filename
+        )
+        # - is a special name which means 'print to stdout'
+        if name == "-":
+            print file_contents
+        # Write the migration file if the name isn't -
+        else:
+            fp = open(os.path.join(migrations_dir, new_filename), "w")
+            fp.write(file_contents)
+            fp.close()
+            print "Created %s." % new_filename
 
 
 ### Cleaning functions for freezing
