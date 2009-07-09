@@ -21,7 +21,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         generic.DatabaseOperations.add_column(self, table_name, name, field, *args, **kwds)
         # If it _was_ unique, make an index on it.
         if unique:
-            self.create_index(table_name, [name], unique=True)
+            self.create_index(table_name, [field.column], unique=True)
     
     # SQLite doesn't have ALTER COLUMN
     def alter_column(self, table_name, name, field, explicit_name=True):
