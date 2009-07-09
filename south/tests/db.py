@@ -320,7 +320,6 @@ class TestOperations(unittest.TestCase):
         """
         Test adding a ForeignKey with unique=True or a OneToOneField
         """
-        db.debug = True
         db.create_table("test_add_unique_fk", [
             ('spam', models.BooleanField(default=False))
         ])
