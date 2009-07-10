@@ -47,13 +47,12 @@ class DatabaseOperations(generic.DatabaseOperations):
             qn(new),
             rows[0][1],
             rows[0][2] == "YES" and "NULL" or "NOT NULL",
-            rows[0][3] == "PRI" and "PRIMARY KEY" or "",
             rows[0][4] and "DEFAULT " or "",
             rows[0][4] and "%s" or "",
             rows[0][5] or "",
         )
         
-        sql = 'ALTER TABLE %s CHANGE COLUMN %s %s %s %s %s %s %s %s;' % params
+        sql = 'ALTER TABLE %s CHANGE COLUMN %s %s %s %s %s %s %s;' % params
         
         if rows[0][4]:
             self.execute(sql, (rows[0][4],))
