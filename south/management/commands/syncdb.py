@@ -3,6 +3,7 @@ from django.core.management.color import no_style
 from django.utils.datastructures import SortedDict
 from optparse import make_option
 from south import migration
+from south.db import db
 from django.core.management.commands import syncdb
 from django.conf import settings
 from django.db import models
@@ -49,6 +50,9 @@ class Command(NoArgsCommand):
             (k, v) for (k, v) in cache.app_store.items()
             if get_app_name(k) in apps_needing_sync
         ])
+        # This will allow the setting of the MySQL storage engine, for example.
+        db.connection_init()
+        # OK, run the actual syncdb
         syncdb.Command().execute(**options)
         settings.INSTALLED_APPS = old_installed
         cache.app_store = old_app_store

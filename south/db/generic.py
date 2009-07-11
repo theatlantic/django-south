@@ -54,12 +54,22 @@ class DatabaseOperations(object):
         self.deferred_sql = []
         self.dry_run = False
         self.pending_create_signals = []
+    
+
+    def connection_init(self):
+        """
+        Run before any SQL to let database-specific config be sent as a command,
+        e.g. which storage engine (MySQL) or transaction serialisability level.
+        """
+        pass
+    
 
     def execute(self, sql, params=[]):
         """
         Executes the given SQL statement, with optional parameters.
         If the instance's debug attribute is True, prints out what it executes.
         """
+        self.connection_init()
         cursor = connection.cursor()
         if self.debug:
             print "   = %s" % sql, params
