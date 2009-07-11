@@ -21,13 +21,15 @@ class DatabaseOperations(generic.DatabaseOperations):
     delete_unique_sql = "ALTER TABLE %s DROP INDEX %s"
     
     
-    def execute(self, sql, params=[]):
+    def connection_init(self):
+        """
+        Run before any SQL to let database-specific config be sent as a command,
+        e.g. which storage engine (MySQL) or transaction serialisability level.
+        """
         if hasattr(settings, "DATABASE_STORAGE_ENGINE") and \
            settings.DATABASE_STORAGE_ENGINE:
             generic.DatabaseOperations.execute(self, "SET storage_engine=%s;" %
                 settings.DATABASE_STORAGE_ENGINE)
-        return generic.DatabaseOperations.execute(self, sql, params)
-    execute.__doc__ = generic.DatabaseOperations.execute.__doc__
 
     
     def rename_column(self, table_name, old, new):
