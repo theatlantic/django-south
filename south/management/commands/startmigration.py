@@ -864,13 +864,16 @@ def different_attributes(old, new):
     if not old[1] and not new[1]:
         return False
     # Compare first positional arg
-    if "orm" in new[1][0] and "orm" not in old[1][0]:
-        # Do special comparison to fix #153
-        try:
-            return old[1][0] != new[1][0].split("'")[1].split(".")[1]
-        except IndexError:
-            pass # Fall back to next comparison
-    return old[1][0] != new[1][0]
+    if new[1] and old[1]:
+        if "orm" in new[1][0] and "orm" not in old[1][0]:
+            # Do special comparison to fix #153
+            try:
+                return old[1][0] != new[1][0].split("'")[1].split(".")[1]
+            except IndexError:
+                pass # Fall back to next comparison
+        return old[1][0] != new[1][0]
+    else:
+        return old != new
     
     
 
