@@ -8,6 +8,7 @@ import datetime
 
 from django.db import models
 from django.db.models.loading import cache
+from django.core.exceptions import ImproperlyConfigured
 
 from south.db import db
 from south.utils import ask_for_it_by_name
@@ -169,7 +170,7 @@ class FakeORM(object):
     
     def make_meta(self, app, model, data, stub=False):
         "Makes a Meta class out of a dict of eval-able arguments."
-        results = {}
+        results = {'app_label': app}
         for key, code in data.items():
             # Some things we never want to use.
             if key in ["_bases"]:
@@ -243,8 +244,13 @@ class FakeORM(object):
         
         # Find the app in the Django core, and get its module
         more_kwds = {}
-        app_module = models.get_app(app)
-        more_kwds['__module__'] = app_module.__name__
+        try:
+            app_module = models.get_app(app)
+            more_kwds['__module__'] = app_module.__name__
+        except ImproperlyConfigured:
+            # The app this belonged to has vanished, but thankfully we can still
+            # make a mock model, so ignore the error.
+            more_kwds['__module__'] = '_south_mock'
         
         more_kwds['Meta'] = meta
         
