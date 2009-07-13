@@ -404,7 +404,7 @@ def get_model_fields(model, m2m=False):
                     # Evaluate it in a close-to-real fake model context
                     real_val = eval(val, __import__(model.__module__, {}, {}, ['']).__dict__, model.__dict__)
                 # If we can't resolve it, stick it in verbatim
-                except NameError:
+                except:
                     pass # TODO: Raise nice error here?
                 # Hm, OK, we got a value. Callables are not frozen (see #132, #135)
                 else:
