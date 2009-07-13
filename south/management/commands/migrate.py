@@ -70,7 +70,7 @@ class Command(BaseCommand):
             apps = [migration.get_app(app.split(".")[-1])]
             if apps == [None]:
                 print "The app '%s' does not appear to use migrations." % app
-                print self.usage_str
+                print "./manage.py migrate " + self.args
                 return
         else:
             apps = migration.get_migrated_apps()

@@ -39,15 +39,21 @@ class Command(BaseCommand):
             help='Attempt to automatically detect differences from the last migration.'),
         make_option('--freeze', action='append', dest='freeze_list', type='string',
             help='Freeze the specified model(s). Pass in either an app name (to freeze the whole app) or a single model, as appname.modelname.'),
+        make_option('--stdout', action='store_true', dest='stdout', default=False,
+            help='Print the migration to stdout instead of writing it to a file.'),
     )
     help = "Creates a new template migration for the given app"
-    usage_str = "Usage: ./manage.py startmigration appname migrationname [--initial] [--auto] [--model ModelName] [--add-field ModelName.field_name] [--freeze]"
+    usage_str = "Usage: ./manage.py startmigration appname migrationname [--initial] [--auto] [--model ModelName] [--add-field ModelName.field_name] [--freeze] [--stdout]"
     
-    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, freeze_list=None, auto=False, **options):
+    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, freeze_list=None, auto=False, stdout=False, **options):
         
         # Any supposed lists that are None become empty lists
         added_model_list = added_model_list or []
         added_field_list = added_field_list or []
+        
+        # --stdout means name = -
+        if stdout:
+            name = "-"
         
         # Make sure options are compatable
         if initial and (added_model_list or added_field_list or auto):
@@ -242,7 +248,7 @@ class Command(BaseCommand):
                     added_uniques.add((mkey, entry))
                     was_meta_change = True
                 for entry in du:
-                    deleted_uniques.add((mkey, entry))
+                    deleted_uniques.add((mkey, entry, last_orm[mkey]))
                     was_meta_change = True
             
             if not (am or dm or af or df or cf or was_meta_change):
@@ -523,23 +529,24 @@ class Command(BaseCommand):
         
         
         ### Deleted unique_togethers ###
-        for mkey, ut in deleted_uniques:
+        for mkey, ut, model in deleted_uniques:
             
-            model = model_unkey(mkey)
             print " - Deleted unique_together for [%s] on %s." % (", ".join(ut), model._meta.object_name)
+            
+            cols = [get_field_column(model, f) for f in ut]
             
             forwards += DELETE_UNIQUE_SNIPPET % (
                 ", ".join(ut),
                 model._meta.object_name,
                 model._meta.db_table,
-                ut,
+                cols,
             )
             
             backwards += CREATE_UNIQUE_SNIPPET % (
                 ", ".join(ut),
                 model._meta.object_name,
                 model._meta.db_table,
-                ut,
+                cols,
             )
         
         
@@ -568,17 +575,23 @@ class Command(BaseCommand):
                     )
                     model[fieldname] = FIELD_NEEDS_DEF_SNIPPET
         
-        # Write the migration file
-        fp = open(os.path.join(migrations_dir, new_filename), "w")
-        fp.write(MIGRATION_SNIPPET % (
+        # So, what's in this file, then?
+        file_contents = MIGRATION_SNIPPET % (
             encoding or "", '.'.join(app_module_path), 
             forwards, 
             backwards, 
             pprint_frozen_models(all_models),
             complete_apps and "complete_apps = [%s]" % (", ".join(map(repr, complete_apps))) or ""
-        ))
-        fp.close()
-        print "Created %s." % new_filename
+        )
+        # - is a special name which means 'print to stdout'
+        if name == "-":
+            print file_contents
+        # Write the migration file if the name isn't -
+        else:
+            fp = open(os.path.join(migrations_dir, new_filename), "w")
+            fp.write(file_contents)
+            fp.close()
+            print "Created %s." % new_filename
 
 
 ### Cleaning functions for freezing
@@ -671,11 +684,15 @@ def model_dependencies(model, last_models=None, checked_models=None):
     return depends
 
 
-def field_dependencies(field, last_models=None):
+def field_dependencies(field, last_models=None, checked_models=None):
+    checked_models = checked_models or set()
     depends = {}
     if isinstance(field, (models.OneToOneField, models.ForeignKey, models.ManyToManyField, GenericRelation)):
+        if field.rel.to in checked_models:
+            return depends
+        checked_models.add(field.rel.to)
         depends[field.rel.to] = last_models
-        depends.update(field_dependencies(field.rel.to._meta.pk, last_models))
+        depends.update(field_dependencies(field.rel.to._meta.pk, last_models, checked_models))
     return depends
     
 
@@ -685,7 +702,7 @@ def field_dependencies(field, last_models=None):
 def pprint_frozen_models(models):
     return "{\n        %s\n    }" % ",\n        ".join([
         "%r: %s" % (name, pprint_fields(fields))
-        for name, fields in models.items()
+        for name, fields in sorted(models.items())
     ])
 
 def pprint_fields(fields):
@@ -847,13 +864,16 @@ def different_attributes(old, new):
     if not old[1] and not new[1]:
         return False
     # Compare first positional arg
-    if "orm" in new[1][0] and "orm" not in old[1][0]:
-        # Do special comparison to fix #153
-        try:
-            return old[1][0] != new[1][0].split("'")[1].split(".")[1]
-        except IndexError:
-            pass # Fall back to next comparison
-    return old[1][0] != new[1][0]
+    if new[1] and old[1]:
+        if "orm" in new[1][0] and "orm" not in old[1][0]:
+            # Do special comparison to fix #153
+            try:
+                return old[1][0] != new[1][0].split("'")[1].split(".")[1]
+            except IndexError:
+                pass # Fall back to next comparison
+        return old[1][0] != new[1][0]
+    else:
+        return old != new
     
     
 
