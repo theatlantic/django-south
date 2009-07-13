@@ -28,8 +28,8 @@ class DatabaseOperations(generic.DatabaseOperations):
         """
         if hasattr(settings, "DATABASE_STORAGE_ENGINE") and \
            settings.DATABASE_STORAGE_ENGINE:
-            generic.DatabaseOperations.execute(self, "SET storage_engine=%s;" %
-                settings.DATABASE_STORAGE_ENGINE)
+            cursor = connection.cursor()
+            cursor.execute("SET storage_engine=%s;" % settings.DATABASE_STORAGE_ENGINE)
 
     
     def rename_column(self, table_name, old, new):
