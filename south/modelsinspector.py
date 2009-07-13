@@ -13,6 +13,7 @@ from django.db.models.fields import NOT_PROVIDED
 from django.conf import settings
 from django.utils.functional import Promise
 from django.contrib.contenttypes import generic
+from django.utils.datastructures import SortedDict
 
 NOISY = True
 
@@ -206,7 +207,7 @@ def get_model_fields(model, m2m=False):
     Given a model class, returns a dict of {field_name: field_triple} defs.
     """
     
-    field_defs = {}
+    field_defs = SortedDict()
     inherited_fields = {}
     
     # Go through all bases (that are themselves models, but not Model)
