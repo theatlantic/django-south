@@ -3,6 +3,8 @@ Like south.modelsparser, but using introspection where possible
 rather than direct inspection of models.py.
 """
 
+import datetime
+
 import modelsparser
 from south.utils import get_attribute
 
@@ -176,6 +178,13 @@ def get_value(field, descriptor):
         return "orm['%s.%s']" % (value._meta.app_label, value._meta.object_name)
     # Callables get called.
     elif callable(value):
+        # Datetime.datetime.now is special, as we can access it from the eval
+        # context (and because it changes all the time; people will file bugs otherwise).
+        if value == datetime.datetime.now:
+            return "datetime.datetime.now"
+        if value == datetime.date.today:
+            return "datetime.date.today"
+        # All other callables get called.
         return repr(value())
     else:
         return repr(value)
