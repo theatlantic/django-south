@@ -258,7 +258,7 @@ class FakeORM(object):
         fields.update(more_kwds)
         
         model = type(
-            name,
+            str(name),
             tuple(map(ask_for_it_by_name, bases)),
             fields,
         )
