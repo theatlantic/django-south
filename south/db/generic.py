@@ -413,7 +413,7 @@ class DatabaseOperations(object):
             sqlparams = ()
             # if the field is "NOT NULL" and a default value is provided, create the column with it
             # this allows the addition of a NOT NULL field to a table with existing rows
-            if not field.null and field.has_default():
+            if not field.null and getattr(field, '_suppress_default', True) and field.has_default():
                 default = field.get_default()
                 # If the default is actually None, don't add a default term
                 if default is not None:
