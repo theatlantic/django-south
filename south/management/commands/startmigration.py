@@ -569,7 +569,7 @@ class Command(BaseCommand):
                     del model['Meta']
                 # Warn about undefined fields
                 elif fielddef is None:
-                    print "WARNING: Cannot get definition for '%s' on '%s'. Please edit the migration manually." % (
+                    print "WARNING: Cannot get definition for '%s' on '%s'. Please edit the migration manually to define it, or add the south_field_triple method to it." % (
                         fieldname,
                         modelname,
                     )
@@ -744,6 +744,9 @@ def make_field_constructor(default_app, field, triple):
     Given the defualt app, the field class,
     and the defn triple (or string), make the definition string.
     """
+    # It might be None; return a placeholder
+    if triple is None:
+        return FIELD_NEEDS_DEF_SNIPPET
     # It might be a defn string already...
     if isinstance(triple, (str, unicode)):
         return triple
