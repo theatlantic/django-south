@@ -61,6 +61,7 @@ introspection_details = [
         [],
         {
             "to": ["rel.to", {}],
+            "symmetrical": ["rel.symmetrical", {"default": True}],
         },
     ),
     (
