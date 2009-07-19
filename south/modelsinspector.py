@@ -238,7 +238,7 @@ def get_model_fields(model, m2m=False):
         # Does it define a south_field_triple method?
         if hasattr(field, "south_field_triple"):
             if NOISY:
-                print "Nativing field: %s" % field.name
+                print " ( Nativing field: %s" % field.name
             field_defs[field.name] = field.south_field_triple()
         # Can we introspect it?
         elif can_introspect(field):
@@ -253,12 +253,12 @@ def get_model_fields(model, m2m=False):
         # Hmph. Is it parseable?
         elif parser_fields.get(field.name, None):
             if NOISY:
-                print "Parsing field: %s" % field.name
+                print " ( Parsing field: %s" % field.name
             field_defs[field.name] = parser_fields[field.name]
         # Shucks, no definition!
         else:
             if NOISY:
-                print "Nodefing field: %s" % field.name
+                print " ( Nodefing field: %s" % field.name
             field_defs[field.name] = None
     
     return field_defs
