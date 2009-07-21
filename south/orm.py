@@ -168,7 +168,10 @@ class FakeORM(object):
             try:
                 fake_locals[name] = ask_for_it_by_name(value)
             except ImportError:
-                print "WARNING: Cannot import '%s'" % value
+                if name == "SouthFieldClass":
+                    raise ValueError("Cannot import the required field '%s'" % value)
+                else:
+                    print "WARNING: Cannot import '%s'" % value
         
         # Use ModelsLocals to make lookups work right for CapitalisedModels
         fake_locals = ModelsLocals(fake_locals)
