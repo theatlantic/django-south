@@ -54,6 +54,9 @@ class FakeORM(object):
         hacks.clear_app_cache()
         
         # Now, make each model's data into a FakeModel
+        # We first make entries for each model that are just its name
+        # This allows us to have circular model dependency loops
+        model_names = []
         for name, data in self.models_source.items():
             # Make sure there's some kind of Meta
             if "Meta" not in data:
@@ -65,7 +68,12 @@ class FakeORM(object):
                 model_name = name
                 name = "%s.%s" % (app_name, model_name)
             
-            self.models[name.lower()] = self.make_model(app_name, model_name, data)
+            name = name.lower()
+            self.models[name] = name
+            model_names.append((name, app_name, model_name, data))
+        
+        for name, app_name, model_name, data in model_names:
+            self.models[name] = self.make_model(app_name, model_name, data)
         
         # And perform the second run to iron out any circular/backwards depends.
         self.retry_failed_fields()
