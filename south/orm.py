@@ -43,7 +43,24 @@ def FakeORM(*args):
     """
     if not args in _orm_cache:
         _orm_cache[args] = _FakeORM(*args)  
-    return _orm_cache[args] 
+    return _orm_cache[args]
+
+
+class LazyFakeORM(object):
+    """
+    In addition to memoising the ORM call, this function lazily generates them
+    for a Migration class. Assign the result of this to (for example)
+    .orm, and as soon as .orm is accessed the ORM will be created.
+    """
+    
+    def __init__(self, *args):
+        self._args = args
+        self.orm = None
+    
+    def __get__(self, obj, type=None):
+        if not self.orm:
+            self.orm = FakeORM(*self._args)
+        return self.orm
 
 
 class _FakeORM(object):
