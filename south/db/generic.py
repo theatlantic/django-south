@@ -10,6 +10,7 @@ from django.db.backends.util import truncate_name
 from django.db.models.fields import NOT_PROVIDED
 from django.dispatch import dispatcher
 from django.conf import settings
+from django.utils.datastructures import SortedDict
 
 
 def alias(attrname):
@@ -630,8 +631,16 @@ class DatabaseOperations(object):
 
 
     def send_pending_create_signals(self):
+        # Group app_labels together
+        signals = SortedDict()
         for (app_label, model_names) in self.pending_create_signals:
-            self.really_send_create_signal(app_label, model_names)
+            try:
+                signals[app_label].extend(model_names)
+            except KeyError:
+                signals[app_label] = list(model_names)
+        # Send only one signal per app.
+        for (app_label, model_names) in signals.iteritems():
+            self.really_send_create_signal(app_label, list(set(model_names)))
         self.pending_create_signals = []
 
 
