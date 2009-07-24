@@ -10,6 +10,14 @@ import sys
 
 class Command(BaseCommand):
     
+    option_list = BaseCommand.option_list
+    if '--verbosity' not in [opt.get_opt_string() for opt in BaseCommand.option_list]:
+        option_list += (
+            make_option('--verbosity', action='store', dest='verbosity', default='1',
+            type='choice', choices=['0', '1', '2'],
+            help='Verbosity level; 0=minimal output, 1=normal output, 2=all output'),
+        )
+
     help = "Quickly converts the named application to use South if it is currently using syncdb."
 
     def handle(self, app=None, *args, **options):
@@ -40,8 +48,9 @@ class Command(BaseCommand):
             return
         
         # Finally! It seems we've got a candidate, so do the two-command trick
-        management.call_command("startmigration", app, initial=True)
-        management.call_command("migrate", app, "0001", fake=True)
+        verbosity = int(options.get('verbosity', 0))
+        management.call_command("startmigration", app, initial=True, verbosity=verbosity)
+        management.call_command("migrate", app, "0001", fake=True, verbosity=verbosity)
         print 
         print "App '%s' converted. Note that South assumed the application's models matched the database" % app
         print "(i.e. you haven't changed it since last syncdb); if you have, you should delete the %s/migrations"
