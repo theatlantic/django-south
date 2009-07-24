@@ -33,7 +33,20 @@ class ModelsLocals(object):
             return self.data[key.lower()]
 
 
-class FakeORM(object):
+# Stores already-created ORMs.
+_orm_cache = {}
+
+def FakeORM(*args):
+    """
+    Creates a Fake Django ORM.
+    This is actually a memoised constructor; the real class is _FakeORM.
+    """
+    if not args in _orm_cache:
+        _orm_cache[args] = _FakeORM(*args)  
+    return _orm_cache[args] 
+
+
+class _FakeORM(object):
     
     """
     Simulates the Django ORM at some point in time,
