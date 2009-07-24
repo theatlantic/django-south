@@ -61,10 +61,6 @@ class Command(BaseCommand):
         if options.get('all_apps', False):
             target = app
             app = None
-        
-        # If db_dry_run was asked for, make sure the verbosity level is higher.
-        if db_dry_run:
-            options['verbosity'] = 2
 
         # Migrate each app
         if app:
