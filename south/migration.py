@@ -15,7 +15,7 @@ from django.core.management import call_command
 
 from south.models import MigrationHistory
 from south.db import db
-from south.orm import FakeORM
+from south.orm import LazyFakeORM, FakeORM
 from south.signals import *
 
 def get_app(app):
@@ -86,7 +86,7 @@ def get_migration(app, name):
     try:
         module = __import__(app.__name__ + "." + name, '', '', ['Migration'])
         migclass = module.Migration
-        migclass.orm = FakeORM(migclass, get_app_name(app))
+        migclass.orm = LazyFakeORM(migclass, get_app_name(app))
         module._ = lambda x: x  # Fake i18n
         module.datetime = datetime
         return migclass
