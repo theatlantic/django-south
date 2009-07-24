@@ -3,7 +3,7 @@ Generally helpful utility functions.
 """
 
 
-def ask_for_it_by_name(name):
+def _ask_for_it_by_name(name):
     "Returns an object referenced by absolute path."
     bits = name.split(".")
 
@@ -15,6 +15,14 @@ def ask_for_it_by_name(name):
         
     module = __import__(modulename, {}, {}, bits[-1])
     return getattr(module, bits[-1])
+
+
+def ask_for_it_by_name(name): 
+    "Returns an object referenced by absolute path. (Memoised outer wrapper)"
+    if name not in ask_for_it_by_name.cache: 
+        ask_for_it_by_name.cache[name] = _ask_for_it_by_name(name) 
+    return ask_for_it_by_name.cache[name] 
+ask_for_it_by_name.cache = {} 
 
 
 def get_attribute(item, attribute):
