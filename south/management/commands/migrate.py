@@ -42,9 +42,6 @@ class Command(BaseCommand):
 
         # Work out what the resolve mode is
         resolve_mode = merge and "merge" or (skip and "skip" or None)
-        # Turn on db debugging
-        from south.db import db
-        db.debug = True
         
         # NOTE: THIS IS DUPLICATED FROM django.core.management.commands.syncdb
         # This code imports any module named 'management' in INSTALLED_APPS.
@@ -64,6 +61,10 @@ class Command(BaseCommand):
         if options.get('all_apps', False):
             target = app
             app = None
+        
+        # If db_dry_run was asked for, make sure the verbosity level is higher.
+        if db_dry_run:
+            options['verbosity'] = 2
 
         # Migrate each app
         if app:
@@ -74,7 +75,6 @@ class Command(BaseCommand):
                 return
         else:
             apps = migration.get_migrated_apps()
-        silent = options.get('verbosity', 0) == 0
         
         if list and apps:
             list_migrations(apps)
@@ -87,7 +87,7 @@ class Command(BaseCommand):
                     target_name = target,
                     fake = fake,
                     db_dry_run = db_dry_run,
-                    silent = silent,
+                    verbosity = int(options.get('verbosity', 0)),
                     load_inital_data = not options.get('no_initial_data', False),
                     skip = skip,
                 )
