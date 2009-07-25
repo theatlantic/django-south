@@ -852,31 +852,45 @@ def models_diff(old, new):
 # Backwards-compat comparison that ignores orm. on the RHS and not the left
 # and which knows django.db.models.fields.CharField = models.CharField
 def different_attributes(old, new):
+    
     # If they're not triples, just do normal comparison
-    if not isinstance(old, (list, tuple)) or not isinstance(new, (list, tuple)):
+    if not isinstance(old, (list, tuple)) or not isinstance(new, (list, tuple)) \
+       or len(old) != 3 or len(new) != 3:
         return old != new
+    
+    # Expand them out into parts
+    old_field, old_pos, old_kwd = old
+    new_field, new_pos, new_kwd = new
+    
+    # Copy the positional and keyword arguments so we can compare them and pop off things
+    old_pos, new_pos = old_pos[:], new_pos[:]
+    old_kwd = dict(old_kwd.items())
+    new_kwd = dict(new_kwd.items())
+    
     # If the first bit is different, check it's not by dj.db.models...
-    if old[0] != new[0]:
-        if old[0].startswith("models.") and (new[0].startswith("django.db.models") \
-         or new[0].startswith("django.contrib.gis")):
-            if old[0].split(".")[-1] != new[0].split(".")[-1]:
+    if old_field != new_field:
+        if old_field.startswith("models.") and (new_field.startswith("django.db.models") \
+         or new_field.startswith("django.contrib.gis")):
+            if old_field.split(".")[-1] != new_field.split(".")[-1]:
                 return True
-    # If the third bits or end of second are different, it really is different.
-    if old[2] != new[2] or old[1][1:] != new[1][1:]:
-        return True
-    if not old[1] and not new[1]:
-        return False
-    # Compare first positional arg
-    if new[1] and old[1]:
-        if "orm" in new[1][0] and "orm" not in old[1][0]:
-            # Do special comparison to fix #153
-            try:
-                return old[1][0] != new[1][0].split("'")[1].split(".")[1]
-            except IndexError:
-                pass # Fall back to next comparison
-        return old[1][0] != new[1][0]
-    else:
-        return old != new
+            else:
+                # Remove those fields from the final comparison
+                old_field = new_field = ""
+    
+    # If there's a positional argument in the first, and a 'to' in the second,
+    # see if they're actually comparable.
+    if (old_pos and "to" in new_kwd) and ("orm" in new_kwd['to'] and "orm" not in old_pos[0]):
+        # Do special comparison to fix #153
+        try:
+            if old_pos[0] != new_kwd['to'].split("'")[1].split(".")[1]:
+                return True
+        except IndexError:
+            pass # Fall back to next comparison
+        # Remove those attrs from the final comparison
+        old_pos = old_pos[1:]
+        del new_kwd['to']
+    
+    return old_field != new_field or old_pos != new_pos or old_kwd != new_kwd
     
     
 
