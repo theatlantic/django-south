@@ -238,7 +238,7 @@ class Command(BaseCommand):
                 for key, fields in last_models.items()
                 if key.split(".", 1)[0] == app
             ])
-            am, dm, cm, af, df, cf = models_diff(old, new)
+            am, dm, cm, af, df, cf, afu, dfu = models_diff(old, new)
             
             # For models that were there before and after, do a meta diff
             was_meta_change = False
@@ -251,7 +251,7 @@ class Command(BaseCommand):
                     deleted_uniques.add((mkey, entry, last_orm[mkey]))
                     was_meta_change = True
             
-            if not (am or dm or af or df or cf or was_meta_change):
+            if not (am or dm or af or df or cf or afu or dfu or was_meta_change):
                 print "Nothing seems to have changed."
                 return
             
@@ -277,6 +277,10 @@ class Command(BaseCommand):
                     last_models[mkey][fname],
                     last_models,
                 ))
+            
+            # Uniques need merging
+            added_uniques = added_uniques.union(afu)
+            deleted_uniques = deleted_uniques.union(dfu)
         
         
         ### Added model ###
@@ -509,7 +513,10 @@ class Command(BaseCommand):
         for mkey, ut in added_uniques:
             
             model = model_unkey(mkey)
-            print " + Added unique_together for [%s] on %s." % (", ".join(ut), model._meta.object_name)
+            if len(ut) == 1:
+                print " + Added unique for %s on %s." % (", ".join(ut), model._meta.object_name)
+            else:
+                print " + Added unique_together for [%s] on %s." % (", ".join(ut), model._meta.object_name)
             
             cols = [get_field_column(model, f) for f in ut]
             
@@ -531,7 +538,10 @@ class Command(BaseCommand):
         ### Deleted unique_togethers ###
         for mkey, ut, model in deleted_uniques:
             
-            print " - Deleted unique_together for [%s] on %s." % (", ".join(ut), model._meta.object_name)
+            if len(ut) == 1:
+                print " - Deleted unique for %s on %s." % (", ".join(ut), model._meta.object_name)
+            else:
+                print " - Deleted unique_together for [%s] on %s." % (", ".join(ut), model._meta.object_name)
             
             cols = [get_field_column(model, f) for f in ut]
             
@@ -810,6 +820,8 @@ def models_diff(old, new):
     added_fields = set()
     deleted_fields = set()
     changed_fields = []
+    added_uniques = set()
+    deleted_uniques = set()
     
     # See if anything's vanished
     for key in old:
@@ -841,21 +853,48 @@ def models_diff(old, new):
                     added_fields.add((key, fieldname))
             # For the ones that exist in both models, see if they were changed
             for fieldname in still_there:
-                if fieldname != "Meta" and different_attributes(
-                   remove_useless_attributes(old[key][fieldname], True),
-                   remove_useless_attributes(new[key][fieldname], True)):
-                    changed_fields.append((key, fieldname, old[key][fieldname], new[key][fieldname]))
+                if fieldname != "Meta":
+                    if different_attributes(
+                     remove_useless_attributes(old[key][fieldname], True),
+                     remove_useless_attributes(new[key][fieldname], True)):
+                        changed_fields.append((key, fieldname, old[key][fieldname], new[key][fieldname]))
+                    # See if their uniques have changed
+                    old_triple = old[key][fieldname]
+                    new_triple = new[key][fieldname]
+                    if is_triple(old_triple) and is_triple(new_triple):
+                        if old_triple[2].get("unique", "False") != new_triple[2].get("unique", "False"):
+                            # Make sure we look at the one explicitly given to see what happened
+                            if "unique" in old_triple[2]:
+                                if old_triple[2]['unique'] == "False":
+                                    added_uniques.add((key, (fieldname,)))
+                                else:
+                                    deleted_uniques.add((key, (fieldname,)))
+                            else:
+                                if new_triple[2]['unique'] == "False":
+                                    deleted_uniques.add((key, (fieldname,)))
+                                else:
+                                    added_uniques.add((key, (fieldname,)))
     
-    return added_models, deleted_models, continued_models, added_fields, deleted_fields, changed_fields
+    return added_models, deleted_models, continued_models, added_fields, deleted_fields, changed_fields, added_uniques, deleted_uniques
 
 
-# Backwards-compat comparison that ignores orm. on the RHS and not the left
-# and which knows django.db.models.fields.CharField = models.CharField
+def is_triple(triple):
+    "Returns whether the argument is a triple."
+    return isinstance(triple, (list, tuple)) and len(triple) == 3 and \
+        isinstance(triple[0], (str, unicode)) and \
+        isinstance(triple[1], (list, tuple)) and \
+        isinstance(triple[2], dict)
+
+
 def different_attributes(old, new):
+    """
+    Backwards-compat comparison that ignores orm. on the RHS and not the left
+    and which knows django.db.models.fields.CharField = models.CharField.
+    Has a whole load of tests in tests/autodetectoion.py.
+    """
     
     # If they're not triples, just do normal comparison
-    if not isinstance(old, (list, tuple)) or not isinstance(new, (list, tuple)) \
-       or len(old) != 3 or len(new) != 3:
+    if not is_triple(old) or not is_triple(new):
         return old != new
     
     # Expand them out into parts
@@ -866,6 +905,13 @@ def different_attributes(old, new):
     old_pos, new_pos = old_pos[:], new_pos[:]
     old_kwd = dict(old_kwd.items())
     new_kwd = dict(new_kwd.items())
+    
+    # Remove comparison of the existence of 'unique', that's done elsewhere.
+    # TODO: Make this work for custom fields where unique= means something else?
+    if "unique" in old_kwd:
+        del old_kwd['unique']
+    if "unique" in new_kwd:
+        del new_kwd['unique']
     
     # If the first bit is different, check it's not by dj.db.models...
     if old_field != new_field:
