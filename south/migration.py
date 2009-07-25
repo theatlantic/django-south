@@ -290,11 +290,13 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                     db.dry_run = True
                     db.debug, old_debug = False, db.debug
                     pending_creates = db.get_pending_creates()
+                    db.start_transaction()
                     try:
                         if len(args[0]) == 1:  # They don't want an ORM param
                             runfunc()
                         else:
                             runfunc(orm)
+                            db.rollback_transactions_dry_run()
                     except:
                         traceback.print_exc()
                         print " ! Error found during dry run of migration! Aborting."
