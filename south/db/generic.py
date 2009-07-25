@@ -54,6 +54,7 @@ class DatabaseOperations(object):
         self.debug = False
         self.deferred_sql = []
         self.dry_run = False
+        self.pending_transactions = 0
         self.pending_create_signals = []
     
 
@@ -598,7 +599,7 @@ class DatabaseOperations(object):
         Must be followed by a (commit|rollback)_transaction call.
         """
         if self.dry_run:
-            return
+            self.pending_transactions += 1
         transaction.commit_unless_managed()
         transaction.enter_transaction_management()
         transaction.managed(True)
@@ -621,9 +622,22 @@ class DatabaseOperations(object):
         Must be preceded by a start_transaction call.
         """
         if self.dry_run:
-            return
+            self.pending_transactions -= 1
         transaction.rollback()
         transaction.leave_transaction_management()
+
+    def rollback_transactions_dry_run(self):
+        """
+        Rolls back all pending_transactions during this dry run.
+        """
+        if not self.dry_run:
+            return
+        while self.pending_transactions > 0:
+            self.rollback_transaction()
+        if transaction.is_dirty():
+            # Force an exception, if we're still in a dirty transaction.
+            # This means we are missing a COMMIT/ROLLBACK.
+            transaction.leave_transaction_management()
 
 
     def send_create_signal(self, app_label, model_names):
