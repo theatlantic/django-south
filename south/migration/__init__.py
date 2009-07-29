@@ -64,18 +64,11 @@ def get_migration_names(app):
     """
     Returns a list of migration file names for the given app.
     """
-    if getattr(settings, "SOUTH_USE_PYC", False):
-        allowed_extensions = (".pyc", ".py")
-        ignored_files = ("__init__.pyc", "__init__.py")
-    else:
-        allowed_extensions = (".py",)
-        ignored_files = ("__init__.py",)
-    
-    return sorted(set([
-        os.path.splitext(filename)[0]
+    return sorted([
+        filename[:-3]
         for filename in os.listdir(os.path.dirname(app.__file__))
-        if os.path.splitext(filename)[1] in allowed_extensions and filename not in ignored_files and not filename.startswith(".")
-    ]))
+        if filename.endswith(".py") and filename != "__init__.py" and not filename.startswith(".")
+    ])
 
 
 def get_migration_classes(app):
@@ -295,9 +288,7 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
             if not db.has_ddl_transactions or db_dry_run:
                 if not (hasattr(klass, "no_dry_run") and klass.no_dry_run):
                     db.dry_run = True
-                    # Only hide SQL if this is an automatic dry run.
-                    if not db.has_ddl_transactions:
-                        db.debug, old_debug = False, db.debug
+                    db.debug, old_debug = False, db.debug
                     pending_creates = db.get_pending_creates()
                     db.start_transaction()
                     try:
@@ -310,12 +301,11 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                         traceback.print_exc()
                         print " ! Error found during dry run of migration! Aborting."
                         return False
-                    if not db.has_ddl_transactions:
-                        db.debug = old_debug
+                    db.debug = old_debug
                     db.clear_run_data(pending_creates)
                     db.dry_run = False
                 elif db_dry_run:
-                    print " - Migration '%s' is marked for no-dry-run." % migration
+                    print " - Migration '%s' is marked for no-dry-run."
                 # If they really wanted to dry-run, then quit!
                 if db_dry_run:
                     return
@@ -361,9 +351,7 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
             recorder(app_name, migration)
             if not fake:
                 # Send a signal saying it ran
-                # Actually, don't - we're implementing this properly in 0.7
-                #ran_migration.send(None, app=app_name, migration=migration, method=torun)
-                pass
+                ran_migration.send(None, app=app_name, migration=migration, method=torun)
 
 
 def run_forwards(app, migrations, fake=False, db_dry_run=False, verbosity=0):
@@ -443,7 +431,7 @@ def backwards_problems(tree, backwards, done, verbosity=0):
     return problems
 
 
-def migrate_app(app, tree, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, verbosity=0, load_inital_data=False, skip=False):
+def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, verbosity=0, load_inital_data=False, skip=False):
     
     app_name = get_app_name(app)
     verbosity = int(verbosity)
@@ -453,6 +441,7 @@ def migrate_app(app, tree, target_name=None, resolve_mode=None, fake=False, db_d
     pre_migrate.send(None, app=app_name)
     
     # Find out what delightful migrations we have
+    tree = dependency_tree()
     migrations = get_migration_names(app)
     
     # If there aren't any, quit quizically
