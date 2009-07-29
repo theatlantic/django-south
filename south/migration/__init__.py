@@ -15,49 +15,41 @@ from django.core.management import call_command
 
 from south.models import MigrationHistory
 from south.db import db
+from south.migration.utils import get_app_name, get_app_fullname
 from south.orm import LazyFakeORM, FakeORM
 from south.signals import *
 
-def get_app(app):
-    """
-    Returns the migrations module for the given app model name/module, or None
-    if it does not use migrations.
-    """
-    if isinstance(app, (str, unicode)):
-        # If it's a string, use the models module
-        app = models.get_app(app)
-    mod = __import__(app.__name__[:-7], {}, {}, ['migrations'])
-    if hasattr(mod, 'migrations'):
-        return getattr(mod, 'migrations')
+class NoMigrations(RuntimeError):
+    pass
 
-
-def get_migrated_apps():
+class Migrations(list):
     """
-    Returns all apps with migrations.
+    Holds a list of Migration objects for a particular app.
     """
-    for mapp in models.get_apps():
-        app = get_app(mapp)
-        if app:
-            yield app
 
+    @classmethod
+    def from_name(cls, app_name):
+        app = models.get_app(app_name)
+        mod = __import__(get_app_name(app), {}, {}, ['migrations'])
+        return cls.from_module(mod)
 
-def get_app_name(app):
-    """
-    Returns the _internal_ app name for the given app module.
-    i.e. for <module django.contrib.auth.models> will return 'auth'
-    """
-    return app.__name__.split('.')[-2]
+    @classmethod
+    def from_module(cls, app_module):
+        try:
+            return app_module.migrations
+        except AttributeError:
+            raise NoMigrations(app_module)
 
-
-def get_app_fullname(app):
-    """
-    Returns the full python name of an app - e.g. django.contrib.auth
-    """
-    return app.__name__[:-11]
-
-
-def short_from_long(app_name):
-    return app_name.split(".")[-1]
+    @classmethod
+    def all(cls):
+        """
+        Returns all migrations from all apps.
+        """
+        for mapp in models.get_apps():
+            try:
+                yield cls.from_name(mapp)
+            except NoMigrations:
+                pass
 
 
 def get_migration_names(app):
@@ -102,7 +94,7 @@ def get_migration(app, name):
 def all_migrations():
     return dict([
         (app, dict([(name, get_migration(app, name)) for name in get_migration_names(app)]))
-        for app in get_migrated_apps()
+        for app in Migrations.all()
     ])
 
 
@@ -119,7 +111,7 @@ def dependency_tree():
             # Get forwards dependencies
             if hasattr(cls, "depends_on"):
                 for dapp, dname in cls.depends_on:
-                    dapp = get_app(dapp)
+                    dapp = Migrations.from_name(dapp)
                     if dapp not in tree:
                         print "Migration %s in app %s depends on unmigrated app %s." % (
                             name,
@@ -142,7 +134,7 @@ def dependency_tree():
             # Get backwards dependencies
             if hasattr(cls, "needed_by"):
                 for dapp, dname in cls.needed_by:
-                    dapp = get_app(dapp)
+                    dapp = Migrations.from_name(dapp)
                     if dapp not in tree:
                         print "Migration %s in app %s claims to be needed by unmigrated app %s." % (
                             name,
@@ -472,7 +464,7 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
     ghost_migrations = []
     for m in MigrationHistory.objects.filter(applied__isnull = False):
         try:
-            if get_app(m.app_name) not in tree or m.migration not in tree[get_app(m.app_name)]:
+            if Migrations.from_name(m.app_name) not in tree or m.migration not in tree[Migrations.from_name(m.app_name)]:
                 ghost_migrations.append(m)
         except ImproperlyConfigured:
             pass
@@ -508,7 +500,7 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
     current_migrations = []
     for m in MigrationHistory.objects.filter(applied__isnull = False):
         try:
-            current_migrations.append((get_app(m.app_name), m.migration))
+            current_migrations.append((Migrations.from_name(m.app_name), m.migration))
         except ImproperlyConfigured:
             pass
     
