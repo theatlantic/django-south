@@ -5,7 +5,7 @@ from django.db import models
 from django.core import management
 from optparse import make_option
 from django.core.exceptions import ImproperlyConfigured
-from south.migration import get_app
+from south.migration import Migrations
 import sys
 
 class Command(BaseCommand):
@@ -43,7 +43,7 @@ class Command(BaseCommand):
             return
         
         # Ask South if it thinks it's already got migrations
-        if get_app(app_module):
+        if Migrations.from_name(app_module):
             print "This application is already managed by South."
             return
         

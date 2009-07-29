@@ -5,6 +5,7 @@ import os
 import StringIO
 
 from south import migration
+from south.migration import Migrations
 from south.tests import Monkeypatcher
 from south.utils import snd
 
@@ -13,52 +14,31 @@ test_root = os.path.dirname(__file__)
 sys.path.append(test_root)
 
 
-class TestMigrationLogic(Monkeypatcher):
-
-    """
-    Tests if the various logic functions in migration actually work.
-    """
-    
-    def test_get_app_name(self):
-        self.assertEqual(
-            "southtest",
-            migration.get_app_name(self.create_fake_app("southtest.migrations")),
-        )
-        self.assertEqual(
-            "baz",
-            migration.get_app_name(self.create_fake_app("foo.bar.baz.migrations")),
-        )
-    
-    
-    def test_get_migrated_apps(self):
+class TestMigrations(Monkeypatcher):
+    def test_all(self):
         
         P1 = __import__("fakeapp.migrations", {}, {}, [''])
         P2 = __import__("otherfakeapp.migrations", {}, {}, [''])
         
         self.assertEqual(
             [P1,P2],
-            list(migration.get_migrated_apps()),
+            list(Migrations.all()),
         )
     
     
-    def test_get_app(self):
+    def test_from_name(self):
         
         P1 = __import__("fakeapp.migrations", {}, {}, [''])
         
-        self.assertEqual(P1, migration.get_app("fakeapp"))
-        self.assertEqual(P1, migration.get_app(self.create_fake_app("fakeapp.models")))
-    
-    
-    def test_get_app_fullname(self):
-        self.assertEqual(
-            "southtest",
-            migration.get_app_fullname(self.create_fake_app("southtest.migrations")),
-        )
-        self.assertEqual(
-            "foo.bar.baz",
-            migration.get_app_fullname(self.create_fake_app("foo.bar.baz.migrations")),
-        )
-    
+        self.assertEqual(P1, Migrations.from_name("fakeapp"))
+        self.assertEqual(P1, Migrations.from_module(self.create_fake_app("fakeapp.models")))
+
+
+class TestMigrationLogic(Monkeypatcher):
+
+    """
+    Tests if the various logic functions in migration actually work.
+    """
     
     def test_get_migration_names(self):
         
@@ -106,19 +86,19 @@ class TestMigrationLogic(Monkeypatcher):
     
     def test_all_migrations(self):
         
-        app = migration.get_app("fakeapp")
-        otherapp = migration.get_app("otherfakeapp")
+        migrations = migration.Migrations.from_name("fakeapp")
+        othermigrations = migration.Migrations.from_name("otherfakeapp")
         
         self.assertEqual({
-                app: {
-                    "0001_spam": migration.get_migration(app, "0001_spam"),
-                    "0002_eggs": migration.get_migration(app, "0002_eggs"),
-                    "0003_alter_spam": migration.get_migration(app, "0003_alter_spam"),
+                migrations: {
+                    "0001_spam": migration.get_migration(migrations, "0001_spam"),
+                    "0002_eggs": migration.get_migration(migrations, "0002_eggs"),
+                    "0003_alter_spam": migration.get_migration(migrations, "0003_alter_spam"),
                 },
-                otherapp: {
-                    "0001_first": migration.get_migration(otherapp, "0001_first"),
-                    "0002_second": migration.get_migration(otherapp, "0002_second"),
-                    "0003_third": migration.get_migration(otherapp, "0003_third"),
+                othermigrations: {
+                    "0001_first": migration.get_migration(othermigrations, "0001_first"),
+                    "0002_second": migration.get_migration(othermigrations, "0002_second"),
+                    "0003_third": migration.get_migration(othermigrations, "0003_third"),
                 },
             },
             migration.all_migrations(),
@@ -135,13 +115,13 @@ class TestMigrationLogic(Monkeypatcher):
     
     def test_apply_migrations(self):
         
-        app = migration.get_app("fakeapp")
+        migrations = migration.Migrations.from_name("fakeapp")
         
         # We should start with no migrations
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
         
         # Apply them normally
-        migration.migrate_app(app, target_name=None, resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, verbosity=0)
         
         # We should finish with all migrations
         self.assertListEqual(
@@ -154,7 +134,7 @@ class TestMigrationLogic(Monkeypatcher):
         )
         
         # Now roll them backwards
-        migration.migrate_app(app, target_name="zero", resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name="zero", resolve_mode=None, fake=False, verbosity=0)
         
         # Finish with none
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
@@ -162,7 +142,7 @@ class TestMigrationLogic(Monkeypatcher):
     
     def test_migration_merge_forwards(self):
         
-        app = migration.get_app("fakeapp")
+        migrations = migration.Migrations.from_name("fakeapp")
         
         # We should start with no migrations
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
@@ -186,7 +166,7 @@ class TestMigrationLogic(Monkeypatcher):
         try:
             # Redirect the error it will print to nowhere
             stdout, sys.stdout = sys.stdout, StringIO.StringIO()
-            migration.migrate_app(app, target_name=None, resolve_mode=None, fake=False, verbosity=0)
+            migration.migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, verbosity=0)
             sys.stdout = stdout
         except SystemExit:
             pass
@@ -200,7 +180,7 @@ class TestMigrationLogic(Monkeypatcher):
         )
         
         # Apply with merge
-        migration.migrate_app(app, target_name=None, resolve_mode="merge", fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name=None, resolve_mode="merge", fake=False, verbosity=0)
         
         # We should finish with all migrations
         self.assertListEqual(
@@ -213,9 +193,9 @@ class TestMigrationLogic(Monkeypatcher):
         )
         
         # Now roll them backwards
-        migration.migrate_app(app, target_name="0002", resolve_mode=None, fake=False, verbosity=0)
-        migration.migrate_app(app, target_name="0001", resolve_mode=None, fake=True, verbosity=0)
-        migration.migrate_app(app, target_name="zero", resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name="0002", resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name="0001", resolve_mode=None, fake=True, verbosity=0)
+        migration.migrate_app(migrations, target_name="zero", resolve_mode=None, fake=False, verbosity=0)
         
         # Finish with none
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
@@ -235,29 +215,29 @@ class TestMigrationLogic(Monkeypatcher):
                 transaction.commit()
                 return True
         
-        app = migration.get_app("fakeapp")
+        migrations = migration.Migrations.from_name("fakeapp")
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
         
         # by default name is NOT NULL
-        migration.migrate_app(app, target_name="0002", resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name="0002", resolve_mode=None, fake=False, verbosity=0)
         self.failIf(null_ok())
         
         # after 0003, it should be NULL
-        migration.migrate_app(app, target_name="0003", resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name="0003", resolve_mode=None, fake=False, verbosity=0)
         self.assert_(null_ok())
 
         # make sure it is NOT NULL again
-        migration.migrate_app(app, target_name="0002", resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name="0002", resolve_mode=None, fake=False, verbosity=0)
         self.failIf(null_ok(), 'name not null after migration')
         
         # finish with no migrations, otherwise other tests fail...
-        migration.migrate_app(app, target_name="zero", resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name="zero", resolve_mode=None, fake=False, verbosity=0)
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
     
     def test_dependencies(self):
         
-        fakeapp = migration.get_app("fakeapp")
-        otherfakeapp = migration.get_app("otherfakeapp")
+        fakeapp = migration.Migrations.from_name("fakeapp")
+        otherfakeapp = migration.Migrations.from_name("otherfakeapp")
         
         # Test a simple path
         tree = migration.dependency_tree()
@@ -271,3 +251,28 @@ class TestMigrationLogic(Monkeypatcher):
             map(snd, migration.needed_before_forwards(tree, otherfakeapp, "0003_third")),
             ['0001_spam', '0001_first', '0002_second', '0002_eggs', '0003_alter_spam'],
         )
+
+
+class TestMigrationUtils(Monkeypatcher):
+    def test_get_app_name(self):
+        self.assertEqual(
+            "southtest",
+            migration.get_app_name(self.create_fake_app("southtest.migrations")),
+        )
+        self.assertEqual(
+            "baz",
+            migration.get_app_name(self.create_fake_app("foo.bar.baz.migrations")),
+        )
+    
+    
+    def test_get_app_fullname(self):
+        self.assertEqual(
+            "southtest",
+            migration.get_app_fullname(self.create_fake_app("southtest.migrations")),
+        )
+        self.assertEqual(
+            "foo.bar.baz",
+            migration.get_app_fullname(self.create_fake_app("foo.bar.baz.migrations")),
+        )
+    
+    

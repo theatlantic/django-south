@@ -672,7 +672,7 @@ class DatabaseOperations(object):
         """
         if self.debug:
             print " - Sending post_syncdb signal for %s: %s" % (app_label, model_names)
-        app = models.get_app(app_label)
+        app = models.Migrations.from_name(app_label)
         if not app:
             return
 

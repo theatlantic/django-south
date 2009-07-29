@@ -35,7 +35,7 @@ class Command(NoArgsCommand):
         apps_migrated = []
         for app in models.get_apps():
             app_name = get_app_name(app)
-            migrations = migration.get_app(app)
+            migrations = migration.Migrations.from_name(app)
             if migrations is None:
                 apps_needing_sync.append(app_name)
             else:
