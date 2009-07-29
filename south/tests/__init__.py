@@ -18,6 +18,10 @@ class Monkeypatcher(unittest.TestCase):
         
         fake = Fake()
         fake.__name__ = name
+        try:
+            fake.migrations = __import__("%s.migrations" % name.split(".")[-2], {}, {}, ['migrations'])
+        except ImportError:
+            pass
         return fake
 
 

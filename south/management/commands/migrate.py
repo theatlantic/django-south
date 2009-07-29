@@ -64,13 +64,14 @@ class Command(BaseCommand):
 
         # Migrate each app
         if app:
-            apps = [migration.get_app(app.split(".")[-1])]
-            if apps == [None]:
+            try:
+                apps = [Migrations.from_name(app.split(".")[-1])]
+            except NoMigrations:
                 print "The app '%s' does not appear to use migrations." % app
                 print "./manage.py migrate " + self.args
                 return
         else:
-            apps = migration.get_migrated_apps()
+            apps = Migrations.all()
         
         if list and apps:
             list_migrations(apps)
