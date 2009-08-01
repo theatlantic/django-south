@@ -14,45 +14,18 @@ test_root = os.path.dirname(__file__)
 sys.path.append(test_root)
 
 
-class TestMigrations(Monkeypatcher):
-    def test_all(self):
-        
-        P1 = __import__("fakeapp.migrations", {}, {}, [''])
-        P2 = __import__("otherfakeapp.migrations", {}, {}, [''])
-        
-        self.assertEqual(
-            [P1,P2],
-            list(Migrations.all()),
-        )
-    
-    
-    def test_from_name(self):
-        
-        P1 = __import__("fakeapp.migrations", {}, {}, [''])
-        
-        self.assertEqual(P1, Migrations.from_name("fakeapp"))
-        self.assertEqual(P1, Migrations.from_module(self.create_fake_app("fakeapp.models")))
-
-
-class TestMigrationLogic(Monkeypatcher):
-
-    """
-    Tests if the various logic functions in migration actually work.
-    """
-    
-    def test_get_migration_names(self):
-        
-        app = self.create_test_app()
-        
+class TestMigration(Monkeypatcher):
+    def test_name(self):
+        app = self.create_fake_app("fakeapp")
         self.assertEqual(
             ["0001_spam", "0002_eggs", "0003_alter_spam"],
-            migration.get_migration_names(app),
+            [m.name() for m in Migrations(app)]
         )
     
     
-    def test_get_migration_classes(self):
+    def test_migclass(self):
         
-        app = self.create_test_app()
+        app = self.create_fake_app("fakeapp")
         
         # Can't use vanilla import, modules beginning with numbers aren't in grammar
         M1 = __import__("fakeapp.migrations.0001_spam", {}, {}, ['Migration']).Migration
@@ -61,28 +34,55 @@ class TestMigrationLogic(Monkeypatcher):
         
         self.assertEqual(
             [M1, M2, M3],
-            list(migration.get_migration_classes(app)),
+            [m.migration.Migration for m in Migrations(app)]
         )
     
     
-    def test_get_migration(self):
+class TestMigrations(Monkeypatcher):
+    def test_all(self):
         
-        app = self.create_test_app()
+        M1 = Migrations(__import__("fakeapp", {}, {}, ['']))
+        M2 = Migrations(__import__("otherfakeapp", {}, {}, ['']))
+        
+        self.assertEqual(
+            [M1, M2],
+            list(Migrations.all()),
+        )
+    
+    
+    def test_from_name(self):
+        
+        M1 = Migrations(__import__("fakeapp", {}, {}, ['']))
+        
+        self.assertEqual(M1, Migrations.from_name("fakeapp"))
+        self.assertEqual(M1, Migrations(self.create_fake_app("fakeapp")))
+
+
+    def test_migration(self):
+        
+        app = self.create_fake_app("fakeapp")
         
         # Can't use vanilla import, modules beginning with numbers aren't in grammar
         M1 = __import__("fakeapp.migrations.0001_spam", {}, {}, ['Migration']).Migration
         M2 = __import__("fakeapp.migrations.0002_eggs", {}, {}, ['Migration']).Migration
-        
-        self.assertEqual(M1, migration.get_migration(app, "0001_spam"))
-        self.assertEqual(M2, migration.get_migration(app, "0002_eggs"))
+
+        migration = Migrations(app)
+        self.assertEqual(M1, migration.migration("0001_spam").migration.Migration)
+        self.assertEqual(M2, migration.migration("0002_eggs").migration.Migration)
         
         # Temporarily redirect sys.stdout during this, it whinges.
         stdout, sys.stdout = sys.stdout, StringIO.StringIO()
         try:
-            self.assertRaises((ImportError, ValueError), migration.get_migration, app, "0001_jam")
+            self.assertRaises((ImportError, ValueError), migration.migration, "0001_jam")
         finally:
             sys.stdout = stdout
     
+
+class TestMigrationLogic(Monkeypatcher):
+
+    """
+    Tests if the various logic functions in migration actually work.
+    """
     
     def test_all_migrations(self):
         
@@ -90,15 +90,15 @@ class TestMigrationLogic(Monkeypatcher):
         othermigrations = migration.Migrations.from_name("otherfakeapp")
         
         self.assertEqual({
-                migrations: {
-                    "0001_spam": migration.get_migration(migrations, "0001_spam"),
-                    "0002_eggs": migration.get_migration(migrations, "0002_eggs"),
-                    "0003_alter_spam": migration.get_migration(migrations, "0003_alter_spam"),
+                migrations._migrations: {
+                    "0001_spam": migrations.migration("0001_spam").migration.Migration,
+                    "0002_eggs": migrations.migration("0002_eggs").migration.Migration,
+                    "0003_alter_spam": migrations.migration("0003_alter_spam").migration.Migration,
                 },
-                othermigrations: {
-                    "0001_first": migration.get_migration(othermigrations, "0001_first"),
-                    "0002_second": migration.get_migration(othermigrations, "0002_second"),
-                    "0003_third": migration.get_migration(othermigrations, "0003_third"),
+                othermigrations._migrations: {
+                    "0001_first": othermigrations.migration("0001_first").migration.Migration,
+                    "0002_second": othermigrations.migration("0002_second").migration.Migration,
+                    "0003_third": othermigrations.migration("0003_third").migration.Migration,
                 },
             },
             migration.all_migrations(),
@@ -236,8 +236,8 @@ class TestMigrationLogic(Monkeypatcher):
     
     def test_dependencies(self):
         
-        fakeapp = migration.Migrations.from_name("fakeapp")
-        otherfakeapp = migration.Migrations.from_name("otherfakeapp")
+        fakeapp = migration.Migrations.from_name("fakeapp")._migrations
+        otherfakeapp = migration.Migrations.from_name("otherfakeapp")._migrations
         
         # Test a simple path
         tree = migration.dependency_tree()
@@ -257,22 +257,22 @@ class TestMigrationUtils(Monkeypatcher):
     def test_get_app_name(self):
         self.assertEqual(
             "southtest",
-            migration.get_app_name(self.create_fake_app("southtest.migrations")),
+            migration.get_app_name(self.create_fake_app("southtest.models")),
         )
         self.assertEqual(
             "baz",
-            migration.get_app_name(self.create_fake_app("foo.bar.baz.migrations")),
+            migration.get_app_name(self.create_fake_app("foo.bar.baz.models")),
         )
     
     
     def test_get_app_fullname(self):
         self.assertEqual(
             "southtest",
-            migration.get_app_fullname(self.create_fake_app("southtest.migrations")),
+            migration.get_app_fullname(self.create_fake_app("southtest.models")),
         )
         self.assertEqual(
             "foo.bar.baz",
-            migration.get_app_fullname(self.create_fake_app("foo.bar.baz.migrations")),
+            migration.get_app_fullname(self.create_fake_app("foo.bar.baz.models")),
         )
     
     
