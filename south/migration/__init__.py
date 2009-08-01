@@ -4,6 +4,7 @@ Main migration logic.
 
 import datetime
 import os
+import re
 import sys
 import traceback
 import inspect
@@ -19,26 +20,76 @@ from south.migration.utils import get_app_name, get_app_fullname
 from south.orm import LazyFakeORM, FakeORM
 from south.signals import *
 
+class Migration(object):
+    def __init__(self, migrations, filename):
+        """
+        Returns the migration class implied by 'filename'.
+        """
+        self.migrations = migrations
+        self.filename = filename
+        name, _ = os.path.splitext(filename)
+        full_name = migrations.__name__ + "." + name
+        app_name = get_app_name(migrations)
+        try:
+            self.migration = sys.modules[full_name]
+        except KeyError:
+            try:
+                self.migration = __import__(full_name, '', '', ['Migration'])
+            except ImportError:
+                print " ! Migration %s:%s probably doesn't exist." % (app_name, name)
+                print " - Traceback:"
+                raise
+            except Exception, e:
+                print "While loading migration '%s.%s':" % (app_name, name)
+                raise
+        # Override some imports
+        self.migration._ = lambda x: x  # Fake i18n
+        self.migration.datetime = datetime
+        # Setup our FakeORM
+        migclass = self.migration.Migration
+        migclass.orm = LazyFakeORM(migclass, app_name)
+
+    def name(self):
+        return self.migration.Migration.__module__.split(".")[-1]
+
+    def __eq__(self, other):
+        return self.migrations == other.migrations
+    
+
 class NoMigrations(RuntimeError):
     pass
 
-class Migrations(list):
+
+class Migrations(object):
     """
     Holds a list of Migration objects for a particular app.
     """
 
+    MIGRATION_FILENAME = re.compile(r'(?!__init__)' # Don't match __init__.py
+                                    r'[^.]*'        # Don't match dotfiles
+                                    r'\.py$')       # Match only .py files
+
+    def __init__(self, application):
+        self.application = application
+        if not hasattr(application, 'migrations'):
+            try:
+                module = __import__(application.__name__ + '.migrations', {}, {})
+                application.migrations = module.migrations
+                self._migrations = application.migrations
+            except ImportError:
+                raise NoMigrations(application)
+        self._migrations = application.migrations
+
     @classmethod
     def from_name(cls, app_name):
         app = models.get_app(app_name)
-        mod = __import__(get_app_name(app), {}, {}, ['migrations'])
-        return cls.from_module(mod)
-
-    @classmethod
-    def from_module(cls, app_module):
+        module_name = get_app_name(app)
         try:
-            return app_module.migrations
-        except AttributeError:
-            raise NoMigrations(app_module)
+            module = sys.modules[module_name]
+        except KeyError:
+            __import__(module_name, {}, {}, [''])
+            module = sys.modules[module_name]
+        return cls(module)
 
     @classmethod
     def all(cls):
@@ -51,50 +102,39 @@ class Migrations(list):
             except NoMigrations:
                 pass
 
+    def __eq__(self, other):
+        return self._migrations == other._migrations
 
-def get_migration_names(app):
-    """
-    Returns a list of migration file names for the given app.
-    """
-    return sorted([
-        filename[:-3]
-        for filename in os.listdir(os.path.dirname(app.__file__))
-        if filename.endswith(".py") and filename != "__init__.py" and not filename.startswith(".")
-    ])
+    def __iter__(self):
+        filenames = []
+        dirname = os.path.dirname(self._migrations.__file__)
+        for f in os.listdir(dirname):
+            if self.MIGRATION_FILENAME.match(os.path.basename(f)):
+                filenames.append(f)
+        filenames.sort()
+        return (self.migration(f) for f in filenames)
+
+    def migration(self, filename):
+        return Migration(self._migrations, filename)
+
+    def app_name(self):
+        return get_app_name(self._migrations)
 
 
-def get_migration_classes(app):
-    """
-    Returns a list of migration classes (one for each migration) for the app.
-    """
-    for name in get_migration_names(app):
-        yield get_migration(app, name)
+def get_migration(migrations, migration):
+    application = sys.modules[get_app_name(migrations)]
+    return Migrations(application).migration(migration).migration.Migration
 
-
-def get_migration(app, name):
-    """
-    Returns the migration class implied by 'name'.
-    """
-    try:
-        module = __import__(app.__name__ + "." + name, '', '', ['Migration'])
-        migclass = module.Migration
-        migclass.orm = LazyFakeORM(migclass, get_app_name(app))
-        module._ = lambda x: x  # Fake i18n
-        module.datetime = datetime
-        return migclass
-    except ImportError:
-        print " ! Migration %s:%s probably doesn't exist." % (get_app_name(app), name)
-        print " - Traceback:"
-        raise
-    except Exception, e:
-        print "While loading migration '%s.%s':" % (get_app_name(app), name)
-        raise
-
+def get_migration_names(migrations):
+    application = sys.modules[get_app_name(migrations)]
+    return [m.name() for m in Migrations(application)]
 
 def all_migrations():
     return dict([
-        (app, dict([(name, get_migration(app, name)) for name in get_migration_names(app)]))
-        for app in Migrations.all()
+        (migrations._migrations,
+         dict([(os.path.splitext(m.filename)[0], m.migration.Migration)
+               for m in migrations]))
+        for migrations in Migrations.all()
     ])
 
 
@@ -111,7 +151,7 @@ def dependency_tree():
             # Get forwards dependencies
             if hasattr(cls, "depends_on"):
                 for dapp, dname in cls.depends_on:
-                    dapp = Migrations.from_name(dapp)
+                    dapp = Migrations.from_name(dapp)._migrations
                     if dapp not in tree:
                         print "Migration %s in app %s depends on unmigrated app %s." % (
                             name,
@@ -134,7 +174,7 @@ def dependency_tree():
             # Get backwards dependencies
             if hasattr(cls, "needed_by"):
                 for dapp, dname in cls.needed_by:
-                    dapp = Migrations.from_name(dapp)
+                    dapp = Migrations.from_name(dapp)._migrations
                     if dapp not in tree:
                         print "Migration %s in app %s claims to be needed by unmigrated app %s." % (
                             name,
@@ -423,9 +463,10 @@ def backwards_problems(tree, backwards, done, verbosity=0):
     return problems
 
 
-def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, verbosity=0, load_inital_data=False, skip=False):
+def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, verbosity=0, load_inital_data=False, skip=False):
     
-    app_name = get_app_name(app)
+    app_name = migrations.app_name()
+    app = migrations._migrations
     verbosity = int(verbosity)
     db.debug = (verbosity > 1)
     
@@ -463,8 +504,9 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
     # Check there's no strange ones in the database
     ghost_migrations = []
     for m in MigrationHistory.objects.filter(applied__isnull = False):
+        mod = Migrations.from_name(m.app_name)._migrations
         try:
-            if Migrations.from_name(m.app_name) not in tree or m.migration not in tree[Migrations.from_name(m.app_name)]:
+            if mod not in tree or m.migration not in tree[mod]:
                 ghost_migrations.append(m)
         except ImproperlyConfigured:
             pass
@@ -500,7 +542,7 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
     current_migrations = []
     for m in MigrationHistory.objects.filter(applied__isnull = False):
         try:
-            current_migrations.append((Migrations.from_name(m.app_name), m.migration))
+            current_migrations.append((Migrations.from_name(m.app_name)._migrations, m.migration))
         except ImproperlyConfigured:
             pass
     
