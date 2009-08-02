@@ -34,7 +34,7 @@ class TestMigration(Monkeypatcher):
         
         self.assertEqual(
             [M1, M2, M3],
-            [m.migration.Migration for m in Migrations(app)]
+            [m.migration().Migration for m in Migrations(app)]
         )
     
     
@@ -67,13 +67,13 @@ class TestMigrations(Monkeypatcher):
         M2 = __import__("fakeapp.migrations.0002_eggs", {}, {}, ['Migration']).Migration
 
         migration = Migrations(app)
-        self.assertEqual(M1, migration.migration("0001_spam").migration.Migration)
-        self.assertEqual(M2, migration.migration("0002_eggs").migration.Migration)
+        self.assertEqual(M1, migration.migration("0001_spam").migration().Migration)
+        self.assertEqual(M2, migration.migration("0002_eggs").migration().Migration)
         
         # Temporarily redirect sys.stdout during this, it whinges.
         stdout, sys.stdout = sys.stdout, StringIO.StringIO()
         try:
-            self.assertRaises((ImportError, ValueError), migration.migration, "0001_jam")
+            self.assertRaises((ImportError, ValueError), migration.migration("0001_jam").migration)
         finally:
             sys.stdout = stdout
     
@@ -91,14 +91,14 @@ class TestMigrationLogic(Monkeypatcher):
         
         self.assertEqual({
                 migrations._migrations: {
-                    "0001_spam": migrations.migration("0001_spam").migration.Migration,
-                    "0002_eggs": migrations.migration("0002_eggs").migration.Migration,
-                    "0003_alter_spam": migrations.migration("0003_alter_spam").migration.Migration,
+                    "0001_spam": migrations.migration("0001_spam").migration().Migration,
+                    "0002_eggs": migrations.migration("0002_eggs").migration().Migration,
+                    "0003_alter_spam": migrations.migration("0003_alter_spam").migration().Migration,
                 },
                 othermigrations._migrations: {
-                    "0001_first": othermigrations.migration("0001_first").migration.Migration,
-                    "0002_second": othermigrations.migration("0002_second").migration.Migration,
-                    "0003_third": othermigrations.migration("0003_third").migration.Migration,
+                    "0001_first": othermigrations.migration("0001_first").migration().Migration,
+                    "0002_second": othermigrations.migration("0002_second").migration().Migration,
+                    "0003_third": othermigrations.migration("0003_third").migration().Migration,
                 },
             },
             migration.all_migrations(),

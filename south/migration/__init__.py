@@ -34,30 +34,42 @@ class _Migration(object):
         """
         self.migrations = migrations
         self.filename = filename
-        name, _ = os.path.splitext(filename)
-        full_name = migrations.__name__ + "." + name
-        app_name = get_app_name(migrations)
-        try:
-            self.migration = sys.modules[full_name]
-        except KeyError:
-            try:
-                self.migration = __import__(full_name, '', '', ['Migration'])
-            except ImportError:
-                print " ! Migration %s:%s probably doesn't exist." % (app_name, name)
-                print " - Traceback:"
-                raise
-            except Exception, e:
-                print "While loading migration '%s.%s':" % (app_name, name)
-                raise
-        # Override some imports
-        self.migration._ = lambda x: x  # Fake i18n
-        self.migration.datetime = datetime
-        # Setup our FakeORM
-        migclass = self.migration.Migration
-        migclass.orm = LazyFakeORM(migclass, app_name)
+
+    def app_name(self):
+        return get_app_name(self.migrations)
 
     def name(self):
-        return self.migration.Migration.__module__.split(".")[-1]
+        if not hasattr(self, '_name'):
+            self._name, _ = os.path.splitext(os.path.basename(self.filename))
+        return self._name
+
+    def full_name(self):
+        return self.migrations.__name__ + '.' + self.name()
+
+    def migration(self):
+        if not hasattr(self, '_migration'):
+            full_name = self.full_name()
+            app_name = self.app_name()
+            try:
+                self._migration = sys.modules[full_name]
+            except KeyError:
+                try:
+                    self._migration = __import__(full_name, '', '', ['Migration'])
+                except ImportError:
+                    print " ! Migration %s:%s probably doesn't exist." % (app_name, self.name())
+                    print " - Traceback:"
+                    raise
+                except Exception, e:
+                    print "While loading migration '%s.%s':" % (app_name, self.name())
+                    raise
+            migration = self._migration
+            # Override some imports
+            migration._ = lambda x: x  # Fake i18n
+            migration.datetime = datetime
+            # Setup our FakeORM
+            migclass = migration.Migration
+            migclass.orm = LazyFakeORM(migclass, app_name)
+        return self._migration
 
 
 class NoMigrations(RuntimeError):
@@ -127,7 +139,7 @@ class Migrations(object):
 
 def get_migration(migrations, migration):
     application = sys.modules[get_app_name(migrations)]
-    return Migrations(application).migration(migration).migration.Migration
+    return Migrations(application).migration(migration).migration().Migration
 
 def get_migration_names(migrations):
     application = sys.modules[get_app_name(migrations)]
@@ -136,7 +148,7 @@ def get_migration_names(migrations):
 def all_migrations():
     return dict([
         (migrations._migrations,
-         dict([(os.path.splitext(m.filename)[0], m.migration.Migration)
+         dict([(os.path.splitext(m.filename)[0], m.migration().Migration)
                for m in migrations]))
         for migrations in Migrations.all()
     ])
