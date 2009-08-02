@@ -20,7 +20,14 @@ from south.migration.utils import get_app_name, get_app_fullname
 from south.orm import LazyFakeORM, FakeORM
 from south.signals import *
 
-class Migration(object):
+def Migration(migrations, filename):
+    key = (migrations, filename)
+    if key not in Migration.cache:
+        Migration.cache[key] = _Migration(migrations, filename)
+    return Migration.cache[key]
+Migration.cache = {}
+
+class _Migration(object):
     def __init__(self, migrations, filename):
         """
         Returns the migration class implied by 'filename'.
@@ -52,9 +59,6 @@ class Migration(object):
     def name(self):
         return self.migration.Migration.__module__.split(".")[-1]
 
-    def __eq__(self, other):
-        return self.migrations == other.migrations
-    
 
 class NoMigrations(RuntimeError):
     pass
