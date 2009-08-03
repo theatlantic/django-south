@@ -15,28 +15,91 @@ sys.path.append(test_root)
 
 
 class TestMigration(Monkeypatcher):
+    def setUp(self):
+        super(TestMigration, self).setUp()
+        self.fakeapp = Migrations.from_name('fakeapp')
+        self.otherfakeapp = Migrations.from_name('otherfakeapp')
+
+    def test_str(self):
+        migrations = [str(m) for m in self.fakeapp]
+        self.assertEqual(['fakeapp:0001_spam',
+                          'fakeapp:0002_eggs',
+                          'fakeapp:0003_alter_spam'],
+                         migrations)
+                         
+    def test_repr(self):
+        migrations = [repr(m) for m in self.fakeapp]
+        self.assertEqual(['<Migration: fakeapp:0001_spam>',
+                          '<Migration: fakeapp:0002_eggs>',
+                          '<Migration: fakeapp:0003_alter_spam>'],
+                         migrations)
+
+    def test_app_name(self):
+        self.assertEqual(['fakeapp', 'fakeapp', 'fakeapp'],
+                         [m.app_name() for m in self.fakeapp])
+                         
     def test_name(self):
-        app = self.create_fake_app("fakeapp")
-        self.assertEqual(
-            ["0001_spam", "0002_eggs", "0003_alter_spam"],
-            [m.name() for m in Migrations(app)]
-        )
+        self.assertEqual(['0001_spam', '0002_eggs', '0003_alter_spam'],
+                         [m.name() for m in self.fakeapp])
+
+    def test_full_name(self):
+        self.assertEqual(['fakeapp.migrations.0001_spam',
+                          'fakeapp.migrations.0002_eggs',
+                          'fakeapp.migrations.0003_alter_spam'],
+                         [m.full_name() for m in self.fakeapp])
     
-    
-    def test_migclass(self):
-        
-        app = self.create_fake_app("fakeapp")
-        
+    def test_migration(self):
         # Can't use vanilla import, modules beginning with numbers aren't in grammar
         M1 = __import__("fakeapp.migrations.0001_spam", {}, {}, ['Migration']).Migration
         M2 = __import__("fakeapp.migrations.0002_eggs", {}, {}, ['Migration']).Migration
         M3 = __import__("fakeapp.migrations.0003_alter_spam", {}, {}, ['Migration']).Migration
-        
-        self.assertEqual(
-            [M1, M2, M3],
-            [m.migration().Migration for m in Migrations(app)]
-        )
-    
+        self.assertEqual([M1, M2, M3],
+                         [m.migration().Migration for m in self.fakeapp])
+
+    def test_depends_on(self):
+        self.assertEqual([set(), set(), set()],
+                         [m.depends_on() for m in self.fakeapp])
+        self.assertEqual([set([self.fakeapp.migration('0001_spam')]),
+                          set(),
+                          set()],
+                         [m.depends_on() for m in self.otherfakeapp])
+
+    def test_needed_before_forwards(self):
+        self.assertEqual([[self.fakeapp.migration('0001_spam')],
+                          [self.fakeapp.migration('0001_spam'),
+                           self.fakeapp.migration('0002_eggs')],
+                          [self.fakeapp.migration('0001_spam'),
+                           self.fakeapp.migration('0002_eggs'),
+                           self.fakeapp.migration('0003_alter_spam')]],
+                         [m.needed_before_forwards() for m in self.fakeapp])
+        self.assertEqual([[self.fakeapp.migration('0001_spam'),
+                           self.otherfakeapp.migration('0001_first')],
+                          [self.fakeapp.migration('0001_spam'),
+                           self.otherfakeapp.migration('0001_first'),
+                           self.otherfakeapp.migration('0002_second')],
+                          [self.fakeapp.migration('0001_spam'),
+                           self.otherfakeapp.migration('0001_first'),
+                           self.otherfakeapp.migration('0002_second'),
+                           self.otherfakeapp.migration('0003_third')]],
+                         [m.needed_before_forwards() for m in self.otherfakeapp])
+
+    def test_is_before(self):
+        F1 = self.fakeapp.migration('0001_spam')
+        F2 = self.fakeapp.migration('0002_eggs')
+        F3 = self.fakeapp.migration('0003_alter_spam')
+        O1 = self.otherfakeapp.migration('0001_first')
+        O2 = self.otherfakeapp.migration('0002_second')
+        O3 = self.otherfakeapp.migration('0003_third')
+        self.assertTrue(F1.is_before(F2))
+        self.assertTrue(F1.is_before(F3))
+        self.assertTrue(F2.is_before(F3))
+        self.assertEqual(O3.is_before(O1), False)
+        self.assertEqual(O3.is_before(O2), False)
+        self.assertEqual(O2.is_before(O2), False)
+        self.assertEqual(O2.is_before(O1), False)
+        self.assertEqual(F2.is_before(O1), None)
+        self.assertEqual(F2.is_before(O2), None)
+        self.assertEqual(F2.is_before(O3), None)
     
 class TestMigrations(Monkeypatcher):
     def test_all(self):
