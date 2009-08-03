@@ -35,45 +35,94 @@ class _Migration(object):
         self.migrations = migrations
         self.filename = filename
 
+    def __str__(self):
+        return self.app_name() + ':' + self.name()
+
+    def _memoize(function):
+        name = function.__name__
+        _name = '_' + name
+        def method(self):
+            if not hasattr(self, _name):
+                value = function(self)
+                setattr(self, _name, value)
+            return getattr(self, _name)
+        method.__name__ = function.__name__
+        method.__doc__ = function.__doc__
+        return method
+
     def app_name(self):
         return get_app_name(self.migrations)
 
     def name(self):
-        if not hasattr(self, '_name'):
-            self._name, _ = os.path.splitext(os.path.basename(self.filename))
-        return self._name
+        return os.path.splitext(os.path.basename(self.filename))[0]
 
     def full_name(self):
         return self.migrations.__name__ + '.' + self.name()
 
     def migration(self):
-        if not hasattr(self, '_migration'):
-            full_name = self.full_name()
-            app_name = self.app_name()
+        full_name = self.full_name()
+        app_name = self.app_name()
+        try:
+            migration = sys.modules[full_name]
+        except KeyError:
             try:
-                self._migration = sys.modules[full_name]
-            except KeyError:
-                try:
-                    self._migration = __import__(full_name, '', '', ['Migration'])
-                except ImportError:
-                    print " ! Migration %s:%s probably doesn't exist." % (app_name, self.name())
-                    print " - Traceback:"
-                    raise
-                except Exception, e:
-                    print "While loading migration '%s.%s':" % (app_name, self.name())
-                    raise
-            migration = self._migration
-            # Override some imports
-            migration._ = lambda x: x  # Fake i18n
-            migration.datetime = datetime
-            # Setup our FakeORM
-            migclass = migration.Migration
-            migclass.orm = LazyFakeORM(migclass, app_name)
-        return self._migration
+                migration = __import__(full_name, '', '', ['Migration'])
+            except ImportError:
+                print " ! Migration %s:%s probably doesn't exist." % (app_name, self.name())
+                print " - Traceback:"
+                raise
+            except Exception, e:
+                print "While loading migration '%s.%s':" % (app_name, self.name())
+                raise
+        # Override some imports
+        migration._ = lambda x: x  # Fake i18n
+        migration.datetime = datetime
+        # Setup our FakeORM
+        migclass = migration.Migration
+        migclass.orm = LazyFakeORM(migclass, app_name)
+        return migration
+    migration = _memoize(migration)
+
+    def depends_on(self):
+        result = set()
+        migclass = self.migration().Migration
+        # Get forwards dependencies
+        for app, name in getattr(migclass, 'depends_on', []):
+            try:
+                migrations = Migrations.from_name(app)
+            except NoMigrations:
+                print "Migration %s in app %s depends on unmigrated app %s." % (
+                    self.name(),
+                    self.migrations.app_name(),
+                    app,
+                )
+                raise
+            try:
+                migration = migrations.migration(name)
+            except ImportError:
+                print "Migration %s in app %s depends on nonexistent migration %s in app %s." % (
+                    self.name(),
+                    self.migrations.app_name(),
+                    name,
+                    migrations.app_name(),
+                )
+                raise
+            result.add(migration)
+        return result
+    depends_on = _memoize(depends_on)
+
+    def is_before(self, other):
+        if self.migrations == other.migrations:
+            if self.filename < other.filename:
+                return True
+            return False
 
 
 class NoMigrations(RuntimeError):
     pass
+
+
+MIGRATIONS_CACHE = {}
 
 
 class Migrations(object):
@@ -84,6 +133,11 @@ class Migrations(object):
     MIGRATION_FILENAME = re.compile(r'(?!__init__)' # Don't match __init__.py
                                     r'[^.]*'        # Don't match dotfiles
                                     r'\.py$')       # Match only .py files
+
+    def __new__(cls, application):
+        if application not in MIGRATIONS_CACHE:
+            MIGRATIONS_CACHE[application] = object.__new__(cls)
+        return MIGRATIONS_CACHE[application]
 
     def __init__(self, application):
         self.application = application
@@ -153,7 +207,23 @@ def all_migrations():
         for migrations in Migrations.all()
     ])
 
+def trace(seen):
+    return " -> ".join([unicode(s) for s in seen])
 
+def check_dependencies(migrations, seen=[]):
+    for migration in migrations:
+        here = seen + [migration]
+        if migration in seen:
+            print "Found circular dependency: %s" % trace(here)
+            sys.exit(1)
+        for d in migration.depends_on():
+            if migration.is_before(d) == False:
+                print "Found a lower migration (%s) depending on a higher migration (%s) in the same app (%s)." % (d.name(), migration.name(), migration.app_name())
+                print "Path: %s" % trace(here)
+                sys.exit(1)
+        check_dependencies(migration.depends_on(), here)
+
+            
 def dependency_tree():
     tree = all_migrations()
     
@@ -490,6 +560,7 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
     pre_migrate.send(None, app=app_name)
     
     # Find out what delightful migrations we have
+    check_dependencies(migrations)
     tree = dependency_tree()
     migrations = get_migration_names(app)
     
