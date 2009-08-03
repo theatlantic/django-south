@@ -14,67 +14,12 @@ from django.db import models
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 
+from south import exceptions
 from south.models import MigrationHistory
 from south.db import db
 from south.migration.utils import get_app_name, get_app_fullname
 from south.orm import LazyFakeORM, FakeORM
 from south.signals import *
-
-
-class SouthError(RuntimeError):
-    pass
-
-
-class BrokenMigration(SouthError):
-    def __init__(self, migration, exc_info):
-        self.migration = migration
-        self.exc_info = exc_info
-        self.traceback = ''.join(traceback.format_exception(*self.exc_info))
-
-    def __str__(self):
-        return ("While loading migration '%s':\n"
-                '%(traceback)s' % self.__dict__)
-
-
-class UnknownMigration(BrokenMigration):
-    def __str__(self):
-        return ("Migration '%(migration)s' probably doesn't exist.\n"
-                '%(traceback)s' % self.__dict__)
-
-
-class NoMigrations(SouthError):
-    def __init__(self, application):
-        self.application = application
-
-    def __str__(self):
-        return "Application '%(application)s' has no migrations." % self.__dict__
-
-
-class DependsOnHigherMigration(SouthError):
-    def __init__(self, migration, depends_on):
-        self.migration = migration
-        self.depends_on = depends_on
-
-    def __str__(self):
-        return "Lower migration '%(migration)s' depends on a higher migration '%(depends_on)s' in the same app." % self.__dict__
-
-
-class DependsOnUnknownMigration(SouthError):
-    def __init__(self, migration, depends_on):
-        self.migration = migration
-        self.depends_on = depends_on
-
-    def __str__(self):
-        print "Migration '%(migration)s' depends on unknown migration '%(depends_on)s'." % self.__dict__
-
-
-class DependsOnUnmigratedApplication(SouthError):
-    def __init__(self, migration, application):
-        self.migration = migration
-        self.application = application
-
-    def __str__(self):
-        return "Migration '%(migration)s' depends on unmigrated application '%(application)s'." % self.__dict__
 
 
 class Migration(object):
@@ -121,9 +66,9 @@ class Migration(object):
             try:
                 migration = __import__(full_name, '', '', ['Migration'])
             except ImportError, e:
-                raise UnknownMigration(self, sys.exc_info())
+                raise exceptions.UnknownMigration(self, sys.exc_info())
             except Exception, e:
-                raise BrokenMigration(self, sys.exc_info())
+                raise exceptions.BrokenMigration(self, sys.exc_info())
         # Override some imports
         migration._ = lambda x: x  # Fake i18n
         migration.datetime = datetime
@@ -141,14 +86,14 @@ class Migration(object):
             try:
                 migrations = Migrations.from_name(app)
             except ImproperlyConfigured:
-                raise DependsOnUnmigratedApplication(self, app)
+                raise exceptions.DependsOnUnmigratedApplication(self, app)
             migration = migrations.migration(name)
             try:
                 migration.migration()
-            except UnknownMigration:
-                raise DependsOnUnknownMigration(self, migration)
+            except exceptions.UnknownMigration:
+                raise exceptions.DependsOnUnknownMigration(self, migration)
             if migration.is_before(self) == False:
-                raise DependsOnHigherMigration(self, migration)
+                raise exceptions.DependsOnHigherMigration(self, migration)
             result.add(migration)
         return result
     depends_on = _memoize(depends_on)
