@@ -38,6 +38,9 @@ class _Migration(object):
     def __str__(self):
         return self.app_name() + ':' + self.name()
 
+    def __repr__(self):
+        return u'<Migration: %s>' % unicode(self)
+
     def _memoize(function):
         name = function.__name__
         _name = '_' + name
@@ -125,7 +128,7 @@ class NoMigrations(RuntimeError):
 MIGRATIONS_CACHE = {}
 
 
-class Migrations(object):
+class Migrations(list):
     """
     Holds a list of Migration objects for a particular app.
     """
@@ -136,11 +139,21 @@ class Migrations(object):
 
     def __new__(cls, application):
         if application not in MIGRATIONS_CACHE:
-            MIGRATIONS_CACHE[application] = object.__new__(cls)
+            obj = list.__new__(cls)
+            obj._initialized = False
+            MIGRATIONS_CACHE[application] = obj
         return MIGRATIONS_CACHE[application]
 
     def __init__(self, application):
-        self.application = application
+        if not self._initialized:
+            self.application = application
+            self._initialized = True
+
+    def get_application(self):
+        return self._application
+
+    def set_application(self, application):
+        self._application = application
         if not hasattr(application, 'migrations'):
             try:
                 module = __import__(application.__name__ + '.migrations', {}, {})
@@ -148,7 +161,9 @@ class Migrations(object):
                 self._migrations = application.migrations
             except ImportError:
                 raise NoMigrations(application)
-        self._migrations = application.migrations
+        self._load_migrations_module(application.migrations)
+
+    application = property(get_application, set_application)
 
     @classmethod
     def from_name(cls, app_name):
@@ -172,17 +187,15 @@ class Migrations(object):
             except NoMigrations:
                 pass
 
-    def __eq__(self, other):
-        return self._migrations == other._migrations
-
-    def __iter__(self):
+    def _load_migrations_module(self, module):
+        self._migrations = module
         filenames = []
         dirname = os.path.dirname(self._migrations.__file__)
         for f in os.listdir(dirname):
             if self.MIGRATION_FILENAME.match(os.path.basename(f)):
                 filenames.append(f)
         filenames.sort()
-        return (self.migration(f) for f in filenames)
+        self.extend(self.migration(f) for f in filenames)
 
     def migration(self, filename):
         return Migration(self._migrations, filename)
