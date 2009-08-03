@@ -100,7 +100,8 @@ class TestMigration(Monkeypatcher):
         self.assertEqual(F2.is_before(O1), None)
         self.assertEqual(F2.is_before(O2), None)
         self.assertEqual(F2.is_before(O3), None)
-    
+
+
 class TestMigrations(Monkeypatcher):
     def test_all(self):
         
@@ -111,8 +112,7 @@ class TestMigrations(Monkeypatcher):
             [M1, M2],
             list(Migrations.all()),
         )
-    
-    
+
     def test_from_name(self):
         
         M1 = Migrations(__import__("fakeapp", {}, {}, ['']))
@@ -120,26 +120,30 @@ class TestMigrations(Monkeypatcher):
         self.assertEqual(M1, Migrations.from_name("fakeapp"))
         self.assertEqual(M1, Migrations(self.create_fake_app("fakeapp")))
 
+    def test_application(self):
+        fakeapp = Migrations.from_name("fakeapp")
+        application = __import__("fakeapp", {}, {}, [''])
+        self.assertEqual(application, fakeapp.application)
 
     def test_migration(self):
-        
-        app = self.create_fake_app("fakeapp")
-        
         # Can't use vanilla import, modules beginning with numbers aren't in grammar
         M1 = __import__("fakeapp.migrations.0001_spam", {}, {}, ['Migration']).Migration
         M2 = __import__("fakeapp.migrations.0002_eggs", {}, {}, ['Migration']).Migration
-
-        migration = Migrations(app)
+        migration = Migrations.from_name('fakeapp')
         self.assertEqual(M1, migration.migration("0001_spam").migration().Migration)
         self.assertEqual(M2, migration.migration("0002_eggs").migration().Migration)
-        
-        # Temporarily redirect sys.stdout during this, it whinges.
-        stdout, sys.stdout = sys.stdout, StringIO.StringIO()
-        try:
-            self.assertRaises((ImportError, ValueError), migration.migration("0001_jam").migration)
-        finally:
-            sys.stdout = stdout
+        self.assertRaises((ImportError, ValueError), migration.migration("0001_jam").migration)
+
+    def test_app_name(self):
+        names = ['fakeapp', 'otherfakeapp']
+        self.assertEqual(names,
+                         [Migrations.from_name(n).app_name() for n in names])
     
+    def test_full_name(self):
+        names = ['fakeapp', 'otherfakeapp']
+        self.assertEqual([n + '.migrations' for n in names],
+                         [Migrations.from_name(n).full_name() for n in names])
+
 
 class TestMigrationLogic(Monkeypatcher):
 
