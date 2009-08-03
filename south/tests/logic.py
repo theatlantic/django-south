@@ -4,7 +4,7 @@ import sys
 import os
 import StringIO
 
-from south import migration
+from south import exceptions, migration
 from south.migration import Migrations
 from south.tests import Monkeypatcher
 from south.utils import snd
@@ -52,20 +52,16 @@ class TestMigration(Monkeypatcher):
                          [m.full_name() for m in self.fakeapp])
     
     def test_migration(self):
-        from south.migration import UnknownMigration
         # Can't use vanilla import, modules beginning with numbers aren't in grammar
         M1 = __import__("fakeapp.migrations.0001_spam", {}, {}, ['Migration']).Migration
         M2 = __import__("fakeapp.migrations.0002_eggs", {}, {}, ['Migration']).Migration
         M3 = __import__("fakeapp.migrations.0003_alter_spam", {}, {}, ['Migration']).Migration
         self.assertEqual([M1, M2, M3],
                          [m.migration().Migration for m in self.fakeapp])
-        self.assertRaises(UnknownMigration,
+        self.assertRaises(exceptions.UnknownMigration,
                           self.fakeapp.migration('9999_unknown').migration)
 
     def test_depends_on(self):
-        from south.migration import (DependsOnHigherMigration,
-                                     DependsOnUnknownMigration,
-                                     DependsOnUnmigratedApplication)
         self.assertEqual([set(), set(), set()],
                          [m.depends_on() for m in self.fakeapp])
         self.assertEqual([set([self.fakeapp.migration('0001_spam')]),
@@ -73,13 +69,13 @@ class TestMigration(Monkeypatcher):
                           set()],
                          [m.depends_on() for m in self.otherfakeapp])
         depends_on_unmigrated = self.brokenapp.migration('0001_depends_on_unmigrated')
-        self.assertRaises(DependsOnUnmigratedApplication,
+        self.assertRaises(exceptions.DependsOnUnmigratedApplication,
                           depends_on_unmigrated.depends_on)
         depends_on_unknown = self.brokenapp.migration('0002_depends_on_unknown')
-        self.assertRaises(DependsOnUnknownMigration,
+        self.assertRaises(exceptions.DependsOnUnknownMigration,
                           depends_on_unknown.depends_on)
         depends_on_higher = self.brokenapp.migration('0003_depends_on_higher')
-        self.assertRaises(DependsOnHigherMigration,
+        self.assertRaises(exceptions.DependsOnHigherMigration,
                           depends_on_higher.depends_on)
 
     def test_needed_before_forwards(self):
@@ -146,14 +142,14 @@ class TestMigrations(Monkeypatcher):
         self.assertEqual(application, fakeapp.application)
 
     def test_migration(self):
-        from south.migration import UnknownMigration
         # Can't use vanilla import, modules beginning with numbers aren't in grammar
         M1 = __import__("fakeapp.migrations.0001_spam", {}, {}, ['Migration']).Migration
         M2 = __import__("fakeapp.migrations.0002_eggs", {}, {}, ['Migration']).Migration
         migration = Migrations.from_name('fakeapp')
         self.assertEqual(M1, migration.migration("0001_spam").migration().Migration)
         self.assertEqual(M2, migration.migration("0002_eggs").migration().Migration)
-        self.assertRaises(UnknownMigration, migration.migration("0001_jam").migration)
+        self.assertRaises(exceptions.UnknownMigration,
+                          migration.migration("0001_jam").migration)
 
     def test_app_name(self):
         names = ['fakeapp', 'otherfakeapp']
