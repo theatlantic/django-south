@@ -20,14 +20,8 @@ from south.migration.utils import get_app_name, get_app_fullname
 from south.orm import LazyFakeORM, FakeORM
 from south.signals import *
 
-def Migration(migrations, filename):
-    key = (migrations, filename)
-    if key not in Migration.cache:
-        Migration.cache[key] = _Migration(migrations, filename)
-    return Migration.cache[key]
-Migration.cache = {}
 
-class _Migration(object):
+class Migration(object):
     def __init__(self, migrations, filename):
         """
         Returns the migration class implied by 'filename'.
@@ -54,13 +48,13 @@ class _Migration(object):
         return method
 
     def app_name(self):
-        return get_app_name(self.migrations)
+        return self.migrations.app_name()
 
     def name(self):
         return os.path.splitext(os.path.basename(self.filename))[0]
 
     def full_name(self):
-        return self.migrations.__name__ + '.' + self.name()
+        return self.migrations.full_name() + '.' + self.name()
 
     def migration(self):
         full_name = self.full_name()
@@ -110,9 +104,25 @@ class _Migration(object):
                     migrations.app_name(),
                 )
                 raise
+            if migration.is_before(self):
+                print "Found a lower migration (%s) depending on a higher migration (%s) in the same app (%s)." % (self.name(), migration.name(), self.app_name())
+                sys.exit(1)
             result.add(migration)
         return result
     depends_on = _memoize(depends_on)
+
+    def needed_before_forwards(self):
+        result = []
+        # We need to apply all the migrations before this one
+        for migration in self.migrations.migrations_up_to(self):
+            result.extend([m for m in migration.needed_before_forwards() if m not in result])
+        # We need to apply all the migrations this one depends on
+        for migration in self.depends_on():
+            result.extend([m for m in migration.needed_before_forwards() if m not in result])
+        # Append ourselves to the result
+        if self not in result:
+            result.append(self)
+        return result
 
     def is_before(self, other):
         if self.migrations == other.migrations:
@@ -138,14 +148,16 @@ class Migrations(list):
                                     r'\.py$')       # Match only .py files
 
     def __new__(cls, application):
-        if application not in MIGRATIONS_CACHE:
+        app_name = application.__name__
+        if app_name not in MIGRATIONS_CACHE:
             obj = list.__new__(cls)
             obj._initialized = False
-            MIGRATIONS_CACHE[application] = obj
-        return MIGRATIONS_CACHE[application]
+            MIGRATIONS_CACHE[app_name] = obj
+        return MIGRATIONS_CACHE[app_name]
 
     def __init__(self, application):
         if not self._initialized:
+            self._cache = {}
             self.application = application
             self._initialized = True
 
@@ -198,10 +210,19 @@ class Migrations(list):
         self.extend(self.migration(f) for f in filenames)
 
     def migration(self, filename):
-        return Migration(self._migrations, filename)
+        name, _ = os.path.splitext(os.path.basename(filename))
+        if name not in self._cache:
+            self._cache[name] = Migration(self, name)
+        return self._cache[name]
+
+    def migrations_up_to(self, migration):
+        return self[:self.index(migration)]
 
     def app_name(self):
         return get_app_name(self._migrations)
+
+    def full_name(self):
+        return self._migrations.__name__
 
 
 def get_migration(migrations, migration):
@@ -229,11 +250,6 @@ def check_dependencies(migrations, seen=[]):
         if migration in seen:
             print "Found circular dependency: %s" % trace(here)
             sys.exit(1)
-        for d in migration.depends_on():
-            if migration.is_before(d) == False:
-                print "Found a lower migration (%s) depending on a higher migration (%s) in the same app (%s)." % (d.name(), migration.name(), migration.app_name())
-                print "Path: %s" % trace(here)
-                sys.exit(1)
         check_dependencies(migration.depends_on(), here)
 
             
