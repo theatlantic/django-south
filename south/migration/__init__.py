@@ -21,6 +21,62 @@ from south.orm import LazyFakeORM, FakeORM
 from south.signals import *
 
 
+class SouthError(RuntimeError):
+    pass
+
+
+class BrokenMigration(SouthError):
+    def __init__(self, migration, exc_info):
+        self.migration = migration
+        self.exc_info = exc_info
+        self.traceback = ''.join(traceback.format_exception(*self.exc_info))
+
+    def __str__(self):
+        return ("While loading migration '%s':\n"
+                '%(traceback)s' % self.__dict__)
+
+
+class UnknownMigration(BrokenMigration):
+    def __str__(self):
+        return ("Migration '%(migration)s' probably doesn't exist.\n"
+                '%(traceback)s' % self.__dict__)
+
+
+class NoMigrations(SouthError):
+    def __init__(self, application):
+        self.application = application
+
+    def __str__(self):
+        return "Application '%(application)s' has no migrations." % self.__dict__
+
+
+class DependsOnHigherMigration(SouthError):
+    def __init__(self, migration, depends_on):
+        self.migration = migration
+        self.depends_on = depends_on
+
+    def __str__(self):
+        return "Lower migration '%(migration)s' depends on a higher migration '%(depends_on)s' in the same app." % self.__dict__
+
+
+class DependsOnUnknownMigration(SouthError):
+    def __init__(self, migration, depends_on):
+        self.migration = migration
+        self.depends_on = depends_on
+
+    def __str__(self):
+        print "Migration '%(migration)s' depends on unknown migration '%(depends_on)s'." % self.__dict__
+
+
+class DependsOnUnmigratedApplication(SouthError):
+    def __init__(self, migration, application):
+        self.migration = migration
+        self.application = application
+
+    def __str__(self):
+        return "Migration '%(migration)s' depends on unmigrated application '%(application)s'." % self.__dict__
+
+
 class Migration(object):
     def __init__(self, migrations, filename):
         """
@@ -64,13 +120,10 @@ class Migration(object):
         except KeyError:
             try:
                 migration = __import__(full_name, '', '', ['Migration'])
-            except ImportError:
-                print " ! Migration %s:%s probably doesn't exist." % (app_name, self.name())
-                print " - Traceback:"
-                raise
+            except ImportError, e:
+                raise UnknownMigration(self, sys.exc_info())
             except Exception, e:
-                print "While loading migration '%s.%s':" % (app_name, self.name())
-                raise
+                raise BrokenMigration(self, sys.exc_info())
         # Override some imports
         migration._ = lambda x: x  # Fake i18n
         migration.datetime = datetime
@@ -87,26 +140,15 @@ class Migration(object):
         for app, name in getattr(migclass, 'depends_on', []):
             try:
                 migrations = Migrations.from_name(app)
-            except NoMigrations:
-                print "Migration %s in app %s depends on unmigrated app %s." % (
-                    self.name(),
-                    self.migrations.app_name(),
-                    app,
-                )
-                raise
+            except ImproperlyConfigured:
+                raise DependsOnUnmigratedApplication(self, app)
+            migration = migrations.migration(name)
             try:
-                migration = migrations.migration(name)
-            except ImportError:
-                print "Migration %s in app %s depends on nonexistent migration %s in app %s." % (
-                    self.name(),
-                    self.migrations.app_name(),
-                    name,
-                    migrations.app_name(),
-                )
-                raise
-            if migration.is_before(self):
-                print "Found a lower migration (%s) depending on a higher migration (%s) in the same app (%s)." % (self.name(), migration.name(), self.app_name())
-                sys.exit(1)
+                migration.migration()
+            except UnknownMigration:
+                raise DependsOnUnknownMigration(self, migration)
+            if migration.is_before(self) == False:
+                raise DependsOnHigherMigration(self, migration)
             result.add(migration)
         return result
     depends_on = _memoize(depends_on)
@@ -129,10 +171,6 @@ class Migration(object):
             if self.filename < other.filename:
                 return True
             return False
-
-
-class NoMigrations(RuntimeError):
-    pass
 
 
 MIGRATIONS_CACHE = {}
