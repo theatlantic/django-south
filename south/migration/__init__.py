@@ -84,11 +84,16 @@ class Migration(object):
             return None
         return self.migrations[index]
 
+    def next(self):
+        index = self.migrations.index(self) + 1
+        if index >= len(self.migrations):
+            return None
+        return self.migrations[index]
+
     def depends_on(self):
-        result = set()
-        previous = self.previous()
-        if previous:
-            result.add(previous)
+        result = [self.previous()]
+        if result[0] is None:
+            result = []
         migclass = self.migration().Migration
         # Get forwards dependencies
         for app, name in getattr(migclass, 'depends_on', []):
@@ -103,15 +108,15 @@ class Migration(object):
                 raise exceptions.DependsOnUnknownMigration(self, migration)
             if migration.is_before(self) == False:
                 raise exceptions.DependsOnHigherMigration(self, migration)
-            result.add(migration)
+            result.append(migration)
         return result
     depends_on = _memoize(depends_on)
 
-    def needed_before_forwards(self):
+    def forwards_plan(self):
         result = []
         # We need to apply all the migrations this one depends on
         for migration in self.depends_on():
-            result.extend([m for m in migration.needed_before_forwards() if m not in result])
+            result.extend([m for m in migration.forwards_plan() if m not in result])
         # Append ourselves to the result
         result.append(self)
         return result
@@ -160,7 +165,7 @@ class Migrations(list):
                 application.migrations = module.migrations
                 self._migrations = application.migrations
             except ImportError:
-                raise NoMigrations(application)
+                raise exceptions.NoMigrations(application)
         self._load_migrations_module(application.migrations)
 
     application = property(get_application, set_application)
