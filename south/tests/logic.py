@@ -200,7 +200,7 @@ class TestMigrationLogic(Monkeypatcher):
     
     
     def test_apply_migrations(self):
-        
+        migration.MigrationHistory.objects.filter(app_name="fakeapp").delete()
         migrations = migration.Migrations.from_name("fakeapp")
         
         # We should start with no migrations
@@ -227,7 +227,7 @@ class TestMigrationLogic(Monkeypatcher):
     
     
     def test_migration_merge_forwards(self):
-        
+        migration.MigrationHistory.objects.filter(app_name="fakeapp").delete()
         migrations = migration.Migrations.from_name("fakeapp")
         
         # We should start with no migrations
