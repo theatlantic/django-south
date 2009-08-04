@@ -280,9 +280,7 @@ class Command(BaseCommand):
             
             # Uniques need merging
             added_uniques = added_uniques.union(afu)
-            
-            for mkey, entry in dfu:
-                deleted_uniques.add((mkey, entry, last_orm[mkey]))
+            deleted_uniques = deleted_uniques.union(dfu)
         
         
         ### Added model ###
