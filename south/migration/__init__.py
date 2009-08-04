@@ -78,8 +78,17 @@ class Migration(object):
         return migration
     migration = _memoize(migration)
 
+    def previous(self):
+        index = self.migrations.index(self) - 1
+        if index < 0:
+            return None
+        return self.migrations[index]
+
     def depends_on(self):
         result = set()
+        previous = self.previous()
+        if previous:
+            result.add(previous)
         migclass = self.migration().Migration
         # Get forwards dependencies
         for app, name in getattr(migclass, 'depends_on', []):
@@ -100,15 +109,11 @@ class Migration(object):
 
     def needed_before_forwards(self):
         result = []
-        # We need to apply all the migrations before this one
-        for migration in self.migrations.migrations_up_to(self):
-            result.extend([m for m in migration.needed_before_forwards() if m not in result])
         # We need to apply all the migrations this one depends on
         for migration in self.depends_on():
             result.extend([m for m in migration.needed_before_forwards() if m not in result])
         # Append ourselves to the result
-        if self not in result:
-            result.append(self)
+        result.append(self)
         return result
 
     def is_before(self, other):
@@ -197,9 +202,6 @@ class Migrations(list):
         if name not in self._cache:
             self._cache[name] = Migration(self, name)
         return self._cache[name]
-
-    def migrations_up_to(self, migration):
-        return self[:self.index(migration)]
 
     def app_name(self):
         return get_app_name(self._migrations)

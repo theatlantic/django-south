@@ -61,12 +61,20 @@ class TestMigration(Monkeypatcher):
         self.assertRaises(exceptions.UnknownMigration,
                           self.fakeapp.migration('9999_unknown').migration)
 
+    def test_previous(self):
+        self.assertEqual([None,
+                          self.fakeapp.migration('0001_spam'),
+                          self.fakeapp.migration('0002_eggs')],
+                         [m.previous() for m in self.fakeapp])
+
     def test_depends_on(self):
-        self.assertEqual([set(), set(), set()],
+        self.assertEqual([set(),
+                          set([self.fakeapp.migration('0001_spam')]),
+                          set([self.fakeapp.migration('0002_eggs')])],
                          [m.depends_on() for m in self.fakeapp])
         self.assertEqual([set([self.fakeapp.migration('0001_spam')]),
-                          set(),
-                          set()],
+                          set([self.otherfakeapp.migration('0001_first')]),
+                          set([self.otherfakeapp.migration('0002_second')])],
                          [m.depends_on() for m in self.otherfakeapp])
         depends_on_unmigrated = self.brokenapp.migration('0001_depends_on_unmigrated')
         self.assertRaises(exceptions.DependsOnUnmigratedApplication,
