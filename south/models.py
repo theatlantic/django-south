@@ -5,6 +5,9 @@ class MigrationHistory(models.Model):
     migration = models.CharField(max_length=255)
     applied = models.DateTimeField(blank=True, null=True)
 
+    class Meta:
+        unique_together = (('app_name', 'migration'),)
+
     @classmethod
     def for_migration(cls, migration):
         try:
