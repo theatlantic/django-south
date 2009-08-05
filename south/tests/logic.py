@@ -399,27 +399,6 @@ class TestMigrationLogic(Monkeypatcher):
     
     installed_apps = ["fakeapp", "otherfakeapp"]
 
-    def test_dependency_tree(self):
-        
-        migrations = migration.Migrations.from_name("fakeapp")
-        othermigrations = migration.Migrations.from_name("otherfakeapp")
-        
-        self.assertEqual({
-                migrations._migrations: {
-                    "0001_spam": migrations.migration("0001_spam").migration().Migration,
-                    "0002_eggs": migrations.migration("0002_eggs").migration().Migration,
-                    "0003_alter_spam": migrations.migration("0003_alter_spam").migration().Migration,
-                },
-                othermigrations._migrations: {
-                    "0001_first": othermigrations.migration("0001_first").migration().Migration,
-                    "0002_second": othermigrations.migration("0002_second").migration().Migration,
-                    "0003_third": othermigrations.migration("0003_third").migration().Migration,
-                },
-            },
-            migration.dependency_tree(),
-        )
-    
-    
     def assertListEqual(self, list1, list2):
         list1 = list(list1)
         list2 = list(list2)
@@ -557,7 +536,6 @@ class TestMigrationLogic(Monkeypatcher):
         otherfakeapp = migration.Migrations.from_name("otherfakeapp")
         
         # Test a simple path
-        tree = migration.dependency_tree()
         self.assertEqual([fakeapp.migration('0001_spam'),
                           fakeapp.migration('0002_eggs'),
                           fakeapp.migration('0003_alter_spam')],
