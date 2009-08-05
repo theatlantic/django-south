@@ -67,24 +67,24 @@ class TestMigration(Monkeypatcher):
                           self.fakeapp.migration('0002_eggs')],
                          [m.previous() for m in self.fakeapp])
 
-    def test_depends_on(self):
+    def test_dependencies(self):
         self.assertEqual([[],
                           [self.fakeapp.migration('0001_spam')],
                           [self.fakeapp.migration('0002_eggs')]],
-                         [m.depends_on() for m in self.fakeapp])
+                         [m.dependencies() for m in self.fakeapp])
         self.assertEqual([[self.fakeapp.migration('0001_spam')],
                           [self.otherfakeapp.migration('0001_first')],
                           [self.otherfakeapp.migration('0002_second')]],
-                         [m.depends_on() for m in self.otherfakeapp])
+                         [m.dependencies() for m in self.otherfakeapp])
         depends_on_unmigrated = self.brokenapp.migration('0001_depends_on_unmigrated')
         self.assertRaises(exceptions.DependsOnUnmigratedApplication,
-                          depends_on_unmigrated.depends_on)
+                          depends_on_unmigrated.dependencies)
         depends_on_unknown = self.brokenapp.migration('0002_depends_on_unknown')
         self.assertRaises(exceptions.DependsOnUnknownMigration,
-                          depends_on_unknown.depends_on)
+                          depends_on_unknown.dependencies)
         depends_on_higher = self.brokenapp.migration('0003_depends_on_higher')
         self.assertRaises(exceptions.DependsOnHigherMigration,
-                          depends_on_higher.depends_on)
+                          depends_on_higher.dependencies)
 
     def test_forwards_plan(self):
         self.assertEqual([[self.fakeapp.migration('0001_spam')],
@@ -133,14 +133,14 @@ class TestMigrationDependencies(Monkeypatcher):
         self.deps_b = Migrations.from_name('deps_b')
         self.deps_c = Migrations.from_name('deps_c')
 
-    def test_depends_on(self):
+    def test_dependencies(self):
         self.assertEqual([[],
                           [self.deps_a.migration('0001_a')],
                           [self.deps_a.migration('0002_a')],
                           [self.deps_a.migration('0003_a'),
                            self.deps_b.migration('0003_b')],
                           [self.deps_a.migration('0004_a')]],
-                         [m.depends_on() for m in self.deps_a])
+                         [m.dependencies() for m in self.deps_a])
         self.assertEqual([[],
                           [self.deps_b.migration('0001_b'),
                            self.deps_a.migration('0002_a')],
@@ -148,14 +148,14 @@ class TestMigrationDependencies(Monkeypatcher):
                            self.deps_a.migration('0003_a')],
                           [self.deps_b.migration('0003_b')],
                           [self.deps_b.migration('0004_b')]],
-                         [m.depends_on() for m in self.deps_b])
+                         [m.dependencies() for m in self.deps_b])
         self.assertEqual([[],
                           [self.deps_c.migration('0001_c')],
                           [self.deps_c.migration('0002_c')],
                           [self.deps_c.migration('0003_c')],
                           [self.deps_c.migration('0004_c'),
                            self.deps_a.migration('0002_a')]],
-                         [m.depends_on() for m in self.deps_c])
+                         [m.dependencies() for m in self.deps_c])
 
     def test_forwards_plan(self):
         self.assertEqual([[self.deps_a.migration('0001_a')],
