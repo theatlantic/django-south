@@ -224,6 +224,16 @@ class Migrations(list):
             self._cache[name] = Migration(self, name)
         return self._cache[name]
 
+    def guess_migration(self, prefix):
+        prefix = Migration.strip_filename(prefix)
+        matches = [m for m in self if m.name().startswith(prefix)]
+        if len(matches) == 1:
+            return matches[0]
+        elif len(matches) > 1:
+            raise exceptions.GuessMigrationError(prefix, matches)
+        else:
+            raise exceptions.UnknownMigration(prefix, None)
+
     def app_name(self):
         return get_app_name(self._migrations)
 
@@ -479,31 +489,20 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
     # Find out what delightful migrations we have
     check_dependencies(migrations)
     tree = dependency_tree()
-    migrations = get_migration_names(app)
     
     # If there aren't any, quit quizically
     if not migrations:
         print "? You have no migrations for the '%s' app. You might want some." % app_name
         return
-    
-    if target_name not in migrations and target_name not in ["zero", None]:
-        matches = [x for x in migrations if x.startswith(target_name)]
-        if len(matches) == 1:
-            target = migrations.index(matches[0]) + 1
+
+    # Guess the target_name
+    if target_name not in ["zero", None]:
+        target = migrations.guess_migration(target_name)
+        if target.name() != target_name:
             if verbosity:
-                print " - Soft matched migration %s to %s." % (
-                    target_name,
-                    matches[0]
-                )
-            target_name = matches[0]
-        elif len(matches) > 1:
-            if verbosity:
-                print " - Prefix %s matches more than one migration:" % target_name
-                print "     " + "\n     ".join(matches)
-            return
-        else:
-            print " ! '%s' is not a migration." % target_name
-            return
+                print " - Soft matched migration %s to %s." % (target_name,
+                                                               target.name())
+            target_name = target.name()
     
     # Check there's no strange ones in the database
     ghost_migrations = []
@@ -527,6 +526,7 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
         print "Running migrations for %s:" % app_name
     
     # Get the forwards and reverse dependencies for this target
+    migrations = get_migration_names(app)
     if target_name == None:
         target_name = migrations[-1]
     if target_name == "zero":
