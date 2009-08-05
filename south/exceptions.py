@@ -8,12 +8,11 @@ class BrokenMigration(SouthError):
     def __init__(self, migration, exc_info):
         self.migration = migration
         self.exc_info = exc_info
-        self.traceback = ''
-
-    def __str__(self):
         if self.exc_info:
             self.traceback = ''.join(format_exception(*self.exc_info))
-        return ("While loading migration '%s':\n"
+
+    def __str__(self):
+        return ("While loading migration '%(migration)s':\n"
                 '%(traceback)s' % self.__dict__)
 
 
