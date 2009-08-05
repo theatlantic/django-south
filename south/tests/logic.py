@@ -6,6 +6,7 @@ import StringIO
 
 from south import exceptions, migration
 from south.migration import Migrations
+from south.migration.base import get_app_name
 from south.tests import Monkeypatcher
 from south.utils import snd
 
@@ -569,22 +570,9 @@ class TestMigrationUtils(Monkeypatcher):
     def test_get_app_name(self):
         self.assertEqual(
             "southtest",
-            migration.get_app_name(self.create_fake_app("southtest.models")),
+            get_app_name(self.create_fake_app("southtest.models")),
         )
         self.assertEqual(
             "baz",
-            migration.get_app_name(self.create_fake_app("foo.bar.baz.models")),
+            get_app_name(self.create_fake_app("foo.bar.baz.models")),
         )
-    
-    
-    def test_get_app_fullname(self):
-        self.assertEqual(
-            "southtest",
-            migration.get_app_fullname(self.create_fake_app("southtest.models")),
-        )
-        self.assertEqual(
-            "foo.bar.baz",
-            migration.get_app_fullname(self.create_fake_app("foo.bar.baz.models")),
-        )
-    
-    
