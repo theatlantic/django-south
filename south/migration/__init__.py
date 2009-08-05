@@ -20,6 +20,7 @@ from south.db import db
 from south.migration.utils import get_app_name, get_app_fullname
 from south.orm import LazyFakeORM, FakeORM
 from south.signals import *
+from south.utils import memoize
 
 
 class Migration(object):
@@ -35,18 +36,6 @@ class Migration(object):
 
     def __repr__(self):
         return u'<Migration: %s>' % unicode(self)
-
-    def _memoize(function):
-        name = function.__name__
-        _name = '_' + name
-        def method(self):
-            if not hasattr(self, _name):
-                value = function(self)
-                setattr(self, _name, value)
-            return getattr(self, _name)
-        method.__name__ = function.__name__
-        method.__doc__ = function.__doc__
-        return method
 
     def app_name(self):
         return self.migrations.app_name()
@@ -76,7 +65,7 @@ class Migration(object):
         migclass = migration.Migration
         migclass.orm = LazyFakeORM(migclass, app_name)
         return migration
-    migration = _memoize(migration)
+    migration = memoize(migration)
 
     def previous(self):
         index = self.migrations.index(self) - 1
@@ -110,13 +99,33 @@ class Migration(object):
                 raise exceptions.DependsOnHigherMigration(self, migration)
             result.append(migration)
         return result
-    dependencies = _memoize(dependencies)
+    dependencies = memoize(dependencies)
+
+    def add_dependent(self, migration):
+        if not hasattr(self, '_dependents'):
+            self._dependents = []
+        if migration and migration not in self._dependents:
+            self._dependents.insert(0, migration)
+
+    def dependents(self):
+        self.migrations.calculate_dependents()
+        return self._dependents
+    dependents = memoize(dependents)
 
     def forwards_plan(self):
         result = []
         # We need to apply all the migrations this one depends on
         for migration in self.dependencies():
             result.extend([m for m in migration.forwards_plan() if m not in result])
+        # Append ourselves to the result
+        result.append(self)
+        return result
+
+    def backwards_plan(self):
+        result = []
+        # We need to apply all the migrations this one depends on
+        for migration in self.dependents():
+            result.extend([m for m in migration.backwards_plan() if m not in result])
         # Append ourselves to the result
         result.append(self)
         return result
@@ -172,14 +181,17 @@ class Migrations(list):
 
     @classmethod
     def from_name(cls, app_name):
-        app = models.get_app(app_name)
-        module_name = get_app_name(app)
         try:
-            module = sys.modules[module_name]
+            return MIGRATIONS_CACHE[app_name]
         except KeyError:
-            __import__(module_name, {}, {}, [''])
-            module = sys.modules[module_name]
-        return cls(module)
+            app = models.get_app(app_name)
+            module_name = get_app_name(app)
+            try:
+                module = sys.modules[module_name]
+            except KeyError:
+                __import__(module_name, {}, {}, [''])
+                module = sys.modules[module_name]
+            return cls(module)
 
     @classmethod
     def all(cls):
@@ -213,6 +225,13 @@ class Migrations(list):
 
     def full_name(self):
         return self._migrations.__name__
+
+    def calculate_dependents(self):
+        for migrations in self.all():
+            for migration in migrations:
+                migration.add_dependent(None)
+                for dependency in migration.dependencies():
+                    dependency.add_dependent(migration)
 
 
 def get_migration(migrations, migration):
