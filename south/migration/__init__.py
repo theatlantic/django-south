@@ -453,7 +453,7 @@ def run_backwards(app, migrations, ignore=[], fake=False, db_dry_run=False, verb
     )
 
 
-def forwards_problems(tree, forwards, done, verbosity=0):
+def forwards_problems(forwards, done, verbosity=0):
     problems = []
     for app, name in forwards:
         if (app, name) not in done:
@@ -465,7 +465,7 @@ def forwards_problems(tree, forwards, done, verbosity=0):
 
 
 
-def backwards_problems(tree, backwards, done, verbosity=0):
+def backwards_problems(backwards, done, verbosity=0):
     problems = []
     for app, name in backwards:
         if (app, name) in done:
@@ -574,7 +574,7 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
     # If the remaining migrations are strictly a right segment of the forwards
     # trace, we just need to go forwards to our target (and check for badness)
     else:
-        problems = forwards_problems(tree, forwards, current_migrations, verbosity=verbosity)
+        problems = forwards_problems(forwards, current_migrations, verbosity=verbosity)
         if problems:
             bad = True
         direction = 1
@@ -588,7 +588,7 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
         # If what's missing is a strict left segment of backwards (i.e.
         # all the higher migrations) then we need to go backwards
         else:
-            problems = backwards_problems(tree, backwards, current_migrations, verbosity=verbosity)
+            problems = backwards_problems(backwards, current_migrations, verbosity=verbosity)
             if problems:
                 bad = True
             direction = -1
