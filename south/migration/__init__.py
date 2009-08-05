@@ -265,13 +265,6 @@ class Migrations(list):
                 for dependency in migration.dependencies():
                     dependency.add_dependent(migration)
 
-
-def get_migration(migrations, migration):
-    return Migrations.from_name(get_app_name(migrations)).migration(migration).migration().Migration
-
-def get_migration_names(migrations):
-    return [m.name() for m in Migrations.from_name(get_app_name(migrations))]
-
 def trace(seen):
     return " -> ".join([unicode(s) for s in seen])
 
@@ -300,7 +293,7 @@ def run_migration(toprint, torun, recorder, migration, fake=False, db_dry_run=Fa
     if previous is None:
         klass.prev_orm = FakeORM(None, app)
     else:
-        klass.prev_orm = get_migration(app, previous.name()).orm
+        klass.prev_orm = previous.migration().Migration.orm
 
     # If this is a 'fake' migration, do nothing.
     if fake:
