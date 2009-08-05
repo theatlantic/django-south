@@ -34,6 +34,17 @@ def get_attribute(item, attribute):
         value = getattr(value, part)
     return value
 
+def memoize(function):
+    name = function.__name__
+    _name = '_' + name
+    def method(self):
+        if not hasattr(self, _name):
+            value = function(self)
+            setattr(self, _name, value)
+        return getattr(self, _name)
+    method.__name__ = function.__name__
+    method.__doc__ = function.__doc__
+    return method
 
 fst = lambda (x, y): x
 snd = lambda (x, y): y
