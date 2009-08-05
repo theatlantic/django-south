@@ -466,8 +466,7 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                 if db_dry_run:
                     return
             
-            if db.has_ddl_transactions:
-                db.start_transaction()
+            db.start_transaction()
             try:
                 if len(args[0]) == 1:  # They don't want an ORM param
                     runfunc()
@@ -475,10 +474,8 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                     runfunc(orm)
                 db.execute_deferred_sql()
             except:
-                if db.has_ddl_transactions:
-                    db.rollback_transaction()
-                    raise
-                else:
+                db.rollback_transaction()
+                if not db.has_ddl_transactions:
                     traceback.print_exc()
                     print " ! Error found during real run of migration! Aborting."
                     print
@@ -497,14 +494,19 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                     print " ! The South developers regret this has happened, and would"
                     print " ! like to gently persuade you to consider a slightly"
                     print " ! easier-to-deal-with DBMS."
-                    return False
+                raise
             else:
-                if db.has_ddl_transactions:
-                    db.commit_transaction()
+                db.commit_transaction()
 
         if not db_dry_run:
-            # Record us as having done this
-            recorder(app_name, migration)
+            db.start_transaction()
+            try:
+                # Record us as having done this
+                recorder(app_name, migration)
+            except:
+                db.rollback_transaction()
+            else:
+                db.commit_transaction()
             if not fake:
                 # Send a signal saying it ran
                 ran_migration.send(None, app=app_name, migration=migration, method=torun)
