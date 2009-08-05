@@ -283,16 +283,6 @@ def check_dependencies(migrations, seen=[]):
             sys.exit(1)
         check_dependencies(migration.dependencies(), here)
 
-            
-def dependency_tree():
-    tree = {}
-    for migrations in Migrations.all():
-        check_dependencies(migrations)
-        tree[migrations._migrations] = dict([(os.path.splitext(m.filename)[0],
-                                              m.migration().Migration)
-                                             for m in migrations])
-    return tree
-
 def run_migration(toprint, torun, recorder, migration, fake=False, db_dry_run=False, verbosity=0):
     """
     Runs the specified migration forwards/backwards, in order.
@@ -490,7 +480,6 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
         return
     # Check that all the dependencies are sane
     check_dependencies(migrations)
-    tree = dependency_tree()
     # Guess the target_name
     if target_name not in ["zero", None]:
         target = migrations.guess_migration(target_name)
