@@ -19,9 +19,9 @@ class TestMigration(Monkeypatcher):
 
     def setUp(self):
         super(TestMigration, self).setUp()
-        self.fakeapp = Migrations.from_name('fakeapp')
-        self.otherfakeapp = Migrations.from_name('otherfakeapp')
-        self.brokenapp = Migrations.from_name('brokenapp')
+        self.fakeapp = Migrations('fakeapp')
+        self.otherfakeapp = Migrations('otherfakeapp')
+        self.brokenapp = Migrations('brokenapp')
 
     def test_str(self):
         migrations = [str(m) for m in self.fakeapp]
@@ -59,62 +59,62 @@ class TestMigration(Monkeypatcher):
         self.assertEqual([M1, M2, M3],
                          [m.migration().Migration for m in self.fakeapp])
         self.assertRaises(exceptions.UnknownMigration,
-                          self.fakeapp.migration('9999_unknown').migration)
+                          self.fakeapp['9999_unknown'].migration)
 
     def test_previous(self):
         self.assertEqual([None,
-                          self.fakeapp.migration('0001_spam'),
-                          self.fakeapp.migration('0002_eggs')],
+                          self.fakeapp['0001_spam'],
+                          self.fakeapp['0002_eggs']],
                          [m.previous() for m in self.fakeapp])
 
     def test_dependencies(self):
         self.assertEqual([[],
-                          [self.fakeapp.migration('0001_spam')],
-                          [self.fakeapp.migration('0002_eggs')]],
+                          [self.fakeapp['0001_spam']],
+                          [self.fakeapp['0002_eggs']]],
                          [m.dependencies() for m in self.fakeapp])
-        self.assertEqual([[self.fakeapp.migration('0001_spam')],
-                          [self.otherfakeapp.migration('0001_first')],
-                          [self.otherfakeapp.migration('0002_second'),
-                           self.fakeapp.migration('0003_alter_spam')]],
+        self.assertEqual([[self.fakeapp['0001_spam']],
+                          [self.otherfakeapp['0001_first']],
+                          [self.otherfakeapp['0002_second'],
+                           self.fakeapp['0003_alter_spam']]],
                          [m.dependencies() for m in self.otherfakeapp])
-        depends_on_unmigrated = self.brokenapp.migration('0001_depends_on_unmigrated')
+        depends_on_unmigrated = self.brokenapp['0001_depends_on_unmigrated']
         self.assertRaises(exceptions.DependsOnUnmigratedApplication,
                           depends_on_unmigrated.dependencies)
-        depends_on_unknown = self.brokenapp.migration('0002_depends_on_unknown')
+        depends_on_unknown = self.brokenapp['0002_depends_on_unknown']
         self.assertRaises(exceptions.DependsOnUnknownMigration,
                           depends_on_unknown.dependencies)
-        depends_on_higher = self.brokenapp.migration('0003_depends_on_higher')
+        depends_on_higher = self.brokenapp['0003_depends_on_higher']
         self.assertRaises(exceptions.DependsOnHigherMigration,
                           depends_on_higher.dependencies)
 
     def test_forwards_plan(self):
-        self.assertEqual([[self.fakeapp.migration('0001_spam')],
-                          [self.fakeapp.migration('0001_spam'),
-                           self.fakeapp.migration('0002_eggs')],
-                          [self.fakeapp.migration('0001_spam'),
-                           self.fakeapp.migration('0002_eggs'),
-                           self.fakeapp.migration('0003_alter_spam')]],
+        self.assertEqual([[self.fakeapp['0001_spam']],
+                          [self.fakeapp['0001_spam'],
+                           self.fakeapp['0002_eggs']],
+                          [self.fakeapp['0001_spam'],
+                           self.fakeapp['0002_eggs'],
+                           self.fakeapp['0003_alter_spam']]],
                          [m.forwards_plan() for m in self.fakeapp])
-        self.assertEqual([[self.fakeapp.migration('0001_spam'),
-                           self.otherfakeapp.migration('0001_first')],
-                          [self.fakeapp.migration('0001_spam'),
-                           self.otherfakeapp.migration('0001_first'),
-                           self.otherfakeapp.migration('0002_second')],
-                          [self.fakeapp.migration('0001_spam'),
-                           self.otherfakeapp.migration('0001_first'),
-                           self.otherfakeapp.migration('0002_second'),
-                           self.fakeapp.migration('0002_eggs'),
-                           self.fakeapp.migration('0003_alter_spam'),
-                           self.otherfakeapp.migration('0003_third')]],
+        self.assertEqual([[self.fakeapp['0001_spam'],
+                           self.otherfakeapp['0001_first']],
+                          [self.fakeapp['0001_spam'],
+                           self.otherfakeapp['0001_first'],
+                           self.otherfakeapp['0002_second']],
+                          [self.fakeapp['0001_spam'],
+                           self.otherfakeapp['0001_first'],
+                           self.otherfakeapp['0002_second'],
+                           self.fakeapp['0002_eggs'],
+                           self.fakeapp['0003_alter_spam'],
+                           self.otherfakeapp['0003_third']]],
                          [m.forwards_plan() for m in self.otherfakeapp])
 
     def test_is_before(self):
-        F1 = self.fakeapp.migration('0001_spam')
-        F2 = self.fakeapp.migration('0002_eggs')
-        F3 = self.fakeapp.migration('0003_alter_spam')
-        O1 = self.otherfakeapp.migration('0001_first')
-        O2 = self.otherfakeapp.migration('0002_second')
-        O3 = self.otherfakeapp.migration('0003_third')
+        F1 = self.fakeapp['0001_spam']
+        F2 = self.fakeapp['0002_eggs']
+        F3 = self.fakeapp['0003_alter_spam']
+        O1 = self.otherfakeapp['0001_first']
+        O2 = self.otherfakeapp['0002_second']
+        O3 = self.otherfakeapp['0003_third']
         self.assertTrue(F1.is_before(F2))
         self.assertTrue(F1.is_before(F3))
         self.assertTrue(F2.is_before(F3))
@@ -132,194 +132,194 @@ class TestMigrationDependencies(Monkeypatcher):
 
     def setUp(self):
         super(TestMigrationDependencies, self).setUp()
-        self.deps_a = Migrations.from_name('deps_a')
-        self.deps_b = Migrations.from_name('deps_b')
-        self.deps_c = Migrations.from_name('deps_c')
+        self.deps_a = Migrations('deps_a')
+        self.deps_b = Migrations('deps_b')
+        self.deps_c = Migrations('deps_c')
 
     def test_dependencies(self):
         self.assertEqual([[],
-                          [self.deps_a.migration('0001_a')],
-                          [self.deps_a.migration('0002_a')],
-                          [self.deps_a.migration('0003_a'),
-                           self.deps_b.migration('0003_b')],
-                          [self.deps_a.migration('0004_a')]],
+                          [self.deps_a['0001_a']],
+                          [self.deps_a['0002_a']],
+                          [self.deps_a['0003_a'],
+                           self.deps_b['0003_b']],
+                          [self.deps_a['0004_a']]],
                          [m.dependencies() for m in self.deps_a])
         self.assertEqual([[],
-                          [self.deps_b.migration('0001_b'),
-                           self.deps_a.migration('0002_a')],
-                          [self.deps_b.migration('0002_b'),
-                           self.deps_a.migration('0003_a')],
-                          [self.deps_b.migration('0003_b')],
-                          [self.deps_b.migration('0004_b')]],
+                          [self.deps_b['0001_b'],
+                           self.deps_a['0002_a']],
+                          [self.deps_b['0002_b'],
+                           self.deps_a['0003_a']],
+                          [self.deps_b['0003_b']],
+                          [self.deps_b['0004_b']]],
                          [m.dependencies() for m in self.deps_b])
         self.assertEqual([[],
-                          [self.deps_c.migration('0001_c')],
-                          [self.deps_c.migration('0002_c')],
-                          [self.deps_c.migration('0003_c')],
-                          [self.deps_c.migration('0004_c'),
-                           self.deps_a.migration('0002_a')]],
+                          [self.deps_c['0001_c']],
+                          [self.deps_c['0002_c']],
+                          [self.deps_c['0003_c']],
+                          [self.deps_c['0004_c'],
+                           self.deps_a['0002_a']]],
                          [m.dependencies() for m in self.deps_c])
 
     def test_dependents(self):
-        self.assertEqual([[self.deps_a.migration('0002_a')],
-                          [self.deps_c.migration('0005_c'),
-                           self.deps_b.migration('0002_b'),
-                           self.deps_a.migration('0003_a')],
-                          [self.deps_b.migration('0003_b'),
-                           self.deps_a.migration('0004_a')],
-                          [self.deps_a.migration('0005_a')],
+        self.assertEqual([[self.deps_a['0002_a']],
+                          [self.deps_c['0005_c'],
+                           self.deps_b['0002_b'],
+                           self.deps_a['0003_a']],
+                          [self.deps_b['0003_b'],
+                           self.deps_a['0004_a']],
+                          [self.deps_a['0005_a']],
                           []],
                          [m.dependents() for m in self.deps_a])
-        self.assertEqual([[self.deps_b.migration('0002_b')],
-                          [self.deps_b.migration('0003_b')],
-                          [self.deps_b.migration('0004_b'),
-                           self.deps_a.migration('0004_a')],
-                          [self.deps_b.migration('0005_b')],
+        self.assertEqual([[self.deps_b['0002_b']],
+                          [self.deps_b['0003_b']],
+                          [self.deps_b['0004_b'],
+                           self.deps_a['0004_a']],
+                          [self.deps_b['0005_b']],
                           []],
                          [m.dependents() for m in self.deps_b])
-        self.assertEqual([[self.deps_c.migration('0002_c')],
-                          [self.deps_c.migration('0003_c')],
-                          [self.deps_c.migration('0004_c')],
-                          [self.deps_c.migration('0005_c')],
+        self.assertEqual([[self.deps_c['0002_c']],
+                          [self.deps_c['0003_c']],
+                          [self.deps_c['0004_c']],
+                          [self.deps_c['0005_c']],
                           []],
                          [m.dependents() for m in self.deps_c])
 
     def test_forwards_plan(self):
-        self.assertEqual([[self.deps_a.migration('0001_a')],
-                          [self.deps_a.migration('0001_a'),
-                           self.deps_a.migration('0002_a')],
-                          [self.deps_a.migration('0001_a'),
-                           self.deps_a.migration('0002_a'),
-                           self.deps_a.migration('0003_a')],
-                          [self.deps_a.migration('0001_a'),
-                           self.deps_a.migration('0002_a'),
-                           self.deps_a.migration('0003_a'),
-                           self.deps_b.migration('0001_b'),
-                           self.deps_b.migration('0002_b'),
-                           self.deps_b.migration('0003_b'),
-                           self.deps_a.migration('0004_a')],
-                          [self.deps_a.migration('0001_a'),
-                           self.deps_a.migration('0002_a'),
-                           self.deps_a.migration('0003_a'),
-                           self.deps_b.migration('0001_b'),
-                           self.deps_b.migration('0002_b'),
-                           self.deps_b.migration('0003_b'),
-                           self.deps_a.migration('0004_a'),
-                           self.deps_a.migration('0005_a')]],
+        self.assertEqual([[self.deps_a['0001_a']],
+                          [self.deps_a['0001_a'],
+                           self.deps_a['0002_a']],
+                          [self.deps_a['0001_a'],
+                           self.deps_a['0002_a'],
+                           self.deps_a['0003_a']],
+                          [self.deps_a['0001_a'],
+                           self.deps_a['0002_a'],
+                           self.deps_a['0003_a'],
+                           self.deps_b['0001_b'],
+                           self.deps_b['0002_b'],
+                           self.deps_b['0003_b'],
+                           self.deps_a['0004_a']],
+                          [self.deps_a['0001_a'],
+                           self.deps_a['0002_a'],
+                           self.deps_a['0003_a'],
+                           self.deps_b['0001_b'],
+                           self.deps_b['0002_b'],
+                           self.deps_b['0003_b'],
+                           self.deps_a['0004_a'],
+                           self.deps_a['0005_a']]],
                          [m.forwards_plan() for m in self.deps_a])
-        self.assertEqual([[self.deps_b.migration('0001_b')],
-                          [self.deps_b.migration('0001_b'),
-                           self.deps_a.migration('0001_a'),
-                           self.deps_a.migration('0002_a'),
-                           self.deps_b.migration('0002_b')],
-                          [self.deps_b.migration('0001_b'),
-                           self.deps_a.migration('0001_a'),
-                           self.deps_a.migration('0002_a'),
-                           self.deps_b.migration('0002_b'),
-                           self.deps_a.migration('0003_a'),
-                           self.deps_b.migration('0003_b')],
-                          [self.deps_b.migration('0001_b'),
-                           self.deps_a.migration('0001_a'),
-                           self.deps_a.migration('0002_a'),
-                           self.deps_b.migration('0002_b'),
-                           self.deps_a.migration('0003_a'),
-                           self.deps_b.migration('0003_b'),
-                           self.deps_b.migration('0004_b')],
-                          [self.deps_b.migration('0001_b'),
-                           self.deps_a.migration('0001_a'),
-                           self.deps_a.migration('0002_a'),
-                           self.deps_b.migration('0002_b'),
-                           self.deps_a.migration('0003_a'),
-                           self.deps_b.migration('0003_b'),
-                           self.deps_b.migration('0004_b'),
-                           self.deps_b.migration('0005_b')]],
+        self.assertEqual([[self.deps_b['0001_b']],
+                          [self.deps_b['0001_b'],
+                           self.deps_a['0001_a'],
+                           self.deps_a['0002_a'],
+                           self.deps_b['0002_b']],
+                          [self.deps_b['0001_b'],
+                           self.deps_a['0001_a'],
+                           self.deps_a['0002_a'],
+                           self.deps_b['0002_b'],
+                           self.deps_a['0003_a'],
+                           self.deps_b['0003_b']],
+                          [self.deps_b['0001_b'],
+                           self.deps_a['0001_a'],
+                           self.deps_a['0002_a'],
+                           self.deps_b['0002_b'],
+                           self.deps_a['0003_a'],
+                           self.deps_b['0003_b'],
+                           self.deps_b['0004_b']],
+                          [self.deps_b['0001_b'],
+                           self.deps_a['0001_a'],
+                           self.deps_a['0002_a'],
+                           self.deps_b['0002_b'],
+                           self.deps_a['0003_a'],
+                           self.deps_b['0003_b'],
+                           self.deps_b['0004_b'],
+                           self.deps_b['0005_b']]],
                          [m.forwards_plan() for m in self.deps_b])
-        self.assertEqual([[self.deps_c.migration('0001_c')],
-                          [self.deps_c.migration('0001_c'),
-                           self.deps_c.migration('0002_c')],
-                          [self.deps_c.migration('0001_c'),
-                           self.deps_c.migration('0002_c'),
-                           self.deps_c.migration('0003_c')],
-                          [self.deps_c.migration('0001_c'),
-                           self.deps_c.migration('0002_c'),
-                           self.deps_c.migration('0003_c'),
-                           self.deps_c.migration('0004_c')],
-                          [self.deps_c.migration('0001_c'),
-                           self.deps_c.migration('0002_c'),
-                           self.deps_c.migration('0003_c'),
-                           self.deps_c.migration('0004_c'),
-                           self.deps_a.migration('0001_a'),
-                           self.deps_a.migration('0002_a'),
-                           self.deps_c.migration('0005_c')]],
+        self.assertEqual([[self.deps_c['0001_c']],
+                          [self.deps_c['0001_c'],
+                           self.deps_c['0002_c']],
+                          [self.deps_c['0001_c'],
+                           self.deps_c['0002_c'],
+                           self.deps_c['0003_c']],
+                          [self.deps_c['0001_c'],
+                           self.deps_c['0002_c'],
+                           self.deps_c['0003_c'],
+                           self.deps_c['0004_c']],
+                          [self.deps_c['0001_c'],
+                           self.deps_c['0002_c'],
+                           self.deps_c['0003_c'],
+                           self.deps_c['0004_c'],
+                           self.deps_a['0001_a'],
+                           self.deps_a['0002_a'],
+                           self.deps_c['0005_c']]],
                          [m.forwards_plan() for m in self.deps_c])
 
     def test_backwards_plan(self):
-        self.assertEqual([[self.deps_c.migration('0005_c'),
-                           self.deps_b.migration('0005_b'),
-                           self.deps_b.migration('0004_b'),
-                           self.deps_a.migration('0005_a'),
-                           self.deps_a.migration('0004_a'),
-                           self.deps_b.migration('0003_b'),
-                           self.deps_b.migration('0002_b'),
-                           self.deps_a.migration('0003_a'),
-                           self.deps_a.migration('0002_a'),
-                           self.deps_a.migration('0001_a')],
-                          [self.deps_c.migration('0005_c'),
-                           self.deps_b.migration('0005_b'),
-                           self.deps_b.migration('0004_b'),
-                           self.deps_a.migration('0005_a'),
-                           self.deps_a.migration('0004_a'),
-                           self.deps_b.migration('0003_b'),
-                           self.deps_b.migration('0002_b'),
-                           self.deps_a.migration('0003_a'),
-                           self.deps_a.migration('0002_a')],
-                          [self.deps_b.migration('0005_b'),
-                           self.deps_b.migration('0004_b'),
-                           self.deps_a.migration('0005_a'),
-                           self.deps_a.migration('0004_a'),
-                           self.deps_b.migration('0003_b'),
-                           self.deps_a.migration('0003_a')],
-                          [self.deps_a.migration('0005_a'),
-                           self.deps_a.migration('0004_a')],
-                          [self.deps_a.migration('0005_a')]],
+        self.assertEqual([[self.deps_c['0005_c'],
+                           self.deps_b['0005_b'],
+                           self.deps_b['0004_b'],
+                           self.deps_a['0005_a'],
+                           self.deps_a['0004_a'],
+                           self.deps_b['0003_b'],
+                           self.deps_b['0002_b'],
+                           self.deps_a['0003_a'],
+                           self.deps_a['0002_a'],
+                           self.deps_a['0001_a']],
+                          [self.deps_c['0005_c'],
+                           self.deps_b['0005_b'],
+                           self.deps_b['0004_b'],
+                           self.deps_a['0005_a'],
+                           self.deps_a['0004_a'],
+                           self.deps_b['0003_b'],
+                           self.deps_b['0002_b'],
+                           self.deps_a['0003_a'],
+                           self.deps_a['0002_a']],
+                          [self.deps_b['0005_b'],
+                           self.deps_b['0004_b'],
+                           self.deps_a['0005_a'],
+                           self.deps_a['0004_a'],
+                           self.deps_b['0003_b'],
+                           self.deps_a['0003_a']],
+                          [self.deps_a['0005_a'],
+                           self.deps_a['0004_a']],
+                          [self.deps_a['0005_a']]],
                          [m.backwards_plan() for m in self.deps_a])
-        self.assertEqual([[self.deps_b.migration('0005_b'),
-                           self.deps_b.migration('0004_b'),
-                           self.deps_a.migration('0005_a'),
-                           self.deps_a.migration('0004_a'),
-                           self.deps_b.migration('0003_b'),
-                           self.deps_b.migration('0002_b'),
-                           self.deps_b.migration('0001_b')],
-                          [self.deps_b.migration('0005_b'),
-                           self.deps_b.migration('0004_b'),
-                           self.deps_a.migration('0005_a'),
-                           self.deps_a.migration('0004_a'),
-                           self.deps_b.migration('0003_b'),
-                           self.deps_b.migration('0002_b')],
-                          [self.deps_b.migration('0005_b'),
-                           self.deps_b.migration('0004_b'),
-                           self.deps_a.migration('0005_a'),
-                           self.deps_a.migration('0004_a'),
-                           self.deps_b.migration('0003_b')],
-                          [self.deps_b.migration('0005_b'),
-                           self.deps_b.migration('0004_b')],
-                          [self.deps_b.migration('0005_b')]],
+        self.assertEqual([[self.deps_b['0005_b'],
+                           self.deps_b['0004_b'],
+                           self.deps_a['0005_a'],
+                           self.deps_a['0004_a'],
+                           self.deps_b['0003_b'],
+                           self.deps_b['0002_b'],
+                           self.deps_b['0001_b']],
+                          [self.deps_b['0005_b'],
+                           self.deps_b['0004_b'],
+                           self.deps_a['0005_a'],
+                           self.deps_a['0004_a'],
+                           self.deps_b['0003_b'],
+                           self.deps_b['0002_b']],
+                          [self.deps_b['0005_b'],
+                           self.deps_b['0004_b'],
+                           self.deps_a['0005_a'],
+                           self.deps_a['0004_a'],
+                           self.deps_b['0003_b']],
+                          [self.deps_b['0005_b'],
+                           self.deps_b['0004_b']],
+                          [self.deps_b['0005_b']]],
                          [m.backwards_plan() for m in self.deps_b])
-        self.assertEqual([[self.deps_c.migration('0005_c'),
-                           self.deps_c.migration('0004_c'),
-                           self.deps_c.migration('0003_c'),
-                           self.deps_c.migration('0002_c'),
-                           self.deps_c.migration('0001_c')],
-                          [self.deps_c.migration('0005_c'),
-                           self.deps_c.migration('0004_c'),
-                           self.deps_c.migration('0003_c'),
-                           self.deps_c.migration('0002_c')],
-                          [self.deps_c.migration('0005_c'),
-                           self.deps_c.migration('0004_c'),
-                           self.deps_c.migration('0003_c')],
-                          [self.deps_c.migration('0005_c'),
-                           self.deps_c.migration('0004_c')],
-                          [self.deps_c.migration('0005_c')]],
+        self.assertEqual([[self.deps_c['0005_c'],
+                           self.deps_c['0004_c'],
+                           self.deps_c['0003_c'],
+                           self.deps_c['0002_c'],
+                           self.deps_c['0001_c']],
+                          [self.deps_c['0005_c'],
+                           self.deps_c['0004_c'],
+                           self.deps_c['0003_c'],
+                           self.deps_c['0002_c']],
+                          [self.deps_c['0005_c'],
+                           self.deps_c['0004_c'],
+                           self.deps_c['0003_c']],
+                          [self.deps_c['0005_c'],
+                           self.deps_c['0004_c']],
+                          [self.deps_c['0005_c']]],
                          [m.backwards_plan() for m in self.deps_c])
 
 
@@ -327,8 +327,8 @@ class TestCircularDependencies(Monkeypatcher):
     installed_apps = ["circular_a", "circular_b"]
 
     def test_check_dependencies(self):
-        circular_a = Migrations.from_name('circular_a')
-        circular_b = Migrations.from_name('circular_b')
+        circular_a = Migrations('circular_a')
+        circular_b = Migrations('circular_b')
         self.assertRaises(exceptions.CircularDependency,
                           migration.check_dependencies, circular_a)
         self.assertRaises(exceptions.CircularDependency,
@@ -345,18 +345,18 @@ class TestMigrations(Monkeypatcher):
         
         self.assertEqual(
             [M1, M2],
-            list(Migrations.all()),
+            list(migration.all_migrations()),
         )
 
-    def test_from_name(self):
+    def test(self):
         
         M1 = Migrations(__import__("fakeapp", {}, {}, ['']))
         
-        self.assertEqual(M1, Migrations.from_name("fakeapp"))
+        self.assertEqual(M1, Migrations("fakeapp"))
         self.assertEqual(M1, Migrations(self.create_fake_app("fakeapp")))
 
     def test_application(self):
-        fakeapp = Migrations.from_name("fakeapp")
+        fakeapp = Migrations("fakeapp")
         application = __import__("fakeapp", {}, {}, [''])
         self.assertEqual(application, fakeapp.application)
 
@@ -364,17 +364,17 @@ class TestMigrations(Monkeypatcher):
         # Can't use vanilla import, modules beginning with numbers aren't in grammar
         M1 = __import__("fakeapp.migrations.0001_spam", {}, {}, ['Migration']).Migration
         M2 = __import__("fakeapp.migrations.0002_eggs", {}, {}, ['Migration']).Migration
-        migration = Migrations.from_name('fakeapp')
-        self.assertEqual(M1, migration.migration("0001_spam").migration().Migration)
-        self.assertEqual(M2, migration.migration("0002_eggs").migration().Migration)
+        migration = Migrations('fakeapp')
+        self.assertEqual(M1, migration['0001_spam'].migration().Migration)
+        self.assertEqual(M2, migration['0002_eggs'].migration().Migration)
         self.assertRaises(exceptions.UnknownMigration,
-                          migration.migration("0001_jam").migration)
+                          migration['0001_jam'].migration)
 
     def test_guess_migration(self):
         # Can't use vanilla import, modules beginning with numbers aren't in grammar
         M1 = __import__("fakeapp.migrations.0001_spam", {}, {}, ['Migration']).Migration
         M2 = __import__("fakeapp.migrations.0002_eggs", {}, {}, ['Migration']).Migration
-        migration = Migrations.from_name('fakeapp')
+        migration = Migrations('fakeapp')
         self.assertEqual(M1, migration.guess_migration("0001_spam").migration().Migration)
         self.assertEqual(M1, migration.guess_migration("0001_spa").migration().Migration)
         self.assertEqual(M1, migration.guess_migration("0001_sp").migration().Migration)
@@ -395,12 +395,12 @@ class TestMigrations(Monkeypatcher):
     def test_app_name(self):
         names = ['fakeapp', 'otherfakeapp']
         self.assertEqual(names,
-                         [Migrations.from_name(n).app_name() for n in names])
+                         [Migrations(n).app_name() for n in names])
     
     def test_full_name(self):
         names = ['fakeapp', 'otherfakeapp']
         self.assertEqual([n + '.migrations' for n in names],
-                         [Migrations.from_name(n).full_name() for n in names])
+                         [Migrations(n).full_name() for n in names])
 
 
 class TestMigrationLogic(Monkeypatcher):
@@ -423,7 +423,7 @@ class TestMigrationLogic(Monkeypatcher):
     
     def test_apply_migrations(self):
         migration.MigrationHistory.objects.all().delete()
-        migrations = migration.Migrations.from_name("fakeapp")
+        migrations = migration.Migrations("fakeapp")
         
         # We should start with no migrations
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
@@ -450,7 +450,7 @@ class TestMigrationLogic(Monkeypatcher):
     
     def test_migration_merge_forwards(self):
         migration.MigrationHistory.objects.all().delete()
-        migrations = migration.Migrations.from_name("fakeapp")
+        migrations = migration.Migrations("fakeapp")
         
         # We should start with no migrations
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
@@ -523,7 +523,7 @@ class TestMigrationLogic(Monkeypatcher):
                 transaction.commit()
                 return True
         
-        migrations = migration.Migrations.from_name("fakeapp")
+        migrations = migration.Migrations("fakeapp")
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
         
         # by default name is NOT NULL
@@ -544,23 +544,23 @@ class TestMigrationLogic(Monkeypatcher):
     
     def test_dependencies(self):
         
-        fakeapp = migration.Migrations.from_name("fakeapp")
-        otherfakeapp = migration.Migrations.from_name("otherfakeapp")
+        fakeapp = migration.Migrations("fakeapp")
+        otherfakeapp = migration.Migrations("otherfakeapp")
         
         # Test a simple path
-        self.assertEqual([fakeapp.migration('0001_spam'),
-                          fakeapp.migration('0002_eggs'),
-                          fakeapp.migration('0003_alter_spam')],
-                         fakeapp.migration("0003_alter_spam").forwards_plan())
+        self.assertEqual([fakeapp['0001_spam'],
+                          fakeapp['0002_eggs'],
+                          fakeapp['0003_alter_spam']],
+                         fakeapp['0003_alter_spam'].forwards_plan())
         
         # And a complex one.
-        self.assertEqual([fakeapp.migration('0001_spam'),
-                          otherfakeapp.migration('0001_first'),
-                          otherfakeapp.migration('0002_second'),
-                          fakeapp.migration('0002_eggs'),
-                          fakeapp.migration('0003_alter_spam'),
-                          otherfakeapp.migration('0003_third')],
-                         otherfakeapp.migration("0003_third").forwards_plan())
+        self.assertEqual([fakeapp['0001_spam'],
+                          otherfakeapp['0001_first'],
+                          otherfakeapp['0002_second'],
+                          fakeapp['0002_eggs'],
+                          fakeapp['0003_alter_spam'],
+                          otherfakeapp['0003_third']],
+                         otherfakeapp['0003_third'].forwards_plan())
 
 
 class TestMigrationUtils(Monkeypatcher):
