@@ -31,15 +31,15 @@ class NoMigrations(SouthError):
         return "Application '%(application)s' has no migrations." % self.__dict__
 
 
-class GuessMigrationError(SouthError):
+class MultiplePrefixMatches(SouthError):
     def __init__(self, prefix, matches):
         self.prefix = prefix
         self.matches = matches
 
     def __str__(self):
-        self.matches_list = "\n     ".join(self.matches)
+        self.matches_list = "\n    ".join([str(m) for m in self.matches])
         return ("Prefix '%(prefix)s' matches more than one migration:\n"
-                "     %(matches_list)") % self.__dict__
+                "    %(matches_list)s") % self.__dict__
 
 
 class DependsOnHigherMigration(SouthError):

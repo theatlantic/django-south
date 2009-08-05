@@ -230,7 +230,7 @@ class Migrations(list):
         if len(matches) == 1:
             return matches[0]
         elif len(matches) > 1:
-            raise exceptions.GuessMigrationError(prefix, matches)
+            raise exceptions.MultiplePrefixMatches(prefix, matches)
         else:
             raise exceptions.UnknownMigration(prefix, None)
 
