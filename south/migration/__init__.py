@@ -297,113 +297,111 @@ def run_migration(toprint, torun, recorder, migration, fake=False, db_dry_run=Fa
     """
     Runs the specified migration forwards/backwards, in order.
     """
-    for migration in [migration]:
+    if verbosity:
+        print toprint % migration
+
+    app = migration.migrations._migrations
+    migration_name = migration.name()
+    # Get migration class
+    klass = migration.migration().Migration
+    # Find its predecessor, and attach the ORM from that as prev_orm.
+    previous = migration.previous()
+    # First migration? The 'previous ORM' is empty.
+    if previous is None:
+        klass.prev_orm = FakeORM(None, app)
+    else:
+        klass.prev_orm = get_migration(app, previous.name()).orm
+
+    # If this is a 'fake' migration, do nothing.
+    if fake:
         if verbosity:
-            print toprint % migration
+            print "   (faked)"
 
-        app = migration.migrations._migrations
-        migration_name = migration.name()
-        # Get migration class
-        klass = migration.migration().Migration
-        # Find its predecessor, and attach the ORM from that as prev_orm.
-        previous = migration.previous()
-        # First migration? The 'previous ORM' is empty.
-        if previous is None:
-            klass.prev_orm = FakeORM(None, app)
+    # OK, we should probably do something then.
+    else:
+        runfunc = getattr(klass(), torun)
+        args = inspect.getargspec(runfunc)
+
+        # Get the correct ORM.
+        if torun == "forwards":
+            orm = klass.orm
         else:
-            klass.prev_orm = get_migration(app, previous.name()).orm
-        
-        # If this is a 'fake' migration, do nothing.
-        if fake:
-            if verbosity:
-                print "   (faked)"
-        
-        # OK, we should probably do something then.
-        else:
-            runfunc = getattr(klass(), torun)
-            args = inspect.getargspec(runfunc)
-            
-            # Get the correct ORM.
-            if torun == "forwards":
-                orm = klass.orm
-            else:
-                orm = klass.prev_orm
-            
-            db.current_orm = orm
-            
-            # If the database doesn't support running DDL inside a transaction
-            # *cough*MySQL*cough* then do a dry run first.
-            if not db.has_ddl_transactions or db_dry_run:
-                if not (hasattr(klass, "no_dry_run") and klass.no_dry_run):
-                    db.dry_run = True
-                    db.debug, old_debug = False, db.debug
-                    pending_creates = db.get_pending_creates()
-                    db.start_transaction()
-                    try:
-                        if len(args[0]) == 1:  # They don't want an ORM param
-                            runfunc()
-                        else:
-                            runfunc(orm)
-                            db.rollback_transactions_dry_run()
-                    except:
-                        traceback.print_exc()
-                        print " ! Error found during dry run of migration! Aborting."
-                        return False
-                    db.debug = old_debug
-                    db.clear_run_data(pending_creates)
-                    db.dry_run = False
-                elif db_dry_run:
-                    print " - Migration '%s' is marked for no-dry-run."
-                # If they really wanted to dry-run, then quit!
-                if db_dry_run:
-                    return
-            
-            db.start_transaction()
-            try:
-                if len(args[0]) == 1:  # They don't want an ORM param
-                    runfunc()
-                else:
-                    runfunc(orm)
-                db.execute_deferred_sql()
-            except:
-                db.rollback_transaction()
-                if not db.has_ddl_transactions:
+            orm = klass.prev_orm
+
+        db.current_orm = orm
+
+        # If the database doesn't support running DDL inside a transaction
+        # *cough*MySQL*cough* then do a dry run first.
+        if not db.has_ddl_transactions or db_dry_run:
+            if not (hasattr(klass, "no_dry_run") and klass.no_dry_run):
+                db.dry_run = True
+                db.debug, old_debug = False, db.debug
+                pending_creates = db.get_pending_creates()
+                db.start_transaction()
+                try:
+                    if len(args[0]) == 1:  # They don't want an ORM param
+                        runfunc()
+                    else:
+                        runfunc(orm)
+                        db.rollback_transactions_dry_run()
+                except:
                     traceback.print_exc()
-                    print " ! Error found during real run of migration! Aborting."
-                    print
-                    print " ! Since you have a database that does not support running"
-                    print " ! schema-altering statements in transactions, we have had to"
-                    print " ! leave it in an interim state between migrations."
-                    if torun == "forwards":
-                        print
-                        print " ! You *might* be able to recover with:"
-                        db.debug = db.dry_run = True
-                        if len(args[0]) == 1:
-                            klass().backwards()
-                        else:
-                            klass().backwards(klass.prev_orm)
-                    print
-                    print " ! The South developers regret this has happened, and would"
-                    print " ! like to gently persuade you to consider a slightly"
-                    print " ! easier-to-deal-with DBMS."
-                raise
-            else:
-                db.commit_transaction()
+                    print " ! Error found during dry run of migration! Aborting."
+                    return False
+                db.debug = old_debug
+                db.clear_run_data(pending_creates)
+                db.dry_run = False
+            elif db_dry_run:
+                print " - Migration '%s' is marked for no-dry-run."
+            # If they really wanted to dry-run, then quit!
+            if db_dry_run:
+                return
 
-        if not db_dry_run:
-            db.start_transaction()
-            try:
-                # Record us as having done this
-                recorder(migration)
-            except:
-                db.rollback_transaction()
-                raise
+        db.start_transaction()
+        try:
+            if len(args[0]) == 1:  # They don't want an ORM param
+                runfunc()
             else:
-                db.commit_transaction()
-            if not fake:
-                # Send a signal saying it ran
-                ran_migration.send(None, app=migration.app_name(), migration=migration, method=torun)
+                runfunc(orm)
+            db.execute_deferred_sql()
+        except:
+            db.rollback_transaction()
+            if not db.has_ddl_transactions:
+                traceback.print_exc()
+                print " ! Error found during real run of migration! Aborting."
+                print
+                print " ! Since you have a database that does not support running"
+                print " ! schema-altering statements in transactions, we have had to"
+                print " ! leave it in an interim state between migrations."
+                if torun == "forwards":
+                    print
+                    print " ! You *might* be able to recover with:"
+                    db.debug = db.dry_run = True
+                    if len(args[0]) == 1:
+                        klass().backwards()
+                    else:
+                        klass().backwards(klass.prev_orm)
+                print
+                print " ! The South developers regret this has happened, and would"
+                print " ! like to gently persuade you to consider a slightly"
+                print " ! easier-to-deal-with DBMS."
+            raise
+        else:
+            db.commit_transaction()
 
+    if not db_dry_run:
+        db.start_transaction()
+        try:
+            # Record us as having done this
+            recorder(migration)
+        except:
+            db.rollback_transaction()
+            raise
+        else:
+            db.commit_transaction()
+        if not fake:
+            # Send a signal saying it ran
+            ran_migration.send(None, app=migration.app_name(), migration=migration, method=torun)
 
 def run_forwards(migration, fake=False, db_dry_run=False, verbosity=0):
     """
