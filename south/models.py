@@ -3,7 +3,7 @@ from django.db import models
 class MigrationHistory(models.Model):
     app_name = models.CharField(max_length=255)
     migration = models.CharField(max_length=255)
-    applied = models.DateTimeField(blank=True, null=True)
+    applied = models.DateTimeField(blank=True)
 
     class Meta:
         unique_together = (('app_name', 'migration'),)
