@@ -505,6 +505,7 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                 recorder(app_name, migration)
             except:
                 db.rollback_transaction()
+                raise
             else:
                 db.commit_transaction()
             if not fake:
