@@ -559,16 +559,18 @@ class TestMigrationLogic(Monkeypatcher):
         # Test a simple path
         tree = migration.dependency_tree()
         self.assertEqual([fakeapp.migration('0001_spam'),
-                          fakeapp.migration('0002_eggs')],
-                         migration.needed_before_forwards(fakeapp.migration("0003_alter_spam")))
+                          fakeapp.migration('0002_eggs'),
+                          fakeapp.migration('0003_alter_spam')],
+                         fakeapp.migration("0003_alter_spam").forwards_plan())
         
         # And a complex one.
         self.assertEqual([fakeapp.migration('0001_spam'),
                           otherfakeapp.migration('0001_first'),
                           otherfakeapp.migration('0002_second'),
                           fakeapp.migration('0002_eggs'),
-                          fakeapp.migration('0003_alter_spam')],
-                         migration.needed_before_forwards(otherfakeapp.migration("0003_third")))
+                          fakeapp.migration('0003_alter_spam'),
+                          otherfakeapp.migration('0003_third')],
+                         otherfakeapp.migration("0003_third").forwards_plan())
 
 
 class TestMigrationUtils(Monkeypatcher):
