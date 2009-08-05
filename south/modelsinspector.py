@@ -81,6 +81,13 @@ introspection_details = [
         },
     ),
     (
+        (models.BooleanField, ),
+        [],
+        {
+            "default": ["default", {"default": NOT_PROVIDED, "converter": bool}],
+        },
+    ),
+    (
         (models.FilePathField, ),
         [],
         {
@@ -186,9 +193,12 @@ def get_value(field, descriptor):
         if value == datetime.date.today:
             return "datetime.date.today"
         # All other callables get called.
-        return repr(value())
-    else:
-        return repr(value)
+        value = value()
+    # Now, apply the converter func if there is one
+    if "converter" in options:
+        value = options['converter'](value)
+    # Return the final value
+    return repr(value)
 
 
 def introspector(field):
@@ -227,10 +237,7 @@ def get_model_fields(model, m2m=False):
             inherited_fields.update(get_model_fields(base))
     
     # Now, ask the parser to have a look at this model too.
-    try:
-        parser_fields = modelsparser.get_model_fields(model, m2m) or {}
-    except TypeError: # Almost certainly a not-real module
-        parser_fields = {}
+    parser_fields = modelsparser.get_model_fields(model, m2m) or {}
     
     # Now, go through all the fields and try to get their definition
     source = model._meta.local_fields[:]
