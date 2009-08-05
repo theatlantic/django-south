@@ -323,6 +323,18 @@ class TestMigrationDependencies(Monkeypatcher):
                          [m.backwards_plan() for m in self.deps_c])
 
 
+class TestCircularDependencies(Monkeypatcher):
+    installed_apps = ["circular_a", "circular_b"]
+
+    def test_check_dependencies(self):
+        circular_a = Migrations.from_name('circular_a')
+        circular_b = Migrations.from_name('circular_b')
+        self.assertRaises(exceptions.CircularDependency,
+                          migration.check_dependencies, circular_a)
+        self.assertRaises(exceptions.CircularDependency,
+                          migration.check_dependencies, circular_b)
+
+
 class TestMigrations(Monkeypatcher):
     installed_apps = ["fakeapp", "otherfakeapp"]
 

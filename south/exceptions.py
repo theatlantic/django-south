@@ -37,9 +37,19 @@ class MultiplePrefixMatches(SouthError):
         self.matches = matches
 
     def __str__(self):
-        self.matches_list = "\n    ".join([str(m) for m in self.matches])
+        self.matches_list = "\n    ".join([unicode(m) for m in self.matches])
         return ("Prefix '%(prefix)s' matches more than one migration:\n"
                 "    %(matches_list)s") % self.__dict__
+
+
+class CircularDependency(SouthError):
+    def __init__(self, trace):
+        self.trace = trace
+
+    def __str__(self):
+        trace = " -> ".join([unicode(s) for s in self.trace])
+        return ("Found circular dependency:\n"
+                "    %s") % trace
 
 
 class DependsOnHigherMigration(SouthError):

@@ -265,16 +265,13 @@ class Migrations(list):
                 for dependency in migration.dependencies():
                     dependency.add_dependent(migration)
 
-def trace(seen):
-    return " -> ".join([unicode(s) for s in seen])
-
 def check_dependencies(migrations, seen=[]):
     for migration in migrations:
         here = seen + [migration]
         if migration in seen:
-            print "Found circular dependency: %s" % trace(here)
-            sys.exit(1)
+            raise exceptions.CircularDependency(here)
         check_dependencies(migration.dependencies(), here)
+    return True
 
 def run_migration(toprint, torun, recorder, migration, fake=False, db_dry_run=False, verbosity=0):
     """
