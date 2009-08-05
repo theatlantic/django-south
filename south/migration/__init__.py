@@ -76,12 +76,14 @@ class Migration(object):
         if index < 0:
             return None
         return self.migrations[index]
+    previous = memoize(previous)
 
     def next(self):
         index = self.migrations.index(self) + 1
         if index >= len(self.migrations):
             return None
         return self.migrations[index]
+    next = memoize(next)
 
     def dependencies(self):
         result = [self.previous()]
