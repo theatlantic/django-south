@@ -332,7 +332,7 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
             # Call any pending post_syncdb signals
             db.send_pending_create_signals()
         # Now load initial data, only if we're really doing things and ended up at current
-        if not fake and not db_dry_run and load_inital_data and target_name == migrations[-1]:
+        if not fake and not db_dry_run and load_inital_data and target == migrations[-1]:
             if verbosity:
                 print " - Loading initial data for %s." % app_name
             # Override Django's get_apps call temporarily to only load from the
