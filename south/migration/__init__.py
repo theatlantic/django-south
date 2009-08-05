@@ -18,7 +18,6 @@ from south.migration.base import all_migrations, Migrations
 from south.orm import FakeORM
 from south.signals import pre_migrate, post_migrate, ran_migration
 
-
 def check_dependencies(migrations, seen=[]):
     for migration in migrations:
         here = seen + [migration]
@@ -199,9 +198,9 @@ def backwards_problems(backwards, done, verbosity=0):
                     problems.append((migration, m))
     return problems
 
-def find_ghost_migrations():
+def find_ghost_migrations(histories):
     result = []
-    for history in MigrationHistory.objects.filter(applied__isnull=False):
+    for history in histories:
         migration = history.get_migration()
         try:
             migration.migration()
@@ -233,7 +232,8 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
                                                                target.name())
             target_name = target.name()
     # Check there's no strange ones in the database
-    ghost_migrations = find_ghost_migrations()
+    histories = MigrationHistory.objects.filter(applied__isnull=False)
+    ghost_migrations = find_ghost_migrations(histories)
     if ghost_migrations:
         print " ! These migrations are in the database but not on disk:"
         print "   - " + "\n   - ".join([str(m) for m in ghost_migrations])
@@ -262,7 +262,7 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
     
     # Get the list of currently applied migrations from the db
     current_migrations = []
-    for history in MigrationHistory.objects.filter(applied__isnull = False):
+    for history in histories:
         try:
             current_migrations.append(history.get_migration())
         except ImproperlyConfigured:
@@ -272,17 +272,19 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
     bad = False
     
     # Work out the direction
-    applied_for_this_app = list(MigrationHistory.objects.filter(app_name=app_name, applied__isnull=False).order_by("migration"))
+    applied_for_this_app = histories.filter(app_name=app_name).order_by('-migration')[:1]
     if target_name == "zero":
         direction = -1
     elif not applied_for_this_app:
         direction = 1
-    elif target.is_before(applied_for_this_app[-1].get_migration()):
-        direction = 1
-    elif target.is_after(applied_for_this_app[-1].get_migration()):
-        direction = -1
     else:
-        direction = None
+        latest = applied_for_this_app[0].get_migration()
+        if target.is_before(latest):
+            direction = 1
+        elif target.is_after(latest):
+            direction = -1
+        else:
+            direction = None
     
     # Is the whole forward branch applied?
     missing = [step for step in forwards if step not in current_migrations]
