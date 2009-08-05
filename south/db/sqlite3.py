@@ -72,6 +72,6 @@ class DatabaseOperations(generic.DatabaseOperations):
         qn = connection.ops.quote_name
         q_fields = [qn(field) for field in fields]
         for key, value in field_renames.items():
-            q_fields[q_fields.index(value)] = "%s AS %s" % (qn(key), qn(value))
+            q_fields[q_fields.index(qn(value))] = "%s AS %s" % (qn(key), qn(value))
         sql = "INSERT INTO %s SELECT %s FROM %s;" % (qn(dst), ', '.join(q_fields), qn(src))
         self.execute(sql)
