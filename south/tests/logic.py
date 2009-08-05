@@ -74,7 +74,8 @@ class TestMigration(Monkeypatcher):
                          [m.dependencies() for m in self.fakeapp])
         self.assertEqual([[self.fakeapp.migration('0001_spam')],
                           [self.otherfakeapp.migration('0001_first')],
-                          [self.otherfakeapp.migration('0002_second')]],
+                          [self.otherfakeapp.migration('0002_second'),
+                           self.fakeapp.migration('0003_alter_spam')]],
                          [m.dependencies() for m in self.otherfakeapp])
         depends_on_unmigrated = self.brokenapp.migration('0001_depends_on_unmigrated')
         self.assertRaises(exceptions.DependsOnUnmigratedApplication,
@@ -102,6 +103,8 @@ class TestMigration(Monkeypatcher):
                           [self.fakeapp.migration('0001_spam'),
                            self.otherfakeapp.migration('0001_first'),
                            self.otherfakeapp.migration('0002_second'),
+                           self.fakeapp.migration('0002_eggs'),
+                           self.fakeapp.migration('0003_alter_spam'),
                            self.otherfakeapp.migration('0003_third')]],
                          [m.forwards_plan() for m in self.otherfakeapp])
 
@@ -532,13 +535,13 @@ class TestMigrationLogic(Monkeypatcher):
         # Test a simple path
         tree = migration.dependency_tree()
         self.assertEqual(
-            map(snd, migration.needed_before_forwards(tree, fakeapp, "0003_alter_spam")),
+            map(snd, migration.needed_before_forwards("fakeapp", "0003_alter_spam")),
             ['0001_spam', '0002_eggs'],
         )
         
         # And a complex one, with both back and forwards deps
         self.assertEqual(
-            map(snd, migration.needed_before_forwards(tree, otherfakeapp, "0003_third")),
+            map(snd, migration.needed_before_forwards("otherfakeapp", "0003_third")),
             ['0001_spam', '0001_first', '0002_second', '0002_eggs', '0003_alter_spam'],
         )
 
