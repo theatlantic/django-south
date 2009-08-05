@@ -485,16 +485,13 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
     
     # Fire off the pre-migrate signal
     pre_migrate.send(None, app=app_name)
-    
-    # Find out what delightful migrations we have
-    check_dependencies(migrations)
-    tree = dependency_tree()
-    
     # If there aren't any, quit quizically
     if not migrations:
         print "? You have no migrations for the '%s' app. You might want some." % app_name
         return
-
+    # Check that all the dependencies are sane
+    check_dependencies(migrations)
+    tree = dependency_tree()
     # Guess the target_name
     if target_name not in ["zero", None]:
         target = migrations.guess_migration(target_name)
