@@ -6,14 +6,17 @@ class MigrationHistory(models.Model):
     applied = models.DateTimeField(blank=True, null=True)
 
     @classmethod
-    def for_migration(cls, app_name, migration):
+    def for_migration(cls, migration):
         try:
-            return cls.objects.get(
-                app_name = app_name,
-                migration = migration,
-            )
+            return cls.objects.get(app_name=migration.app_name(),
+                                   migration=migration.name())
         except cls.DoesNotExist:
-            return cls(
-                app_name = app_name,
-                migration = migration,
-            )
+            return cls(app_name=migration.app_name(),
+                       migration=migration.name())
+
+    def get_migrations(self):
+        from south.migration import Migrations
+        return Migrations.from_name(self.app_name)
+
+    def get_migration(self):
+        return self.get_migrations().migration(self.migration)
