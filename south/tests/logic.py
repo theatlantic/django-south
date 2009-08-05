@@ -426,7 +426,9 @@ class TestMigrationLogic(Monkeypatcher):
         list1.sort()
         list2.sort()
         return self.assertEqual(list1, list2)
-    
+
+    def test_find_ghost_migrations(self):
+        pass
     
     def test_apply_migrations(self):
         migration.MigrationHistory.objects.all().delete()
@@ -551,21 +553,22 @@ class TestMigrationLogic(Monkeypatcher):
     
     def test_dependencies(self):
         
-        fakeapp = migration.Migrations.from_name("fakeapp")._migrations
-        otherfakeapp = migration.Migrations.from_name("otherfakeapp")._migrations
+        fakeapp = migration.Migrations.from_name("fakeapp")
+        otherfakeapp = migration.Migrations.from_name("otherfakeapp")
         
         # Test a simple path
         tree = migration.dependency_tree()
-        self.assertEqual(
-            map(snd, migration.needed_before_forwards("fakeapp", "0003_alter_spam")),
-            ['0001_spam', '0002_eggs'],
-        )
+        self.assertEqual([fakeapp.migration('0001_spam'),
+                          fakeapp.migration('0002_eggs')],
+                         migration.needed_before_forwards(fakeapp.migration("0003_alter_spam")))
         
-        # And a complex one, with both back and forwards deps
-        self.assertEqual(
-            map(snd, migration.needed_before_forwards("otherfakeapp", "0003_third")),
-            ['0001_spam', '0001_first', '0002_second', '0002_eggs', '0003_alter_spam'],
-        )
+        # And a complex one.
+        self.assertEqual([fakeapp.migration('0001_spam'),
+                          otherfakeapp.migration('0001_first'),
+                          otherfakeapp.migration('0002_second'),
+                          fakeapp.migration('0002_eggs'),
+                          fakeapp.migration('0003_alter_spam')],
+                         migration.needed_before_forwards(otherfakeapp.migration("0003_third")))
 
 
 class TestMigrationUtils(Monkeypatcher):
