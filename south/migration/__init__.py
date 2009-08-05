@@ -40,8 +40,12 @@ class Migration(object):
     def app_name(self):
         return self.migrations.app_name()
 
+    @staticmethod
+    def strip_filename(filename):
+        return os.path.splitext(os.path.basename(filename))[0]
+
     def name(self):
-        return os.path.splitext(os.path.basename(self.filename))[0]
+        return self.strip_filename(os.path.basename(self.filename))
 
     def full_name(self):
         return self.migrations.full_name() + '.' + self.name()
@@ -215,7 +219,7 @@ class Migrations(list):
         self.extend(self.migration(f) for f in filenames)
 
     def migration(self, filename):
-        name, _ = os.path.splitext(os.path.basename(filename))
+        name = Migration.strip_filename(filename)
         if name not in self._cache:
             self._cache[name] = Migration(self, name)
         return self._cache[name]
