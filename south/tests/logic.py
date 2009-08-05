@@ -358,6 +358,28 @@ class TestMigrations(Monkeypatcher):
         self.assertRaises(exceptions.UnknownMigration,
                           migration.migration("0001_jam").migration)
 
+    def test_guess_migration(self):
+        # Can't use vanilla import, modules beginning with numbers aren't in grammar
+        M1 = __import__("fakeapp.migrations.0001_spam", {}, {}, ['Migration']).Migration
+        M2 = __import__("fakeapp.migrations.0002_eggs", {}, {}, ['Migration']).Migration
+        migration = Migrations.from_name('fakeapp')
+        self.assertEqual(M1, migration.guess_migration("0001_spam").migration().Migration)
+        self.assertEqual(M1, migration.guess_migration("0001_spa").migration().Migration)
+        self.assertEqual(M1, migration.guess_migration("0001_sp").migration().Migration)
+        self.assertEqual(M1, migration.guess_migration("0001_s").migration().Migration)
+        self.assertEqual(M1, migration.guess_migration("0001_").migration().Migration)
+        self.assertEqual(M1, migration.guess_migration("0001").migration().Migration)
+        self.assertRaises(exceptions.UnknownMigration,
+                          migration.guess_migration, "0001-spam")
+        self.assertRaises(exceptions.MultiplePrefixMatches,
+                          migration.guess_migration, "000")
+        self.assertRaises(exceptions.MultiplePrefixMatches,
+                          migration.guess_migration, "")
+        self.assertRaises(exceptions.UnknownMigration,
+                          migration.guess_migration, "0001_spams")
+        self.assertRaises(exceptions.UnknownMigration,
+                          migration.guess_migration, "0001_jam")
+
     def test_app_name(self):
         names = ['fakeapp', 'otherfakeapp']
         self.assertEqual(names,
