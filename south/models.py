@@ -16,7 +16,7 @@ class MigrationHistory(models.Model):
 
     def get_migrations(self):
         from south.migration import Migrations
-        return Migrations.from_name(self.app_name)
+        return Migrations(self.app_name)
 
     def get_migration(self):
         return self.get_migrations().migration(self.migration)

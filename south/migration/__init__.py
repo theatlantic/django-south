@@ -93,7 +93,7 @@ class Migration(object):
         # Get forwards dependencies
         for app, name in getattr(migclass, 'depends_on', []):
             try:
-                migrations = Migrations.from_name(app)
+                migrations = Migrations(app)
             except ImproperlyConfigured:
                 raise exceptions.DependsOnUnmigratedApplication(self, app)
             migration = migrations.migration(name)
@@ -161,10 +161,29 @@ class Migration(object):
             return False
 
 
-MIGRATIONS_CACHE = {}
+def Migrations(application):
+    if isinstance(application, basestring):
+        app_name = application
+    else:
+        app_name = application.__name__
+    if app_name not in Migrations.cache:
+        Migrations.cache[app_name] = _Migrations(application)
+    return Migrations.cache[app_name]
+Migrations.cache = {}
 
+def all_migrations(applications=None):
+    """
+    Returns all Migrations for all `applications` that are migrated.
+    """
+    if applications is None:
+        applications = models.get_apps()
+    for app in applications:
+        try:
+            yield Migrations(app)
+        except exceptions.NoMigrations:
+            pass
 
-class Migrations(list):
+class _Migrations(list):
     """
     Holds a list of Migration objects for a particular app.
     """
@@ -174,18 +193,25 @@ class Migrations(list):
                                     r'\.py$')       # Match only .py files
 
     def __new__(cls, application):
-        app_name = application.__name__
-        if app_name not in MIGRATIONS_CACHE:
-            obj = list.__new__(cls)
-            obj._initialized = False
-            MIGRATIONS_CACHE[app_name] = obj
-        return MIGRATIONS_CACHE[app_name]
+        if isinstance(application, basestring):
+            return cls.from_name(application)
+        return super(_Migrations, cls).__new__(cls)
 
     def __init__(self, application):
-        if not self._initialized:
+        if hasattr(application, '__name__'):
             self._cache = {}
             self.application = application
-            self._initialized = True
+
+    @classmethod
+    def from_name(cls, app_name):
+        app = models.get_app(app_name)
+        module_name = get_app_name(app)
+        try:
+            module = sys.modules[module_name]
+        except KeyError:
+            __import__(module_name, {}, {}, [''])
+            module = sys.modules[module_name]
+        return cls(module)
 
     def get_application(self):
         return self._application
@@ -203,31 +229,6 @@ class Migrations(list):
 
     application = property(get_application, set_application)
 
-    @classmethod
-    def from_name(cls, app_name):
-        try:
-            return MIGRATIONS_CACHE[app_name]
-        except KeyError:
-            app = models.get_app(app_name)
-            module_name = get_app_name(app)
-            try:
-                module = sys.modules[module_name]
-            except KeyError:
-                __import__(module_name, {}, {}, [''])
-                module = sys.modules[module_name]
-            return cls(module)
-
-    @classmethod
-    def all(cls):
-        """
-        Returns all migrations from all apps.
-        """
-        for mapp in models.get_apps():
-            try:
-                yield cls.from_name(mapp)
-            except exceptions.NoMigrations:
-                pass
-
     def _load_migrations_module(self, module):
         self._migrations = module
         filenames = []
@@ -243,6 +244,11 @@ class Migrations(list):
         if name not in self._cache:
             self._cache[name] = Migration(self, name)
         return self._cache[name]
+
+    def __getitem__(self, value):
+        if isinstance(value, basestring):
+            return self.migration(value)
+        return super(_Migrations, self).__getitem__(value)
 
     def guess_migration(self, prefix):
         prefix = Migration.strip_filename(prefix)
@@ -261,7 +267,7 @@ class Migrations(list):
         return self._migrations.__name__
 
     def calculate_dependents(self):
-        for migrations in self.all():
+        for migrations in all_migrations():
             for migration in migrations:
                 migration.add_dependent(None)
                 for dependency in migration.dependencies():
