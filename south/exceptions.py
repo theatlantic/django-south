@@ -1,4 +1,4 @@
-import traceback
+from traceback import format_exception
 
 class SouthError(RuntimeError):
     pass
@@ -8,9 +8,11 @@ class BrokenMigration(SouthError):
     def __init__(self, migration, exc_info):
         self.migration = migration
         self.exc_info = exc_info
-        self.traceback = ''.join(traceback.format_exception(*self.exc_info))
+        self.traceback = ''
 
     def __str__(self):
+        if self.exc_info:
+            self.traceback = ''.join(format_exception(*self.exc_info))
         return ("While loading migration '%s':\n"
                 '%(traceback)s' % self.__dict__)
 
@@ -27,6 +29,17 @@ class NoMigrations(SouthError):
 
     def __str__(self):
         return "Application '%(application)s' has no migrations." % self.__dict__
+
+
+class GuessMigrationError(SouthError):
+    def __init__(self, prefix, matches):
+        self.prefix = prefix
+        self.matches = matches
+
+    def __str__(self):
+        self.matches_list = "\n     ".join(self.matches)
+        return ("Prefix '%(prefix)s' matches more than one migration:\n"
+                "     %(matches_list)") % self.__dict__
 
 
 class DependsOnHigherMigration(SouthError):
