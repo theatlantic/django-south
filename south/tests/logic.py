@@ -377,7 +377,7 @@ class TestMigrationLogic(Monkeypatcher):
     
     installed_apps = ["fakeapp", "otherfakeapp"]
 
-    def test_all_migrations(self):
+    def test_dependency_tree(self):
         
         migrations = migration.Migrations.from_name("fakeapp")
         othermigrations = migration.Migrations.from_name("otherfakeapp")
@@ -394,7 +394,7 @@ class TestMigrationLogic(Monkeypatcher):
                     "0003_third": othermigrations.migration("0003_third").migration().Migration,
                 },
             },
-            migration.all_migrations(),
+            migration.dependency_tree(),
         )
     
     
