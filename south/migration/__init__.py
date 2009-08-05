@@ -235,20 +235,10 @@ class Migrations(list):
 
 
 def get_migration(migrations, migration):
-    application = sys.modules[get_app_name(migrations)]
-    return Migrations(application).migration(migration).migration().Migration
+    return Migrations.from_name(get_app_name(migrations)).migration(migration).migration().Migration
 
 def get_migration_names(migrations):
-    application = sys.modules[get_app_name(migrations)]
-    return [m.name() for m in Migrations(application)]
-
-def all_migrations():
-    return dict([
-        (migrations._migrations,
-         dict([(os.path.splitext(m.filename)[0], m.migration().Migration)
-               for m in migrations]))
-        for migrations in Migrations.all()
-    ])
+    return [m.name() for m in Migrations.from_name(get_app_name(migrations))]
 
 def trace(seen):
     return " -> ".join([unicode(s) for s in seen])
