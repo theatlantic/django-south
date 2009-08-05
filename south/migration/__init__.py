@@ -117,19 +117,31 @@ class Migration(object):
     dependents = memoize(dependents)
 
     def forwards_plan(self):
+        """
+        Returns a list of Migration objects to be applied, in order.
+
+        This list includes `self`, which will be applied last.
+        """
         result = []
         # We need to apply all the migrations this one depends on
         for migration in self.dependencies():
-            result.extend([m for m in migration.forwards_plan() if m not in result])
+            result.extend([m for m in migration.forwards_plan()
+                           if m not in result])
         # Append ourselves to the result
         result.append(self)
         return result
 
     def backwards_plan(self):
+        """
+        Returns a list of Migration objects to be unapplied, in order.
+
+        This list includes `self`, which will be unapplied last.
+        """
         result = []
         # We need to apply all the migrations this one depends on
         for migration in self.dependents():
-            result.extend([m for m in migration.backwards_plan() if m not in result])
+            result.extend([m for m in migration.backwards_plan()
+                           if m not in result])
         # Append ourselves to the result
         result.append(self)
         return result
@@ -280,22 +292,6 @@ def dependency_tree():
                                               m.migration().Migration)
                                              for m in migrations])
     return tree
-
-def needed_before_forwards(migration, sameapp=True):
-    """
-    Returns a list of migrations that must be applied before (app, name),
-    in the order they should be applied.
-    Used to make sure a migration can be applied (and to help apply up to it).
-    """
-    return migration.forwards_plan()[:-1]
-
-def needed_before_backwards(migration, sameapp=True):
-    """
-    Returns a list of migrations that must be unapplied before (app, name) is,
-    in the order they should be unapplied.
-    Used to make sure a migration can be unapplied (and to help unapply up to it).
-    """
-    return migration.backwards_plan()[:-1]
 
 def run_migration(toprint, torun, recorder, migration, fake=False, db_dry_run=False, verbosity=0):
     """
@@ -455,20 +451,20 @@ def forwards_problems(forwards, done, verbosity=0):
     problems = []
     for migration in forwards:
         if migration not in done:
-            for needed in needed_before_backwards(migration):
-                if needed in done:
-                    print " ! Migration %s should not have been applied before %s but was." % (needed, migration)
-                    problems.append((migration, needed))
+            for m in migration.backwards_plan()[:-1]:
+                if m in done:
+                    print " ! Migration %s should not have been applied before %s but was." % (m, migration)
+                    problems.append((migration, m))
     return problems
 
 def backwards_problems(backwards, done, verbosity=0):
     problems = []
     for migration in backwards:
         if migration in done:
-            for needed in needed_before_forwards(migration):
-                if needed not in done:
-                    print " ! Migration %s should have been applied before %s but wasn't." % (needed, migration)
-                    problems.append((migration, needed))
+            for m in migration.forwards_plan()[:-1]:
+                if m not in done:
+                    print " ! Migration %s should have been applied before %s but wasn't." % (m, migration)
+                    problems.append((migration, m))
     return problems
 
 def find_ghost_migrations():
@@ -524,14 +520,14 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
     if target_name == None:
         target = migrations[-1]
     if target_name == "zero":
-        backwards = needed_before_backwards(migrations[0]) + [migrations[0]]
+        backwards = migrations[0].backwards_plan()
     else:
-        forwards = needed_before_forwards(target) + [target]
+        forwards = target.forwards_plan()
         # When migrating backwards we want to remove up to and including
         # the next migration up in this app (not the next one, that includes other apps)
         migration_before_here = target.next()
         if migration_before_here:
-            backwards = needed_before_backwards(migration_before_here) + [migration_before_here]
+            backwards = migration_before_here.backwards_plan()
     
     # Get the list of currently applied migrations from the db
     current_migrations = []
