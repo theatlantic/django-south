@@ -227,7 +227,10 @@ def get_model_fields(model, m2m=False):
             inherited_fields.update(get_model_fields(base))
     
     # Now, ask the parser to have a look at this model too.
-    parser_fields = modelsparser.get_model_fields(model, m2m) or {}
+    try:
+        parser_fields = modelsparser.get_model_fields(model, m2m) or {}
+    except TypeError: # Almost certainly a not-real module
+        parser_fields = {}
     
     # Now, go through all the fields and try to get their definition
     source = model._meta.local_fields[:]
