@@ -90,7 +90,7 @@ class Migration(object):
             return None
         return self.migrations[index]
 
-    def depends_on(self):
+    def dependencies(self):
         result = [self.previous()]
         if result[0] is None:
             result = []
@@ -110,12 +110,12 @@ class Migration(object):
                 raise exceptions.DependsOnHigherMigration(self, migration)
             result.append(migration)
         return result
-    depends_on = _memoize(depends_on)
+    dependencies = _memoize(dependencies)
 
     def forwards_plan(self):
         result = []
         # We need to apply all the migrations this one depends on
-        for migration in self.depends_on():
+        for migration in self.dependencies():
             result.extend([m for m in migration.forwards_plan() if m not in result])
         # Append ourselves to the result
         result.append(self)
@@ -240,7 +240,7 @@ def check_dependencies(migrations, seen=[]):
         if migration in seen:
             print "Found circular dependency: %s" % trace(here)
             sys.exit(1)
-        check_dependencies(migration.depends_on(), here)
+        check_dependencies(migration.dependencies(), here)
 
             
 def dependency_tree():
