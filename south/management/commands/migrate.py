@@ -71,7 +71,7 @@ class Command(BaseCommand):
                 print "./manage.py migrate " + self.args
                 return
         else:
-            apps = Migrations.all()
+            apps = migration.all_migrations()
         
         if list and apps:
             list_migrations(apps)
