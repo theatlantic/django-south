@@ -358,7 +358,9 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
             recorder(app_name, migration)
             if not fake:
                 # Send a signal saying it ran
-                ran_migration.send(None, app=app_name, migration=migration, method=torun)
+                # Actually, don't - we're implementing this properly in 0.7
+                #ran_migration.send(None, app=app_name, migration=migration, method=torun)
+                pass
 
 
 def run_forwards(app, migrations, fake=False, db_dry_run=False, verbosity=0):
