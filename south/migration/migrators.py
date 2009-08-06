@@ -167,9 +167,6 @@ class DryRunMigrator(MigratorWrapper):
 
 
 class FakeMigrator(MigratorWrapper):
-    def __init__(self, *args, **kwargs):
-        super(FakeMigrator, self).__init__(*args, **kwargs)
-
     def run(self, migration):
         if self.verbosity:
             print '   (faked)'
