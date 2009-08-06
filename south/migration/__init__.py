@@ -2,10 +2,11 @@
 Main migration logic.
 """
 
+from copy import copy
 import datetime
+import inspect
 import sys
 import traceback
-import inspect
 
 from django.db import models
 from django.core.exceptions import ImproperlyConfigured
@@ -19,9 +20,7 @@ from south.signals import pre_migrate, post_migrate, ran_migration
 
 
 class Migrator(object):
-    def __init__(self, fake=False, db_dry_run=False, verbosity=0):
-        self.fake = fake
-        self.db_dry_run = db_dry_run
+    def __init__(self, verbosity=0):
         self.verbosity = int(verbosity)
 
     def print_status(self, migration):
@@ -55,25 +54,6 @@ class Migrator(object):
             return direction
         return (lambda: direction(orm))
 
-    def dry_run_migration(self, migration):
-        if migration.no_dry_run() and self.verbosity:
-            print " - Migration '%s' is marked for no-dry-run."
-            return
-        db.dry_run = True
-        db.debug, old_debug = False, db.debug
-        pending_creates = db.get_pending_creates()
-        db.start_transaction()
-        migration_function = self.direction(migration)
-        try:
-            migration_function()
-        except:
-            raise exceptions.FailedDryRun(sys.exc_info())
-        finally:
-            db.rollback_transactions_dry_run()
-        db.debug = old_debug
-        db.clear_run_data(pending_creates)
-        db.dry_run = False
-
     def run_migration(self, migration):
         migration_function = self.direction(migration)
         db.start_transaction()
@@ -103,40 +83,33 @@ class Migrator(object):
     def run(self, migration):
         # Get the correct ORM.
         db.current_orm = self.orm(migration)
-        # Handle dry runs
-        if self.db_dry_run:
-            try:
-                self.dry_run_migration(migration)
-            except:
-                return False
-            return
         # If the database doesn't support running DDL inside a transaction
         # *cough*MySQL*cough* then do a dry run first.
         if not db.has_ddl_transactions:
             try:
-                self.dry_run_migration(migration)
+                dry_run = DryRunMigrator(migrator=self, ignore_fail=False)
+                dry_run.run_migration(migration)
             except:
+                raise
                 return False
-        self.run_migration(migration)
+        return self.run_migration(migration)
 
     def done_migrate(self, migration):
-        if not self.db_dry_run:
-            db.start_transaction()
-            try:
-                # Record us as having done this
-                self.record(migration)
-            except:
-                db.rollback_transaction()
-                raise
-            else:
-                db.commit_transaction()
+        db.start_transaction()
+        try:
+            # Record us as having done this
+            self.record(migration)
+        except:
+            db.rollback_transaction()
+            raise
+        else:
+            db.commit_transaction()
 
     def send_ran_migration(self, migration):
-        if not self.db_dry_run and not self.fake:
-            ran_migration.send(None,
-                               app=migration.app_name(),
-                               migration=migration,
-                               method=self.__class__.__name__.lower())
+        ran_migration.send(None,
+                           app=migration.app_name(),
+                           migration=migration,
+                           method=self.__class__.__name__.lower())
 
     def migrate(self, migration):
         """
@@ -145,16 +118,73 @@ class Migrator(object):
         app = migration.migrations._migrations
         migration_name = migration.name()
         self.print_status(migration)
-        if self.fake:
-            # If this is a 'fake' migration, do nothing.
-            if self.verbosity:
-                print '   (faked)'
-            result = None
-        else:
-            result = self.run(migration)
+        result = self.run(migration)
         self.done_migrate(migration)
         self.send_ran_migration(migration)
         return result
+
+
+class MigratorWrapper(object):
+    def __init__(self, migrator, *args, **kwargs):
+        self._migrator = copy(migrator)
+        attributes = dict([(k, getattr(self, k))
+                           for k in self.__class__.__dict__.iterkeys()
+                           if not k.startswith('__')])
+        self._migrator.__dict__.update(attributes)
+
+    def __getattr__(self, name):
+        return getattr(self._migrator, name)
+
+
+class DryRunMigrator(MigratorWrapper):
+    def __init__(self, ignore_fail=True, *args, **kwargs):
+        super(DryRunMigrator, self).__init__(*args, **kwargs)
+        self._ignore_fail = ignore_fail
+
+    def _run_migration(self, migration):
+        if migration.no_dry_run() and self.verbosity:
+            print " - Migration '%s' is marked for no-dry-run."
+            return
+        db.dry_run = True
+        db.debug, old_debug = False, db.debug
+        pending_creates = db.get_pending_creates()
+        db.start_transaction()
+        migration_function = self.direction(migration)
+        try:
+            migration_function()
+        except:
+            raise exceptions.FailedDryRun(sys.exc_info())
+        finally:
+            db.rollback_transactions_dry_run()
+            db.debug = old_debug
+            db.clear_run_data(pending_creates)
+            db.dry_run = False
+
+    def run_migration(self, migration):
+        try:
+            self._run_migration(migration)
+        except exceptions.FailedDryRun:
+            if self._ignore_fail:
+                return False
+            raise
+
+    def done_migrate(self, *args, **kwargs):
+        pass
+
+    def send_ran_migration(self, *args, **kwargs):
+        pass
+
+
+class FakeMigrator(MigratorWrapper):
+    def __init__(self, *args, **kwargs):
+        super(FakeMigrator, self).__init__(*args, **kwargs)
+
+    def run(self, migration):
+        if self.verbosity:
+            print '   (faked)'
+
+    def send_ran_migration(self, *args, **kwargs):
+        pass
 
 
 class Forwards(Migrator):
@@ -351,11 +381,13 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
         print " ! The following options are available:"
         print "    --merge: will just attempt the migration ignoring any potential dependency conflicts."
         sys.exit(1)
-    
+
     if direction == 1:
-        migrator = Forwards(fake=fake,
-                            db_dry_run=db_dry_run,
-                            verbosity=verbosity)
+        migrator = Forwards(verbosity=verbosity)
+        if db_dry_run:
+            migrator = DryRunMigrator(migrator=migrator)
+        elif fake:
+            migrator = FakeMigrator(migrator=migrator)
         if verbosity:
             print " - Migrating forwards to %s." % target_name
         try:
@@ -382,9 +414,11 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
             # Un-override
             models.get_apps = old_get_apps
     elif direction == -1:
-        migrator = Backwards(fake=fake,
-                             db_dry_run=db_dry_run,
-                             verbosity=verbosity)
+        migrator = Backwards(verbosity=verbosity)
+        if db_dry_run:
+            migrator = DryRunMigrator(migrator=migrator)
+        elif fake:
+            migrator = FakeMigrator(migrator=migrator)
         if verbosity:
             print " - Migrating backwards to just after %s." % target_name
         for migration in backwards:
