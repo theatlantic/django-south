@@ -8,7 +8,7 @@ from django.db import models
 
 from south import exceptions
 from south.migration.utils import get_app_name
-from south.orm import LazyFakeORM
+from south.orm import LazyFakeORM, FakeORM
 from south.utils import memoize
 
 
@@ -167,9 +167,6 @@ class Migration(object):
         # Override some imports
         migration._ = lambda x: x  # Fake i18n
         migration.datetime = datetime
-        # Setup our FakeORM
-        migclass = migration.Migration
-        migclass.orm = LazyFakeORM(migclass, app_name)
         return migration
     migration = memoize(migration)
 
@@ -261,6 +258,18 @@ class Migration(object):
             if self.filename > other.filename:
                 return True
             return False
+
+    def prev_orm(self):
+        previous = self.previous()
+        if previous is None:
+            # First migration? The 'previous ORM' is empty.
+            return FakeORM(None, self.app_name())
+        return previous.orm()
+    prev_orm = memoize(prev_orm)
+
+    def orm(self):
+        return LazyFakeORM(self.migration().Migration, self.app_name())
+    orm = memoize(orm)
 
 
 def get_app_name(app):
