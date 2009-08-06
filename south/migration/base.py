@@ -170,6 +170,13 @@ class Migration(object):
         return migration
     migration = memoize(migration)
 
+    def migration_class(self):
+        return self.migration().Migration
+
+    def migration_instance(self):
+        return self.migration_class()()
+    migration_instance = memoize(migration_instance)
+
     def previous(self):
         index = self.migrations.index(self) - 1
         if index < 0:
@@ -188,9 +195,8 @@ class Migration(object):
         result = [self.previous()]
         if result[0] is None:
             result = []
-        migclass = self.migration().Migration
         # Get forwards dependencies
-        for app, name in getattr(migclass, 'depends_on', []):
+        for app, name in getattr(self.migration_class(), 'depends_on', []):
             try:
                 migrations = Migrations(app)
             except ImproperlyConfigured:
@@ -216,6 +222,12 @@ class Migration(object):
         self.migrations.calculate_dependents()
         return self._dependents
     dependents = memoize(dependents)
+
+    def forwards(self):
+        return self.migration_instance().forwards
+
+    def backwards(self):
+        return self.migration_instance().backwards
 
     def forwards_plan(self):
         """
@@ -270,6 +282,13 @@ class Migration(object):
     def orm(self):
         return LazyFakeORM(self.migration().Migration, self.app_name())
     orm = memoize(orm)
+
+    def no_dry_run(self):
+        migration_class = self.migration_class()
+        try:
+            return migration_class.no_dry_run
+        except AttributeError:
+            return False
 
 
 def get_app_name(app):

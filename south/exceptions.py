@@ -78,3 +78,13 @@ class DependsOnUnmigratedApplication(SouthError):
         return "Migration '%(migration)s' depends on unmigrated application '%(application)s'." % self.__dict__
 
 
+class FailedDryRun(SouthError):
+    def __init__(self, migration, exc_info):
+        self.migration = migration
+        self.name = migration.name()
+        self.exc_info = exc_info
+        self.traceback = ''.join(format_exception(*self.exc_info))
+
+    def __str__(self):
+        return (" ! Error found during dry run of '%(name)s'! Aborting.\n"
+                "%(traceback)s") % self.__dict__
