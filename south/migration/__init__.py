@@ -25,19 +25,24 @@ def check_dependencies(migrations, seen=[]):
         check_dependencies(migration.dependencies(), here)
     return True
 
-def forwards_problems(forwards, done, verbosity=0):
+def to_apply(forwards, done):
+    return [m for m in forwards if m not in done]
+
+def to_unapply(backwards, done):
+    return [m for m in backwards if m in done]
+
+def forwards_problems(pending, done, verbosity=0):
     problems = []
-    for migration in forwards:
-        if migration not in done:
-            for m in migration.backwards_plan()[:-1]:
-                if m in done:
-                    print " ! Migration %s should not have been applied before %s but was." % (m, migration)
-                    problems.append((migration, m))
+    for migration in pending:
+        for m in migration.backwards_plan()[:-1]:
+            if m in done:
+                print " ! Migration %s should not have been applied before %s but was." % (m, migration)
+                problems.append((migration, m))
     return problems
 
-def backwards_problems(backwards, done, verbosity=0):
+def backwards_problems(pending, done, verbosity=0):
     problems = []
-    for migration in backwards:
+    for migration in pending:
         if migration in done:
             for m in migration.forwards_plan()[:-1]:
                 if m not in done:
@@ -131,30 +136,31 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
             direction = -1
         else:
             direction = None
-    
+
     # Is the whole forward branch applied?
-    missing = [step for step in forwards if step not in current_migrations]
+    missing_forwards = to_apply(forwards, current_migrations)
     # If they're all applied, we only know it's not backwards
-    if not missing:
+    if not missing_forwards:
         direction = None
     # If the remaining migrations are strictly a right segment of the forwards
     # trace, we just need to go forwards to our target (and check for badness)
     else:
-        problems = forwards_problems(forwards, current_migrations, verbosity=verbosity)
+        problems = forwards_problems(missing_forwards, current_migrations, verbosity=verbosity)
         if problems:
             bad = True
         direction = 1
     
     # What about the whole backward trace then?
     if not bad:
-        missing = [step for step in backwards if step not in current_migrations]
+        missing_backwards = to_apply(backwards, current_migrations)
         # If they're all missing, stick with the forwards decision
-        if missing == backwards:
+        if missing_backwards == backwards:
             pass
         # If what's missing is a strict left segment of backwards (i.e.
         # all the higher migrations) then we need to go backwards
         else:
-            problems = backwards_problems(backwards, current_migrations, verbosity=verbosity)
+            present_backwards = to_unapply(backwards, current_migrations)
+            problems = backwards_problems(present_backwards, current_migrations, verbosity=verbosity)
             if problems:
                 bad = True
             direction = -1
@@ -174,11 +180,10 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
         if verbosity:
             print " - Migrating forwards to %s." % target_name
         try:
-            for migration in forwards:
-                if migration not in current_migrations:
-                    result = migrator.migrate(migration)
-                    if result is False: # The migrations errored, but nicely.
-                        return False
+            for migration in missing_forwards:
+                result = migrator.migrate(migration)
+                if result is False: # The migrations errored, but nicely.
+                    return False
         finally:
             # Call any pending post_syncdb signals
             db.send_pending_create_signals()
@@ -204,9 +209,8 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
             migrator = FakeMigrator(migrator=migrator)
         if verbosity:
             print " - Migrating backwards to just after %s." % target_name
-        for migration in backwards:
-            if migration in current_migrations:
-                migrator.migrate(migration)
+        for migration in present_backwards:
+            migrator.migrate(migration)
     else:
         if verbosity:
             print "- Nothing to migrate."
