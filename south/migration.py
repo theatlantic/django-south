@@ -431,7 +431,7 @@ def backwards_problems(tree, backwards, done, verbosity=0):
     return problems
 
 
-def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, verbosity=0, load_inital_data=False, skip=False):
+def migrate_app(app, tree, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, verbosity=0, load_inital_data=False, skip=False):
     
     app_name = get_app_name(app)
     verbosity = int(verbosity)
@@ -441,7 +441,6 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
     pre_migrate.send(None, app=app_name)
     
     # Find out what delightful migrations we have
-    tree = dependency_tree()
     migrations = get_migration_names(app)
     
     # If there aren't any, quit quizically
