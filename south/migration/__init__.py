@@ -25,16 +25,18 @@ class Migrator(object):
         self.db_dry_run = db_dry_run
         self.verbosity = int(verbosity)
 
+    def print_status(self, migration):
+        status = self.status(migration)
+        if self.verbosity and status:
+            print status
+
     def migrate(self, migration):
         """
         Runs the specified migration forwards/backwards, in order.
         """
         app = migration.migrations._migrations
         migration_name = migration.name()
-        # Print status message
-        status = self.status(migration)
-        if self.verbosity and status:
-            print status
+        self.print_status(migration)
         # Get migration class
         klass = migration.migration().Migration
         # Find its predecessor, and attach the ORM from that as prev_orm.
