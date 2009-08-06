@@ -15,7 +15,6 @@ from south import exceptions
 from south.models import MigrationHistory
 from south.db import db
 from south.migration.base import all_migrations, Migrations
-from south.orm import FakeORM
 from south.signals import pre_migrate, post_migrate, ran_migration
 
 
@@ -39,13 +38,6 @@ class Migrator(object):
         self.print_status(migration)
         # Get migration class
         klass = migration.migration().Migration
-        # Find its predecessor, and attach the ORM from that as prev_orm.
-        previous = migration.previous()
-        # First migration? The 'previous ORM' is empty.
-        if previous is None:
-            klass.prev_orm = FakeORM(None, app)
-        else:
-            klass.prev_orm = previous.migration().Migration.orm
         if self.fake:
             # If this is a 'fake' migration, do nothing.
             if self.verbosity:
@@ -56,9 +48,9 @@ class Migrator(object):
             args = inspect.getargspec(runfunc)
             # Get the correct ORM.
             if self.torun == 'forwards':
-                orm = klass.orm
+                orm = migration.orm()
             else:
-                orm = klass.prev_orm
+                orm = migration.prev_orm()
             db.current_orm = orm
             # If the database doesn't support running DDL inside a transaction
             # *cough*MySQL*cough* then do a dry run first.
@@ -110,7 +102,7 @@ class Migrator(object):
                         if len(args[0]) == 1:
                             klass().backwards()
                         else:
-                            klass().backwards(klass.prev_orm)
+                            klass().backwards(migration.prev_orm())
                     print
                     print ' ! The South developers regret this has happened, and would'
                     print ' ! like to gently persuade you to consider a slightly'
