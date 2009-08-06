@@ -77,12 +77,8 @@ class Migrator(object):
         # If the database doesn't support running DDL inside a transaction
         # *cough*MySQL*cough* then do a dry run first.
         if not db.has_ddl_transactions:
-            try:
-                dry_run = DryRunMigrator(migrator=self, ignore_fail=False)
-                dry_run.run_migration(migration)
-            except:
-                raise
-                return False
+            dry_run = DryRunMigrator(migrator=self, ignore_fail=False)
+            dry_run.run_migration(migration)
         return self.run_migration(migration)
 
     def done_migrate(self, migration):
