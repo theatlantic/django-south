@@ -529,12 +529,12 @@ class Command(BaseCommand):
                 cols,
             )
             
-            backwards += DELETE_UNIQUE_SNIPPET % (
+            backwards = DELETE_UNIQUE_SNIPPET % (
                 ", ".join(ut),
                 model._meta.object_name,
                 model._meta.db_table,
                 cols,
-            )
+            ) + backwards
         
         
         ### Deleted unique_togethers ###
@@ -547,12 +547,12 @@ class Command(BaseCommand):
             
             cols = [get_field_column(model, f) for f in ut]
             
-            forwards += DELETE_UNIQUE_SNIPPET % (
+            forwards = DELETE_UNIQUE_SNIPPET % (
                 ", ".join(ut),
                 model._meta.object_name,
                 model._meta.db_table,
                 cols,
-            )
+            ) + forwards
             
             backwards += CREATE_UNIQUE_SNIPPET % (
                 ", ".join(ut),
