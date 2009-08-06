@@ -257,14 +257,6 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
         return
     # Check that all the dependencies are sane
     check_dependencies(migrations)
-    # Guess the target_name
-    if target_name not in ["zero", None]:
-        target = migrations.guess_migration(target_name)
-        if target.name() != target_name:
-            if verbosity:
-                print " - Soft matched migration %s to %s." % (target_name,
-                                                               target.name())
-            target_name = target.name()
     # Check there's no strange ones in the database
     histories = MigrationHistory.objects.filter(applied__isnull=False)
     ghost_migrations = find_ghost_migrations(histories)
@@ -274,11 +266,17 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
         print " ! I'm not trusting myself; fix this yourself by fiddling"
         print " ! with the south_migrationhistory table."
         return
-    
     # Say what we're doing
     if verbosity:
         print "Running migrations for %s:" % app_name
-    
+    # Guess the target_name
+    if target_name not in ["zero", None]:
+        target = migrations.guess_migration(target_name)
+        if target.name() != target_name:
+            if verbosity:
+                print " - Soft matched migration %s to %s." % (target_name,
+                                                               target.name())
+            target_name = target.name()
     # Get the forwards and reverse dependencies for this target
     forwards = []
     backwards = []
