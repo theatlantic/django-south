@@ -130,12 +130,9 @@ def get_migrator(direction, db_dry_run, fake, verbosity, load_initial_data):
     return migrator
 
 def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False):
-    
     app_name = migrations.app_name()
-    app = migrations._migrations
     verbosity = int(verbosity)
     db.debug = (verbosity > 1)
-    
     # Fire off the pre-migrate signal
     pre_migrate.send(None, app=app_name)
     # If there aren't any, quit quizically
@@ -149,19 +146,15 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
     check_migration_histories(histories)
     # Guess the target_name
     target = migrations.guess_migration(target_name)
-    if verbosity and \
-       target_name not in ('zero', None) and \
-       target.name() != target_name:
-        print " - Soft matched migration %s to %s." % (target_name,
-                                                       target.name())
-        target_name = target.name()
-    # Say what we're doing
     if verbosity:
+        if target_name not in ('zero', None) and target.name() != target_name:
+            print " - Soft matched migration %s to %s." % (target_name,
+                                                           target.name())
         print "Running migrations for %s:" % app_name
     # Get the forwards and reverse dependencies for this target
     direction, problems, workplan = get_direction(target, histories,
                                                   migrations, verbosity)
-    if problems and not merge and not skip:
+    if problems and not (merge or skip):
         raise exceptions.InconsistentMigrationHistory()
     # Perform the migration
     migrator = get_migrator(direction,
@@ -171,8 +164,8 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
             print migrator.title(target)
         else:
             print '- Nothing to migrate.'
-    if direction:
+    if migrator:
         success = migrator.migrate_many(target, workplan)
-    # Finally, fire off the post-migrate signal
-    if success:
-        post_migrate.send(None, app=app_name)
+        # Finally, fire off the post-migrate signal
+        if success:
+            post_migrate.send(None, app=app_name)
