@@ -86,11 +86,11 @@ def get_dependencies(target, migrations):
         migration_before_here = target.next()
         if migration_before_here:
             backwards = migration_before_here.backwards_plan
-    return backwards, forwards
+    return forwards, backwards
 
 def get_direction(target, histories, migrations, verbosity):
     # Get the forwards and reverse dependencies for this target
-    backwards, forwards = get_dependencies(target, migrations)
+    forwards, backwards = get_dependencies(target, migrations)
     # Get the list of currently applied migrations from the db
     applied = currently_applied(histories)
     # Is the whole forward branch applied?
