@@ -64,13 +64,63 @@ def check_migration_histories(histories):
     if ghosts:
         raise exceptions.GhostMigrations(ghosts)
 
-def get_migrator(direction, db_dry_run, fake, verbosity, load_initial_data):
-    if direction == 1:
-        migrator = Forwards(verbosity=verbosity)
-    elif direction == -1:
-        migrator = Backwards(verbosity=verbosity)
+def currently_applied(histories):
+    applied = []
+    for history in histories:
+        try:
+            applied.append(history.get_migration())
+        except ImproperlyConfigured:
+            pass
+    return applied
+
+def get_dependencies(target, migrations):
+    forwards = list
+    backwards = list
+    if target is None:
+        backwards = migrations[0].backwards_plan
     else:
+        forwards = target.forwards_plan
+        # When migrating backwards we want to remove up to and
+        # including the next migration up in this app (not the next
+        # one, that includes other apps)
+        migration_before_here = target.next()
+        if migration_before_here:
+            backwards = migration_before_here.backwards_plan
+    return backwards, forwards
+
+def get_direction(target, histories, migrations, verbosity):
+    # Get the forwards and reverse dependencies for this target
+    backwards, forwards = get_dependencies(target, migrations)
+    # Get the list of currently applied migrations from the db
+    applied = currently_applied(histories)
+    # Is the whole forward branch applied?
+    problems = None
+    workplan = to_apply(forwards(), applied)
+    if not workplan:
+        # If they're all applied, we only know it's not backwards
+        direction = None
+    else:
+        # If the remaining migrations are strictly a right segment of
+        # the forwards trace, we just need to go forwards to our
+        # target (and check for badness)
+        problems = forwards_problems(workplan, applied, verbosity)
+        direction = Forwards
+    if not problems:
+        # What about the whole backward trace then?
+        backwards = backwards()
+        missing_backwards = to_apply(backwards, applied)
+        if missing_backwards != backwards:
+            # If what's missing is a strict left segment of backwards (i.e.
+            # all the higher migrations) then we need to go backwards
+            workplan = to_unapply(backwards, applied)
+            problems = backwards_problems(workplan, applied, verbosity)
+            direction = Backwards
+    return direction, problems, workplan
+
+def get_migrator(direction, db_dry_run, fake, verbosity, load_initial_data):
+    if not direction:
         return None
+    migrator = direction(verbosity=verbosity)
     if db_dry_run:
         migrator = DryRunMigrator(migrator=migrator)
     elif fake:
@@ -97,9 +147,6 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
     # Check there's no strange ones in the database
     histories = MigrationHistory.objects.filter(applied__isnull=False)
     check_migration_histories(histories)
-    # Say what we're doing
-    if verbosity:
-        print "Running migrations for %s:" % app_name
     # Guess the target_name
     target = migrations.guess_migration(target_name)
     if verbosity and \
@@ -108,77 +155,13 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
         print " - Soft matched migration %s to %s." % (target_name,
                                                        target.name())
         target_name = target.name()
+    # Say what we're doing
+    if verbosity:
+        print "Running migrations for %s:" % app_name
     # Get the forwards and reverse dependencies for this target
-    forwards = []
-    backwards = []
-    if target_name == None:
-        target = migrations[-1]
-        target_name = target.name()
-    if target_name == "zero":
-        backwards = migrations[0].backwards_plan()
-    else:
-        forwards = target.forwards_plan()
-        # When migrating backwards we want to remove up to and including
-        # the next migration up in this app (not the next one, that includes other apps)
-        migration_before_here = target.next()
-        if migration_before_here:
-            backwards = migration_before_here.backwards_plan()
-    
-    # Get the list of currently applied migrations from the db
-    current_migrations = []
-    for history in histories:
-        try:
-            current_migrations.append(history.get_migration())
-        except ImproperlyConfigured:
-            pass
-    
-    direction = None
-    bad = False
-    
-    # Work out the direction
-    applied_for_this_app = histories.filter(app_name=app_name).order_by('-migration')[:1]
-    if target_name == "zero":
-        direction = -1
-    elif not applied_for_this_app:
-        direction = 1
-    else:
-        latest = applied_for_this_app[0].get_migration()
-        if target.is_before(latest):
-            direction = 1
-        elif target.is_after(latest):
-            direction = -1
-        else:
-            direction = None
-
-    # Is the whole forward branch applied?
-    missing_forwards = to_apply(forwards, current_migrations)
-    # If they're all applied, we only know it's not backwards
-    if not missing_forwards:
-        direction = None
-    # If the remaining migrations are strictly a right segment of the forwards
-    # trace, we just need to go forwards to our target (and check for badness)
-    else:
-        problems = forwards_problems(missing_forwards, current_migrations, verbosity=verbosity)
-        if problems:
-            bad = True
-        direction = 1
-    
-    # What about the whole backward trace then?
-    if not bad:
-        missing_backwards = to_apply(backwards, current_migrations)
-        # If they're all missing, stick with the forwards decision
-        if missing_backwards == backwards:
-            pass
-        # If what's missing is a strict left segment of backwards (i.e.
-        # all the higher migrations) then we need to go backwards
-        else:
-            present_backwards = to_unapply(backwards, current_migrations)
-            problems = backwards_problems(present_backwards, current_migrations, verbosity=verbosity)
-            if problems:
-                bad = True
-            direction = -1
-    
-    if bad and resolve_mode not in ['merge'] and not skip:
+    direction, problems, workplan = get_direction(target, histories,
+                                                  migrations, verbosity)
+    if problems and resolve_mode not in ['merge'] and not skip:
         print " ! Inconsistent migration history"
         print " ! The following options are available:"
         print "    --merge: will just attempt the migration ignoring any potential dependency conflicts."
@@ -191,10 +174,8 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
             print migrator.title(target)
         else:
             print '- Nothing to migrate.'
-    if direction == 1:
-        success = migrator.migrate_many(target, missing_forwards)
-    elif direction == -1:
-        success = migrator.migrate_many(target, present_backwards)
+    if direction:
+        success = migrator.migrate_many(target, workplan)
     # Finally, fire off the post-migrate signal
     if success:
         post_migrate.send(None, app=app_name)
