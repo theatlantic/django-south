@@ -101,7 +101,7 @@ class _Migrations(list):
             return self.migration(value)
         return super(_Migrations, self).__getitem__(value)
 
-    def guess_migration(self, prefix):
+    def _guess_migration(self, prefix):
         prefix = Migration.strip_filename(prefix)
         matches = [m for m in self if m.name().startswith(prefix)]
         if len(matches) == 1:
@@ -110,6 +110,14 @@ class _Migrations(list):
             raise exceptions.MultiplePrefixMatches(prefix, matches)
         else:
             raise exceptions.UnknownMigration(prefix, None)
+
+    def guess_migration(self, target_name):
+        if target_name == 'zero' or not self:
+            return
+        elif target_name is None:
+            return self[-1]
+        else:
+            return self._guess_migration(prefix=target_name)
 
     def app_name(self):
         return get_app_name(self._migrations)
