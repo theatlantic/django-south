@@ -430,7 +430,8 @@ class TestMigrationLogic(Monkeypatcher):
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
         
         # Apply them normally
-        migration.migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, verbosity=0, load_initial_data=True)
+        migration.migrate_app(migrations, target_name=None, fake=False,
+                              load_initial_data=True)
         
         # We should finish with all migrations
         self.assertListEqual(
@@ -443,7 +444,7 @@ class TestMigrationLogic(Monkeypatcher):
         )
         
         # Now roll them backwards
-        migration.migrate_app(migrations, target_name="zero", resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name="zero", fake=False)
         
         # Finish with none
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
@@ -471,14 +472,15 @@ class TestMigrationLogic(Monkeypatcher):
             migration.MigrationHistory.objects.values_list("app_name", "migration"),
         )
         
-        # Apply them normally
+        # Redirect the error it will print to nowhere
+        stdout, sys.stdout = sys.stdout, StringIO.StringIO()
         try:
-            # Redirect the error it will print to nowhere
-            stdout, sys.stdout = sys.stdout, StringIO.StringIO()
-            migration.migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, verbosity=0)
+            # Apply them normally
+            self.assertRaises(exceptions.InconsistentMigrationHistory,
+                              migration.migrate_app,
+                              migrations, target_name=None, fake=False)
+        finally:
             sys.stdout = stdout
-        except SystemExit:
-            pass
         
         # Nothing should have changed (no merge mode!)
         self.assertListEqual(
@@ -488,8 +490,14 @@ class TestMigrationLogic(Monkeypatcher):
             migration.MigrationHistory.objects.values_list("app_name", "migration"),
         )
         
-        # Apply with merge
-        migration.migrate_app(migrations, target_name=None, resolve_mode="merge", fake=False, verbosity=0)
+        # Redirect the error it will print to nowhere
+        stdout, sys.stdout = sys.stdout, StringIO.StringIO()
+        try:
+            # Apply with merge
+            migration.migrate_app(migrations, target_name=None,
+                                  merge=True, fake=False)
+        finally:
+            sys.stdout = stdout
         
         # We should finish with all migrations
         self.assertListEqual(
@@ -502,9 +510,9 @@ class TestMigrationLogic(Monkeypatcher):
         )
         
         # Now roll them backwards
-        migration.migrate_app(migrations, target_name="0002", resolve_mode=None, fake=False, verbosity=0)
-        migration.migrate_app(migrations, target_name="0001", resolve_mode=None, fake=True, verbosity=0)
-        migration.migrate_app(migrations, target_name="zero", resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name="0002", fake=False)
+        migration.migrate_app(migrations, target_name="0001", fake=True)
+        migration.migrate_app(migrations, target_name="zero", fake=False)
         
         # Finish with none
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
@@ -528,19 +536,19 @@ class TestMigrationLogic(Monkeypatcher):
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
         
         # by default name is NOT NULL
-        migration.migrate_app(migrations, target_name="0002", resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name="0002", fake=False)
         self.failIf(null_ok())
         
         # after 0003, it should be NULL
-        migration.migrate_app(migrations, target_name="0003", resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name="0003", fake=False)
         self.assert_(null_ok())
 
         # make sure it is NOT NULL again
-        migration.migrate_app(migrations, target_name="0002", resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name="0002", fake=False)
         self.failIf(null_ok(), 'name not null after migration')
         
         # finish with no migrations, otherwise other tests fail...
-        migration.migrate_app(migrations, target_name="zero", resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name="zero", fake=False)
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
     
     def test_dependencies(self):
