@@ -430,7 +430,7 @@ class TestMigrationLogic(Monkeypatcher):
         self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
         
         # Apply them normally
-        migration.migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, verbosity=0)
+        migration.migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, verbosity=0, load_initial_data=True)
         
         # We should finish with all migrations
         self.assertListEqual(
