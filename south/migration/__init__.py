@@ -129,7 +129,7 @@ def get_migrator(direction, db_dry_run, fake, verbosity, load_initial_data):
         migrator = LoadInitialDataMigrator(migrator=migrator)
     return migrator
 
-def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False):
+def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False):
     
     app_name = migrations.app_name()
     app = migrations._migrations
@@ -161,11 +161,8 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
     # Get the forwards and reverse dependencies for this target
     direction, problems, workplan = get_direction(target, histories,
                                                   migrations, verbosity)
-    if problems and resolve_mode not in ['merge'] and not skip:
-        print " ! Inconsistent migration history"
-        print " ! The following options are available:"
-        print "    --merge: will just attempt the migration ignoring any potential dependency conflicts."
-        sys.exit(1)
+    if problems and not merge and not skip:
+        raise exceptions.InconsistentMigrationHistory()
     # Perform the migration
     migrator = get_migrator(direction,
                             db_dry_run, fake, verbosity, load_initial_data)

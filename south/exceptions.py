@@ -63,6 +63,13 @@ class CircularDependency(SouthError):
                 "    %s") % trace
 
 
+class InconsistentMigrationHistory(SouthError):
+    def __str__(self):
+        return ('Inconsistent migration history\n'
+                'The following options are available:\n'
+                '    --merge: will just attempt the migration ignoring any potential dependency conflicts.')
+
+
 class DependsOnHigherMigration(SouthError):
     def __init__(self, migration, depends_on):
         self.migration = migration
