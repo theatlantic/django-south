@@ -85,7 +85,7 @@ class Command(BaseCommand):
                     fake = fake,
                     db_dry_run = db_dry_run,
                     verbosity = int(options.get('verbosity', 0)),
-                    load_inital_data = not options.get('no_initial_data', False),
+                    load_initial_data = not options.get('no_initial_data', False),
                     skip = skip,
                 )
                 if result is False:

@@ -4,16 +4,15 @@ Main migration logic.
 
 import sys
 
-from django.db import models
 from django.core.exceptions import ImproperlyConfigured
-from django.core.management import call_command
 
 from south import exceptions
 from south.models import MigrationHistory
 from south.db import db
 from south.migration.base import all_migrations, Migrations
 from south.migration.migrators import (Backwards, Forwards,
-                                       DryRunMigrator, FakeMigrator)
+                                       DryRunMigrator, FakeMigrator,
+                                       LoadInitialDataMigrator)
 from south.signals import pre_migrate, post_migrate
 
 
@@ -65,7 +64,22 @@ def check_migration_histories(histories):
     if ghosts:
         raise exceptions.GhostMigrations(ghosts)
 
-def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, verbosity=0, load_inital_data=False, skip=False):
+def get_migrator(direction, db_dry_run, fake, verbosity, load_initial_data):
+    if direction == 1:
+        migrator = Forwards(verbosity=verbosity)
+    elif direction == -1:
+        migrator = Backwards(verbosity=verbosity)
+    else:
+        return None
+    if db_dry_run:
+        migrator = DryRunMigrator(migrator=migrator)
+    elif fake:
+        migrator = FakeMigrator(migrator=migrator)
+    elif load_initial_data:
+        migrator = LoadInitialDataMigrator(migrator=migrator)
+    return migrator
+
+def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False):
     
     app_name = migrations.app_name()
     app = migrations._migrations
@@ -169,50 +183,18 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
         print " ! The following options are available:"
         print "    --merge: will just attempt the migration ignoring any potential dependency conflicts."
         sys.exit(1)
-
+    # Perform the migration
+    migrator = get_migrator(direction,
+                            db_dry_run, fake, verbosity, load_initial_data)
+    if verbosity:
+        if migrator:
+            print migrator.title(target)
+        else:
+            print '- Nothing to migrate.'
     if direction == 1:
-        migrator = Forwards(verbosity=verbosity)
-        if db_dry_run:
-            migrator = DryRunMigrator(migrator=migrator)
-        elif fake:
-            migrator = FakeMigrator(migrator=migrator)
-        if verbosity:
-            print " - Migrating forwards to %s." % target_name
-        try:
-            for migration in missing_forwards:
-                result = migrator.migrate(migration)
-                if result is False: # The migrations errored, but nicely.
-                    return False
-        finally:
-            # Call any pending post_syncdb signals
-            db.send_pending_create_signals()
-        # Now load initial data, only if we're really doing things and ended up at current
-        if not fake and not db_dry_run and load_inital_data and target == migrations[-1]:
-            if verbosity:
-                print " - Loading initial data for %s." % app_name
-            # Override Django's get_apps call temporarily to only load from the
-            # current app
-            old_get_apps, models.get_apps = (
-                models.get_apps,
-                lambda: [models.get_app(app_name)],
-            )
-            # Load the initial fixture
-            call_command('loaddata', 'initial_data', verbosity=verbosity)
-            # Un-override
-            models.get_apps = old_get_apps
+        success = migrator.migrate_many(target, missing_forwards)
     elif direction == -1:
-        migrator = Backwards(verbosity=verbosity)
-        if db_dry_run:
-            migrator = DryRunMigrator(migrator=migrator)
-        elif fake:
-            migrator = FakeMigrator(migrator=migrator)
-        if verbosity:
-            print " - Migrating backwards to just after %s." % target_name
-        for migration in present_backwards:
-            migrator.migrate(migration)
-    else:
-        if verbosity:
-            print "- Nothing to migrate."
-    
+        success = migrator.migrate_many(target, present_backwards)
     # Finally, fire off the post-migrate signal
-    post_migrate.send(None, app=app_name)
+    if success:
+        post_migrate.send(None, app=app_name)
