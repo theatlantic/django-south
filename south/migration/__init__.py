@@ -60,6 +60,11 @@ def find_ghost_migrations(histories):
             result.append(migration)
     return result
 
+def check_migration_histories(histories):
+    ghosts = find_ghost_migrations(histories)
+    if ghosts:
+        raise exceptions.GhostMigrations(ghosts)
+
 def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, verbosity=0, load_inital_data=False, skip=False):
     
     app_name = migrations.app_name()
@@ -77,13 +82,7 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
     check_dependencies(migrations)
     # Check there's no strange ones in the database
     histories = MigrationHistory.objects.filter(applied__isnull=False)
-    ghost_migrations = find_ghost_migrations(histories)
-    if ghost_migrations:
-        print " ! These migrations are in the database but not on disk:"
-        print "   - " + "\n   - ".join([str(m) for m in ghost_migrations])
-        print " ! I'm not trusting myself; fix this yourself by fiddling"
-        print " ! with the south_migrationhistory table."
-        return
+    check_migration_histories(histories)
     # Say what we're doing
     if verbosity:
         print "Running migrations for %s:" % app_name
