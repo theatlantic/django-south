@@ -5,6 +5,7 @@ import sys
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
+from django.utils.datastructures import SortedDict
 
 from south import exceptions
 from south.migration.utils import get_app_name
@@ -237,19 +238,30 @@ class Migration(object):
     def backwards(self):
         return self.migration_instance().backwards
 
+    def _forwards_plan(self):
+        result = SortedDict()
+        # We need to apply all the migrations this one depends on
+        for migration in self.dependencies():
+            result.update(migration._forwards_plan())
+        # Append ourselves to the result
+        result[self] = None
+        return result
+
     def forwards_plan(self):
         """
         Returns a list of Migration objects to be applied, in order.
 
         This list includes `self`, which will be applied last.
         """
-        result = []
+        return list(self._forwards_plan().iterkeys())
+
+    def _backwards_plan(self):
+        result = SortedDict()
         # We need to apply all the migrations this one depends on
-        for migration in self.dependencies():
-            result.extend([m for m in migration.forwards_plan()
-                           if m not in result])
+        for migration in self.dependents():
+            result.update(migration._backwards_plan())
         # Append ourselves to the result
-        result.append(self)
+        result[self] = None
         return result
 
     def backwards_plan(self):
@@ -258,14 +270,7 @@ class Migration(object):
 
         This list includes `self`, which will be unapplied last.
         """
-        result = []
-        # We need to apply all the migrations this one depends on
-        for migration in self.dependents():
-            result.extend([m for m in migration.backwards_plan()
-                           if m not in result])
-        # Append ourselves to the result
-        result.append(self)
-        return result
+        return list(self._backwards_plan().iterkeys())
 
     def is_before(self, other):
         if self.migrations == other.migrations:
