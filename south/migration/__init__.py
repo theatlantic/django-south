@@ -87,13 +87,13 @@ def migrate_app(migrations, target_name=None, resolve_mode=None, fake=False, db_
     if verbosity:
         print "Running migrations for %s:" % app_name
     # Guess the target_name
-    if target_name not in ["zero", None]:
-        target = migrations.guess_migration(target_name)
-        if target.name() != target_name:
-            if verbosity:
-                print " - Soft matched migration %s to %s." % (target_name,
-                                                               target.name())
-            target_name = target.name()
+    target = migrations.guess_migration(target_name)
+    if verbosity and \
+       target_name not in ('zero', None) and \
+       target.name() != target_name:
+        print " - Soft matched migration %s to %s." % (target_name,
+                                                       target.name())
+        target_name = target.name()
     # Get the forwards and reverse dependencies for this target
     forwards = []
     backwards = []
