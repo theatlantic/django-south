@@ -1,3 +1,4 @@
+from collections import deque
 import datetime
 import os
 import re
@@ -223,9 +224,9 @@ class Migration(object):
 
     def add_dependent(self, migration):
         if not hasattr(self, '_dependents'):
-            self._dependents = []
+            self._dependents = deque()
         if migration and migration not in self._dependents:
-            self._dependents.insert(0, migration)
+            self._dependents.appendleft(migration)
 
     def dependents(self):
         self.migrations.calculate_dependents()
@@ -237,6 +238,7 @@ class Migration(object):
 
     def backwards(self):
         return self.migration_instance().backwards
+
 
     def _forwards_plan(self):
         result = SortedDict()
@@ -253,7 +255,7 @@ class Migration(object):
 
         This list includes `self`, which will be applied last.
         """
-        return list(self._forwards_plan().iterkeys())
+        return list(self._forwards_plan())
 
     def _backwards_plan(self):
         result = SortedDict()
@@ -270,7 +272,7 @@ class Migration(object):
 
         This list includes `self`, which will be unapplied last.
         """
-        return list(self._backwards_plan().iterkeys())
+        return list(self._backwards_plan())
 
     def is_before(self, other):
         if self.migrations == other.migrations:
