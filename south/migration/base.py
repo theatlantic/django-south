@@ -9,7 +9,7 @@ from django.db import models
 from django.utils.datastructures import SortedDict
 
 from south import exceptions
-from south.migration.utils import get_app_name
+from south.migration.utils import depends, dfs, flatten, get_app_name
 from south.orm import LazyFakeORM, FakeORM
 from south.utils import memoize
 
@@ -239,7 +239,6 @@ class Migration(object):
     def backwards(self):
         return self.migration_instance().backwards
 
-
     def _forwards_plan(self):
         result = SortedDict()
         # We need to apply all the migrations this one depends on
@@ -255,16 +254,10 @@ class Migration(object):
 
         This list includes `self`, which will be applied last.
         """
-        return list(self._forwards_plan())
+        return depends(self, self.__class__.dependencies)
 
     def _backwards_plan(self):
-        result = SortedDict()
-        # We need to apply all the migrations this one depends on
-        for migration in self.dependents():
-            result.update(migration._backwards_plan())
-        # Append ourselves to the result
-        result[self] = None
-        return result
+        return depends(self, self.__class__.dependents)
 
     def backwards_plan(self):
         """
@@ -304,11 +297,3 @@ class Migration(object):
             return migration_class.no_dry_run
         except AttributeError:
             return False
-
-
-def get_app_name(app):
-    """
-    Returns the _internal_ app name for the given app module.
-    i.e. for <module django.contrib.auth.models> will return 'auth'
-    """
-    return app.__name__.split('.')[-2]
