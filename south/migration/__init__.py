@@ -41,29 +41,21 @@ def backwards_problems(pending, done, verbosity=0):
                     problems.append((migration, m))
     return problems
 
-def find_ghost_migrations(histories):
-    result = []
-    for history in histories:
-        migration = history.get_migration()
-        try:
-            migration.migration()
-        except exceptions.UnknownMigration:
-            result.append(migration)
-    return result
-
 def check_migration_histories(histories):
-    ghosts = find_ghost_migrations(histories)
+    exists = []
+    ghosts = []
+    migrations = (h.get_migration() for h in histories)
+    for m in migrations:
+        try:
+            m.migration()
+        except exceptions.UnknownMigration:
+            ghosts.append(m)
+        except ImproperlyConfigured:
+            pass                        # Ignore missing applications
+        exists.append(m)
     if ghosts:
         raise exceptions.GhostMigrations(ghosts)
-
-def currently_applied(histories):
-    applied = []
-    for history in histories:
-        try:
-            applied.append(history.get_migration())
-        except ImproperlyConfigured:
-            pass
-    return applied
+    return exists
 
 def get_dependencies(target, migrations):
     forwards = list
@@ -80,11 +72,9 @@ def get_dependencies(target, migrations):
             backwards = migration_before_here.backwards_plan
     return forwards, backwards
 
-def get_direction(target, histories, migrations, verbosity):
+def get_direction(target, applied, migrations, verbosity):
     # Get the forwards and reverse dependencies for this target
     forwards, backwards = get_dependencies(target, migrations)
-    # Get the list of currently applied migrations from the db
-    applied = currently_applied(histories)
     # Is the whole forward branch applied?
     problems = None
     workplan = to_apply(forwards(), applied)
@@ -131,8 +121,8 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
         print "? You have no migrations for the '%s' app. You might want some." % app_name
         return
     # Check there's no strange ones in the database
-    histories = MigrationHistory.objects.filter(applied__isnull=False)
-    check_migration_histories(histories)
+    applied = MigrationHistory.objects.filter(applied__isnull=False)
+    applied = check_migration_histories(applied)
     # Guess the target_name
     target = migrations.guess_migration(target_name)
     if verbosity:
@@ -141,7 +131,7 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
                                                            target.name())
         print "Running migrations for %s:" % app_name
     # Get the forwards and reverse dependencies for this target
-    direction, problems, workplan = get_direction(target, histories,
+    direction, problems, workplan = get_direction(target, applied,
                                                   migrations, verbosity)
     if problems and not (merge or skip):
         raise exceptions.InconsistentMigrationHistory()
