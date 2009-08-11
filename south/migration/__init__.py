@@ -13,6 +13,7 @@ from south.migration.base import all_migrations, Migrations
 from south.migration.migrators import (Backwards, Forwards,
                                        DryRunMigrator, FakeMigrator,
                                        LoadInitialDataMigrator)
+from south.migration.utils import SortedSet
 from south.signals import pre_migrate, post_migrate
 
 
@@ -22,27 +23,42 @@ def to_apply(forwards, done):
 def to_unapply(backwards, done):
     return [m for m in backwards if m in done]
 
-def forwards_problems(pending, done, verbosity=0):
-    problems = []
-    for migration in pending:
-        for m in migration.backwards_plan()[:-1]:
-            if m in done:
-                print " ! Migration %s should not have been applied before %s but was." % (m, migration)
-                problems.append((migration, m))
-    return problems
-
-def backwards_problems(pending, done, verbosity=0):
-    problems = []
+def problems(pending, done):
+    last = None
+    if not pending:
+        raise StopIteration()
     for migration in pending:
         if migration in done:
-            for m in migration.forwards_plan()[:-1]:
-                if m not in done:
-                    print " ! Migration %s should have been applied before %s but wasn't." % (m, migration)
-                    problems.append((migration, m))
-    return problems
+            last = migration
+            continue
+        if last and migration not in done:
+            yield last, migration
+
+def forwards_problems(pending, done, verbosity):
+    result = []
+    for last, migration in problems(reversed(pending), done):
+        missing = [m for m in last.forwards_plan()[:-1]
+                   if m not in done]
+        if verbosity:
+            m = ", ".join(str(m) for m in missing)
+            print (" ! Migration %s should not have been applied "
+                   "before %s but was." % (last, m))
+        result.append((last, missing))
+    return result
+
+def backwards_problems(pending, done, verbosity):
+    result = []
+    for last, migration in problems(pending, done):
+        missing = [m for m in migration.backwards_plan()[:-1]
+                   if m in done]
+        if verbosity:
+            m = ", ".join(str(m) for m in missing)
+            print " ! Migration %s should have been applied before %s but wasn't." % (migration, m)
+        result.append((migration, missing))
+    return result
 
 def check_migration_histories(histories):
-    exists = []
+    exists = SortedSet()
     ghosts = []
     migrations = (h.get_migration() for h in histories)
     for m in migrations:
@@ -52,7 +68,7 @@ def check_migration_histories(histories):
             ghosts.append(m)
         except ImproperlyConfigured:
             pass                        # Ignore missing applications
-        exists.append(m)
+        exists.add(m)
     if ghosts:
         raise exceptions.GhostMigrations(ghosts)
     return exists
@@ -77,7 +93,8 @@ def get_direction(target, applied, migrations, verbosity):
     forwards, backwards = get_dependencies(target, migrations)
     # Is the whole forward branch applied?
     problems = None
-    workplan = to_apply(forwards(), applied)
+    forwards = forwards()
+    workplan = to_apply(forwards, applied)
     if not workplan:
         # If they're all applied, we only know it's not backwards
         direction = None
@@ -85,7 +102,7 @@ def get_direction(target, applied, migrations, verbosity):
         # If the remaining migrations are strictly a right segment of
         # the forwards trace, we just need to go forwards to our
         # target (and check for badness)
-        problems = forwards_problems(workplan, applied, verbosity)
+        problems = forwards_problems(forwards, applied, verbosity)
         direction = Forwards(verbosity=verbosity)
     if not problems:
         # What about the whole backward trace then?
@@ -95,7 +112,7 @@ def get_direction(target, applied, migrations, verbosity):
             # If what's missing is a strict left segment of backwards (i.e.
             # all the higher migrations) then we need to go backwards
             workplan = to_unapply(backwards, applied)
-            problems = backwards_problems(workplan, applied, verbosity)
+            problems = backwards_problems(backwards, applied, verbosity)
             direction = Backwards(verbosity=verbosity)
     return direction, problems, workplan
 
@@ -134,7 +151,7 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
     direction, problems, workplan = get_direction(target, applied,
                                                   migrations, verbosity)
     if problems and not (merge or skip):
-        raise exceptions.InconsistentMigrationHistory()
+        raise exceptions.InconsistentMigrationHistory(problems)
     # Perform the migration
     migrator = get_migrator(direction, db_dry_run, fake, load_initial_data)
     if migrator:
