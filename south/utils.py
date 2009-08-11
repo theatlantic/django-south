@@ -45,6 +45,3 @@ def memoize(function):
     method.__name__ = function.__name__
     method.__doc__ = function.__doc__
     return method
-
-fst = lambda (x, y): x
-snd = lambda (x, y): y
