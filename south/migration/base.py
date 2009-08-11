@@ -239,15 +239,6 @@ class Migration(object):
     def backwards(self):
         return self.migration_instance().backwards
 
-    def _forwards_plan(self):
-        result = SortedDict()
-        # We need to apply all the migrations this one depends on
-        for migration in self.dependencies():
-            result.update(migration._forwards_plan())
-        # Append ourselves to the result
-        result[self] = None
-        return result
-
     def forwards_plan(self):
         """
         Returns a list of Migration objects to be applied, in order.
