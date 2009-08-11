@@ -6,8 +6,11 @@ from south import exceptions
 
 
 class SortedSet(SortedDict):
-    def __init__(self, data):
+    def __init__(self, data=tuple()):
         self.extend(data)
+
+    def __str__(self):
+        return "SortedSet(%s)" % list(self)
 
     def add(self, value):
         self[value] = True
