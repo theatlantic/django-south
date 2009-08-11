@@ -6,7 +6,6 @@ import sys
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
-from django.utils.datastructures import SortedDict
 
 from south import exceptions
 from south.migration.utils import depends, dfs, flatten, get_app_name
