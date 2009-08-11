@@ -16,14 +16,6 @@ from south.migration.migrators import (Backwards, Forwards,
 from south.signals import pre_migrate, post_migrate
 
 
-def check_dependencies(migrations, seen=[]):
-    for migration in migrations:
-        here = seen + [migration]
-        if migration in seen:
-            raise exceptions.CircularDependency(here)
-        check_dependencies(migration.dependencies(), here)
-    return True
-
 def to_apply(forwards, done):
     return [m for m in forwards if m not in done]
 
@@ -139,8 +131,6 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
     if not migrations:
         print "? You have no migrations for the '%s' app. You might want some." % app_name
         return
-    # Check that all the dependencies are sane
-    check_dependencies(migrations)
     # Check there's no strange ones in the database
     histories = MigrationHistory.objects.filter(applied__isnull=False)
     check_migration_histories(histories)

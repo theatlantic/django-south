@@ -2,6 +2,22 @@ from collections import deque
 
 from django.utils.datastructures import SortedDict
 
+from south import exceptions
+
+
+class SortedSet(SortedDict):
+    def __init__(self, data):
+        self.extend(data)
+
+    def add(self, value):
+        self[value] = True
+
+    def remove(self, value):
+        del self[value]
+
+    def extend(self, iterable):
+        [self.add(k) for k in iterable]
+
 
 def get_app_name(app):
     """
@@ -15,6 +31,9 @@ def flatten(*stack):
     while stack:
         try:
             x = stack[0].next()
+        except AttributeError:
+            stack[0] = iter(stack[0])
+            x = stack[0].next()
         except StopIteration:
             stack.popleft()
             continue
@@ -24,16 +43,60 @@ def flatten(*stack):
             yield x
 
 def _dfs(start, get_children):
-    children = get_children(start)
+    # Prepend ourselves to the result
+    yield start
+    children = reversed(get_children(start))
     if children:
         # We need to apply all the migrations this one depends on
         yield (_dfs(n, get_children) for n in children)
-    # Append ourselves to the result
-    yield start
 
 def dfs(start, get_children):
-    return list(flatten(_dfs(start, get_children)))
+    return flatten(_dfs(start, get_children))
+
+def detect_cycles(iterable):
+    result = []
+    i = iter(iterable)
+    try:
+        # Point to the tortoise
+        tortoise = 0
+        result.append(i.next())
+        # Point to the hare
+        hare = 1
+        result.append(i.next())
+        # Start looking for cycles
+        power = 1
+        while True:
+            # Use Richard P. Brent's algorithm to find an element that
+            # repeats.
+            while result[tortoise] != result[hare]:
+                if power == (hare - tortoise):
+                    tortoise = hare
+                    power *= 2
+                hare += 1
+                result.append(i.next())
+            # Brent assumes the sequence is stateless, but since we're
+            # dealing with a DFS tree, we need to make sure that all
+            # the items between `tortoise` and `hare` are identical.
+            cycle = True
+            for j in xrange(0, hare - tortoise + 1):
+                tortoise += 1
+                hare += 1
+                result.append(i.next())
+                if result[tortoise] != result[hare]:
+                    # False alarm: no cycle here.
+                    cycle = False
+                    power = 1
+                    tortoise = hare
+                    hare += 1
+                    result.append(i.next())
+                    break
+            # Both loops are done, so we must have a cycle
+            if cycle:
+                raise exceptions.CircularDependency(result[tortoise:hare+1])
+    except StopIteration:
+        # Return when `iterable` is exhausted. Obviously, there are no cycles.
+        return result
 
 def depends(start, get_children):
-    result = SortedDict([(n, None) for n in dfs(start, get_children)])
+    result = SortedSet(reversed(detect_cycles(dfs(start, get_children))))
     return list(result)
