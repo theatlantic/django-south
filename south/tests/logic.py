@@ -91,26 +91,26 @@ class TestMigration(Monkeypatcher):
         self.assertRaises(exceptions.DependsOnHigherMigration,
                           depends_on_higher.dependencies)
 
-    # def test_forwards_plan(self):
-    #     self.assertEqual([[self.fakeapp['0001_spam']],
-    #                       [self.fakeapp['0001_spam'],
-    #                        self.fakeapp['0002_eggs']],
-    #                       [self.fakeapp['0001_spam'],
-    #                        self.fakeapp['0002_eggs'],
-    #                        self.fakeapp['0003_alter_spam']]],
-    #                      [m.forwards_plan() for m in self.fakeapp])
-    #     self.assertEqual([[self.fakeapp['0001_spam'],
-    #                        self.otherfakeapp['0001_first']],
-    #                       [self.fakeapp['0001_spam'],
-    #                        self.otherfakeapp['0001_first'],
-    #                        self.otherfakeapp['0002_second']],
-    #                       [self.fakeapp['0001_spam'],
-    #                        self.otherfakeapp['0001_first'],
-    #                        self.otherfakeapp['0002_second'],
-    #                        self.fakeapp['0002_eggs'],
-    #                        self.fakeapp['0003_alter_spam'],
-    #                        self.otherfakeapp['0003_third']]],
-    #                      [m.forwards_plan() for m in self.otherfakeapp])
+    def test_forwards_plan(self):
+        self.assertEqual([[self.fakeapp['0001_spam']],
+                          [self.fakeapp['0001_spam'],
+                           self.fakeapp['0002_eggs']],
+                          [self.fakeapp['0001_spam'],
+                           self.fakeapp['0002_eggs'],
+                           self.fakeapp['0003_alter_spam']]],
+                         [m.forwards_plan() for m in self.fakeapp])
+        self.assertEqual([[self.fakeapp['0001_spam'],
+                           self.otherfakeapp['0001_first']],
+                          [self.fakeapp['0001_spam'],
+                           self.otherfakeapp['0001_first'],
+                           self.otherfakeapp['0002_second']],
+                          [self.fakeapp['0001_spam'],
+                           self.otherfakeapp['0001_first'],
+                           self.otherfakeapp['0002_second'],
+                           self.fakeapp['0002_eggs'],
+                           self.fakeapp['0003_alter_spam'],
+                           self.otherfakeapp['0003_third']]],
+                         [m.forwards_plan() for m in self.otherfakeapp])
 
     def test_is_before(self):
         F1 = self.fakeapp['0001_spam']
