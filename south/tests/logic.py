@@ -7,7 +7,7 @@ import os
 import StringIO
 
 from south import exceptions, migration
-from south.migration import Migrations
+from south.migration.base import Migration, Migrations
 from south.migration.utils import depends, dfs, flatten, get_app_name
 from south.tests import Monkeypatcher
 from south.utils import snd
@@ -329,13 +329,17 @@ class TestMigrationDependencies(Monkeypatcher):
 class TestCircularDependencies(Monkeypatcher):
     installed_apps = ["circular_a", "circular_b"]
 
-    def test_check_dependencies(self):
+    def test_plans(self):
         circular_a = Migrations('circular_a')
         circular_b = Migrations('circular_b')
         self.assertRaises(exceptions.CircularDependency,
-                          migration.check_dependencies, circular_a)
+                          Migration.forwards_plan, circular_a[-1])
         self.assertRaises(exceptions.CircularDependency,
-                          migration.check_dependencies, circular_b)
+                          Migration.forwards_plan, circular_b[-1])
+        self.assertRaises(exceptions.CircularDependency,
+                          Migration.backwards_plan, circular_a[-1])
+        self.assertRaises(exceptions.CircularDependency,
+                          Migration.backwards_plan, circular_b[-1])
 
 
 class TestMigrations(Monkeypatcher):
@@ -599,6 +603,8 @@ class TestUtils(unittest.TestCase):
         self.assertEqual([1, 2, 3], list(flatten(iter([iter([1, 2]), 3]))))
         self.assertEqual([1, 2, 3],
                          list(flatten(iter([iter([1]), iter([2]), 3]))))
+        self.assertEqual([1, 2, 3],
+                         list(flatten([[1], [2], 3])))
 
     def test_depends(self):
         graph = {'A1': []}
@@ -651,4 +657,56 @@ class TestUtils(unittest.TestCase):
                  'C3': ['C2']}
         self.assertEqual(['A1', 'A2', 'B1', 'C1', 'C2', 'B2', 'A3'],
                          depends('A3', lambda n: graph[n]))
+
+    def assertCircularDependency(self, trace, target, graph):
+        self.assertRaises(exceptions.CircularDependency,
+                          depends, target, lambda n: graph[n])
+        try:
+            depends(target, lambda n: graph[n])
+        except exceptions.CircularDependency, e:
+            self.assertEqual(trace, e.trace)
+
+    def test_depends_cycle(self):
+        graph = {'A1': ['A1']}
+        self.assertCircularDependency(['A1', 'A1'],
+                                      'A1', graph)
+        graph = {'A1': [],
+                 'A2': ['A1', 'A2'],
+                 'A3': ['A2']}
+        self.assertCircularDependency(['A2', 'A2'],
+                                      'A3', graph)
+        graph = {'A1': [],
+                 'A2': ['A1'],
+                 'A3': ['A2', 'A3'],
+                 'A4': ['A3']}
+        self.assertCircularDependency(['A3', 'A3'],
+                                      'A4', graph)
+        graph = {'A1': ['B1'],
+                 'B1': ['A1']}
+        self.assertCircularDependency(['A1', 'B1', 'A1'],
+                                      'A1', graph)
+        graph = {'A1': [],
+                 'A2': ['A1', 'B2'],
+                 'A3': ['A2'],
+                 'B1': [],
+                 'B2': ['B1', 'A2'],
+                 'B3': ['B2']}
+        self.assertCircularDependency(['B2', 'A2', 'B2'],
+                                      'A3', graph)
+        graph = {'A1': [],
+                 'A2': ['A1', 'B3'],
+                 'A3': ['A2'],
+                 'B1': [],
+                 'B2': ['B1', 'A2'],
+                 'B3': ['B2']}
+        self.assertCircularDependency(['A2', 'B3', 'B2', 'A2'],
+                                      'A3', graph)
+        graph = {'A1': [],
+                 'A2': ['A1'],
+                 'A3': ['A2', 'B2'],
+                 'A4': ['A3'],
+                 'B1': ['A3'],
+                 'B2': ['B1']}
+        self.assertCircularDependency(['A3', 'B2', 'B1', 'A3'],
+                                      'A4', graph)
 
