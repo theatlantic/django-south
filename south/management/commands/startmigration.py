@@ -231,7 +231,7 @@ class Command(BaseCommand):
             new = dict([
                 (model_key(model), prep_for_freeze(model))
                 for model in models.get_models(app_models_module)
-                if not getattr(model._meta, "proxy", False)
+                if (not getattr(model._meta, "proxy", False) and getattr(model._meta, "managed", True))
             ])
             # And filter other apps out of the old
             old = dict([
