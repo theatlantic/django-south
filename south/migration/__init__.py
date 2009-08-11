@@ -96,7 +96,7 @@ def get_direction(target, histories, migrations, verbosity):
         # the forwards trace, we just need to go forwards to our
         # target (and check for badness)
         problems = forwards_problems(workplan, applied, verbosity)
-        direction = Forwards
+        direction = Forwards(verbosity=verbosity)
     if not problems:
         # What about the whole backward trace then?
         backwards = backwards()
@@ -106,20 +106,19 @@ def get_direction(target, histories, migrations, verbosity):
             # all the higher migrations) then we need to go backwards
             workplan = to_unapply(backwards, applied)
             problems = backwards_problems(workplan, applied, verbosity)
-            direction = Backwards
+            direction = Backwards(verbosity=verbosity)
     return direction, problems, workplan
 
-def get_migrator(direction, db_dry_run, fake, verbosity, load_initial_data):
+def get_migrator(direction, db_dry_run, fake, load_initial_data):
     if not direction:
-        return None
-    migrator = direction(verbosity=verbosity)
+        return direction
     if db_dry_run:
-        migrator = DryRunMigrator(migrator=migrator)
+        direction = DryRunMigrator(migrator=direction)
     elif fake:
-        migrator = FakeMigrator(migrator=migrator)
+        direction = FakeMigrator(migrator=direction)
     elif load_initial_data:
-        migrator = LoadInitialDataMigrator(migrator=migrator)
-    return migrator
+        direction = LoadInitialDataMigrator(migrator=direction)
+    return direction
 
 def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False):
     app_name = migrations.app_name()
@@ -147,15 +146,12 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
     if problems and not (merge or skip):
         raise exceptions.InconsistentMigrationHistory()
     # Perform the migration
-    migrator = get_migrator(direction,
-                            db_dry_run, fake, verbosity, load_initial_data)
-    if verbosity:
-        if migrator:
-            print migrator.title(target)
-        else:
-            print '- Nothing to migrate.'
+    migrator = get_migrator(direction, db_dry_run, fake, load_initial_data)
     if migrator:
+        migrator.print_title(target)
         success = migrator.migrate_many(target, workplan)
         # Finally, fire off the post-migrate signal
         if success:
             post_migrate.send(None, app=app_name)
+    elif verbosity:
+        print '- Nothing to migrate.'
