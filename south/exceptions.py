@@ -64,6 +64,9 @@ class CircularDependency(SouthError):
 
 
 class InconsistentMigrationHistory(SouthError):
+    def __init__(self, problems):
+        self.problems = problems
+
     def __str__(self):
         return ('Inconsistent migration history\n'
                 'The following options are available:\n'

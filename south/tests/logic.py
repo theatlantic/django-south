@@ -478,15 +478,25 @@ class TestMigrationLogic(Monkeypatcher):
             migration.MigrationHistory.objects.values_list("app_name", "migration"),
         )
         
-        # Redirect the error it will print to nowhere
-        stdout, sys.stdout = sys.stdout, StringIO.StringIO()
+        # Apply them normally
+        self.assertRaises(exceptions.InconsistentMigrationHistory,
+                          migration.migrate_app,
+                          migrations, target_name=None, fake=False)
+        self.assertRaises(exceptions.InconsistentMigrationHistory,
+                          migration.migrate_app,
+                          migrations, target_name='zero', fake=False)
         try:
-            # Apply them normally
-            self.assertRaises(exceptions.InconsistentMigrationHistory,
-                              migration.migrate_app,
-                              migrations, target_name=None, fake=False)
-        finally:
-            sys.stdout = stdout
+            migration.migrate_app(migrations, target_name=None, fake=False)
+        except exceptions.InconsistentMigrationHistory, e:
+            self.assertEqual([(migrations['0002_eggs'],
+                               [migrations['0001_spam']])],
+                             e.problems)
+        try:
+            migration.migrate_app(migrations, target_name="zero", fake=False)
+        except exceptions.InconsistentMigrationHistory, e:
+            self.assertEqual([(migrations['0001_spam'],
+                               [migrations['0002_eggs']])],
+                             e.problems)
         
         # Nothing should have changed (no merge mode!)
         self.assertListEqual(
