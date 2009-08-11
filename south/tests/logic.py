@@ -6,11 +6,12 @@ import sys
 import os
 import StringIO
 
-from south import exceptions, migration
-from south.migration.base import Migration, Migrations
+from south import exceptions
+from south.migration import migrate_app
+from south.migration.base import all_migrations, Migration, Migrations
 from south.migration.utils import depends, dfs, flatten, get_app_name
+from south.models import MigrationHistory
 from south.tests import Monkeypatcher
-from south.utils import snd
 
 # Add the tests directory so fakeapp is on sys.path
 test_root = os.path.dirname(__file__)
@@ -352,7 +353,7 @@ class TestMigrations(Monkeypatcher):
         
         self.assertEqual(
             [M1, M2],
-            list(migration.all_migrations()),
+            list(all_migrations()),
         )
 
     def test(self):
@@ -429,70 +430,64 @@ class TestMigrationLogic(Monkeypatcher):
         pass
     
     def test_apply_migrations(self):
-        migration.MigrationHistory.objects.all().delete()
-        migrations = migration.Migrations("fakeapp")
+        MigrationHistory.objects.all().delete()
+        migrations = Migrations("fakeapp")
         
         # We should start with no migrations
-        self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
+        self.assertEqual(list(MigrationHistory.objects.all()), [])
         
         # Apply them normally
-        migration.migrate_app(migrations, target_name=None, fake=False,
-                              load_initial_data=True)
+        migrate_app(migrations, target_name=None, fake=False,
+                    load_initial_data=True)
         
         # We should finish with all migrations
         self.assertListEqual(
-            (
-                (u"fakeapp", u"0001_spam"),
-                (u"fakeapp", u"0002_eggs"),
-                (u"fakeapp", u"0003_alter_spam"),
-            ),
-            migration.MigrationHistory.objects.values_list("app_name", "migration"),
+            ((u"fakeapp", u"0001_spam"),
+             (u"fakeapp", u"0002_eggs"),
+             (u"fakeapp", u"0003_alter_spam"),),
+            MigrationHistory.objects.values_list("app_name", "migration"),
         )
         
         # Now roll them backwards
-        migration.migrate_app(migrations, target_name="zero", fake=False)
+        migrate_app(migrations, target_name="zero", fake=False)
         
         # Finish with none
-        self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
+        self.assertEqual(list(MigrationHistory.objects.all()), [])
     
     
     def test_migration_merge_forwards(self):
-        migration.MigrationHistory.objects.all().delete()
-        migrations = migration.Migrations("fakeapp")
+        MigrationHistory.objects.all().delete()
+        migrations = Migrations("fakeapp")
         
         # We should start with no migrations
-        self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
+        self.assertEqual(list(MigrationHistory.objects.all()), [])
         
         # Insert one in the wrong order
-        migration.MigrationHistory.objects.create(
-            app_name = "fakeapp",
-            migration = "0002_eggs",
-            applied = datetime.datetime.now(),
-        )
+        MigrationHistory.objects.create(app_name = "fakeapp",
+                                        migration = "0002_eggs",
+                                        applied = datetime.datetime.now())
         
         # Did it go in?
         self.assertListEqual(
-            (
-                (u"fakeapp", u"0002_eggs"),
-            ),
-            migration.MigrationHistory.objects.values_list("app_name", "migration"),
+            ((u"fakeapp", u"0002_eggs"),),
+            MigrationHistory.objects.values_list("app_name", "migration"),
         )
         
         # Apply them normally
         self.assertRaises(exceptions.InconsistentMigrationHistory,
-                          migration.migrate_app,
+                          migrate_app,
                           migrations, target_name=None, fake=False)
         self.assertRaises(exceptions.InconsistentMigrationHistory,
-                          migration.migrate_app,
+                          migrate_app,
                           migrations, target_name='zero', fake=False)
         try:
-            migration.migrate_app(migrations, target_name=None, fake=False)
+            migrate_app(migrations, target_name=None, fake=False)
         except exceptions.InconsistentMigrationHistory, e:
             self.assertEqual([(migrations['0002_eggs'],
                                [migrations['0001_spam']])],
                              e.problems)
         try:
-            migration.migrate_app(migrations, target_name="zero", fake=False)
+            migrate_app(migrations, target_name="zero", fake=False)
         except exceptions.InconsistentMigrationHistory, e:
             self.assertEqual([(migrations['0001_spam'],
                                [migrations['0002_eggs']])],
@@ -500,38 +495,28 @@ class TestMigrationLogic(Monkeypatcher):
         
         # Nothing should have changed (no merge mode!)
         self.assertListEqual(
-            (
-                (u"fakeapp", u"0002_eggs"),
-            ),
-            migration.MigrationHistory.objects.values_list("app_name", "migration"),
+            ((u"fakeapp", u"0002_eggs"),),
+            MigrationHistory.objects.values_list("app_name", "migration"),
         )
         
-        # Redirect the error it will print to nowhere
-        stdout, sys.stdout = sys.stdout, StringIO.StringIO()
-        try:
-            # Apply with merge
-            migration.migrate_app(migrations, target_name=None,
-                                  merge=True, fake=False)
-        finally:
-            sys.stdout = stdout
+        # Apply with merge
+        migrate_app(migrations, target_name=None, merge=True, fake=False)
         
         # We should finish with all migrations
         self.assertListEqual(
-            (
-                (u"fakeapp", u"0001_spam"),
-                (u"fakeapp", u"0002_eggs"),
-                (u"fakeapp", u"0003_alter_spam"),
-            ),
-            migration.MigrationHistory.objects.values_list("app_name", "migration"),
+            ((u"fakeapp", u"0001_spam"),
+             (u"fakeapp", u"0002_eggs"),
+             (u"fakeapp", u"0003_alter_spam"),),
+            MigrationHistory.objects.values_list("app_name", "migration"),
         )
         
         # Now roll them backwards
-        migration.migrate_app(migrations, target_name="0002", fake=False)
-        migration.migrate_app(migrations, target_name="0001", fake=True)
-        migration.migrate_app(migrations, target_name="zero", fake=False)
+        migrate_app(migrations, target_name="0002", fake=False)
+        migrate_app(migrations, target_name="0001", fake=True)
+        migrate_app(migrations, target_name="zero", fake=False)
         
         # Finish with none
-        self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
+        self.assertEqual(list(MigrationHistory.objects.all()), [])
     
     def test_alter_column_null(self):
         def null_ok():
@@ -548,29 +533,29 @@ class TestMigrationLogic(Monkeypatcher):
                 transaction.commit()
                 return True
         
-        migrations = migration.Migrations("fakeapp")
-        self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
+        migrations = Migrations("fakeapp")
+        self.assertEqual(list(MigrationHistory.objects.all()), [])
         
         # by default name is NOT NULL
-        migration.migrate_app(migrations, target_name="0002", fake=False)
+        migrate_app(migrations, target_name="0002", fake=False)
         self.failIf(null_ok())
         
         # after 0003, it should be NULL
-        migration.migrate_app(migrations, target_name="0003", fake=False)
+        migrate_app(migrations, target_name="0003", fake=False)
         self.assert_(null_ok())
 
         # make sure it is NOT NULL again
-        migration.migrate_app(migrations, target_name="0002", fake=False)
+        migrate_app(migrations, target_name="0002", fake=False)
         self.failIf(null_ok(), 'name not null after migration')
         
         # finish with no migrations, otherwise other tests fail...
-        migration.migrate_app(migrations, target_name="zero", fake=False)
-        self.assertEqual(list(migration.MigrationHistory.objects.all()), [])
+        migrate_app(migrations, target_name="zero", fake=False)
+        self.assertEqual(list(MigrationHistory.objects.all()), [])
     
     def test_dependencies(self):
         
-        fakeapp = migration.Migrations("fakeapp")
-        otherfakeapp = migration.Migrations("otherfakeapp")
+        fakeapp = Migrations("fakeapp")
+        otherfakeapp = Migrations("otherfakeapp")
         
         # Test a simple path
         self.assertEqual([fakeapp['0001_spam'],
