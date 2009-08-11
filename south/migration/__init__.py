@@ -9,7 +9,6 @@ from django.core.exceptions import ImproperlyConfigured
 from south import exceptions
 from south.models import MigrationHistory
 from south.db import db
-from south.migration.base import all_migrations, Migrations
 from south.migration.migrators import (Backwards, Forwards,
                                        DryRunMigrator, FakeMigrator,
                                        LoadInitialDataMigrator)
