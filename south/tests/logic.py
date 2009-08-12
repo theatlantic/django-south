@@ -532,21 +532,37 @@ class TestMigrationLogic(Monkeypatcher):
                 cursor.execute("DELETE FROM southtest_spam")
                 transaction.commit()
                 return True
-        
+
+        MigrationHistory.objects.all().delete()
         migrations = Migrations("fakeapp")
-        self.assertEqual(list(MigrationHistory.objects.all()), [])
         
         # by default name is NOT NULL
         migrate_app(migrations, target_name="0002", fake=False)
         self.failIf(null_ok())
+        self.assertListEqual(
+            ((u"fakeapp", u"0001_spam"),
+             (u"fakeapp", u"0002_eggs"),),
+            MigrationHistory.objects.values_list("app_name", "migration"),
+        )
         
         # after 0003, it should be NULL
         migrate_app(migrations, target_name="0003", fake=False)
         self.assert_(null_ok())
+        self.assertListEqual(
+            ((u"fakeapp", u"0001_spam"),
+             (u"fakeapp", u"0002_eggs"),
+             (u"fakeapp", u"0003_alter_spam"),),
+            MigrationHistory.objects.values_list("app_name", "migration"),
+        )
 
         # make sure it is NOT NULL again
         migrate_app(migrations, target_name="0002", fake=False)
         self.failIf(null_ok(), 'name not null after migration')
+        self.assertListEqual(
+            ((u"fakeapp", u"0001_spam"),
+             (u"fakeapp", u"0002_eggs"),),
+            MigrationHistory.objects.values_list("app_name", "migration"),
+        )
         
         # finish with no migrations, otherwise other tests fail...
         migrate_app(migrations, target_name="zero", fake=False)
