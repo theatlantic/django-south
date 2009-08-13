@@ -419,11 +419,6 @@ class Command(BaseCommand):
                     )
                 continue
             
-            # Add any dependencies
-            deps = field_dependencies(field, last_models)
-            deps.update(frozen_models)
-            frozen_models = deps
-            
             # Work out the definition
             triple = remove_useless_attributes(triple)
             field_definition = make_field_constructor(app, field, triple)
@@ -447,11 +442,6 @@ class Command(BaseCommand):
         for model, fields, last_models in deleted_models:
             
             print " - Deleted model '%s.%s'" % (model._meta.app_label,model._meta.object_name)
-            
-            # Add the model's dependencies to the frozens
-            deps = model_dependencies(model, last_models)
-            deps.update(frozen_models)
-            frozen_models = deps
             
             # Turn the (class, args, kwargs) format into a string
             fields = triples_to_defs(app, model, fields)
