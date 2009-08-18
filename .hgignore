@@ -2,6 +2,3 @@
 syntax: glob
 # No python bytecode
 *.pyc
-# Ignore dist builds and egg info
-dist/*
-South.egg-info/*
