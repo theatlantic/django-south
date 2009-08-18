@@ -10,7 +10,12 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     # SQLite ignores foreign key constraints. I wish I could.
     supports_foreign_keys = False
-    
+    defered_alters = {}
+    def _defer_alter_sqlite_table(self, table_name, field_renames={}):
+        table_renames = self.defered_alters.get(table_name, {})
+        table_renames.update(field_renames)
+        self.defered_alters[table_name] = table_renames
+
     # You can't add UNIQUE columns with an ALTER TABLE.
     def add_column(self, table_name, name, field, *args, **kwds):
         # Run ALTER TABLE with no unique column
@@ -24,45 +29,41 @@ class DatabaseOperations(generic.DatabaseOperations):
             self.create_index(table_name, [field.column], unique=True)
     
     def _alter_sqlite_table(self, table_name, field_renames={}):
-        """
-        Not supported under SQLite.
-        """
         model_name = table_name.replace('_', '.', 1)
         model = self.current_orm[model_name]
-        if getattr(model, '_already_run_alter_schema_trick', False):
-            return
+
         temp_name = table_name + "_temporary_for_schema_change"
         self.rename_table(table_name, temp_name)
         fields = [(fld.name, fld) for fld in model._meta.fields]
         self.create_table(table_name, fields)
+
         columns = [fld.column for name, fld in fields]
         self.copy_data(temp_name, table_name, columns, field_renames)
         self.delete_table(temp_name, cascade=False)
-        model._already_run_alter_schema_trick = True
     
     def alter_column(self, table_name, name, field, explicit_name=True):
-        self._alter_sqlite_table(table_name)
+        self._defer_alter_sqlite_table(table_name, {name : field.column})
 
     def delete_column(self, table_name, column_name):
-        self._alter_sqlite_table(table_name)
+        self._defer_alter_sqlite_table(table_name)
     
     # Nor RENAME COLUMN
     def rename_column(self, table_name, old, new):
-        self._alter_sqlite_table(table_name, {old:new})
+        self._defer_alter_sqlite_table(table_name, {old:new})
     
     # Nor unique creation
     def create_unique(self, table_name, columns):
         """
         Not supported under SQLite.
         """
-        print "WARNING: SQLite does not support adding unique constraints. Ignored."
+        print "   ! WARNING: SQLite does not support adding unique constraints. Ignored."
     
     # Nor unique deletion
     def delete_unique(self, table_name, columns):
         """
         Not supported under SQLite.
         """
-        print "WARNING: SQLite does not support removing unique constraints. Ignored."
+        print "   ! WARNING: SQLite does not support removing unique constraints. Ignored."
     
     # No cascades on deletes
     def delete_table(self, table_name, cascade=True):
@@ -70,8 +71,18 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     def copy_data(self, src, dst, fields, field_renames={}):
         qn = connection.ops.quote_name
-        q_fields = [qn(field) for field in fields]
-        for key, value in field_renames.items():
-            q_fields[q_fields.index(qn(value))] = "%s AS %s" % (qn(key), qn(value))
+        q_fields = [field for field in fields]
+        for old, new in field_renames.items():
+            q_fields[q_fields.index(new)] = "%s AS %s" % (old, qn(new))
         sql = "INSERT INTO %s SELECT %s FROM %s;" % (qn(dst), ', '.join(q_fields), qn(src))
         self.execute(sql)
+
+    def execute_deferred_sql(self):
+        """
+        Executes all deferred SQL, resetting the deferred_sql list
+        """
+        for table_name, params in self.defered_alters.items():
+            self._alter_sqlite_table(table_name, params)
+        self.defered_alters = {}
+
+        generic.DatabaseOperations.execute_deferred_sql(self)
