@@ -64,11 +64,18 @@ def get_migration_names(app):
     """
     Returns a list of migration file names for the given app.
     """
-    return sorted([
-        filename[:-3]
+    if getattr(settings, "SOUTH_USE_PYC", False):
+        allowed_extensions = (".pyc", ".py")
+        ignored_files = ("__init__.pyc", "__init__.py")
+    else:
+        allowed_extensions = (".py",)
+        ignored_files = ("__init__.py",)
+    
+    return sorted(set([
+        os.path.splitext(filename)[0]
         for filename in os.listdir(os.path.dirname(app.__file__))
-        if filename.endswith(".py") and filename != "__init__.py" and not filename.startswith(".")
-    ])
+        if os.path.splitext(filename)[1] in allowed_extensions and filename not in ignored_files and not filename.startswith(".")
+    ]))
 
 
 def get_migration_classes(app):
@@ -351,7 +358,9 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
             recorder(app_name, migration)
             if not fake:
                 # Send a signal saying it ran
-                ran_migration.send(None, app=app_name, migration=migration, method=torun)
+                # Actually, don't - we're implementing this properly in 0.7
+                #ran_migration.send(None, app=app_name, migration=migration, method=torun)
+                pass
 
 
 def run_forwards(app, migrations, fake=False, db_dry_run=False, verbosity=0):
@@ -431,7 +440,7 @@ def backwards_problems(tree, backwards, done, verbosity=0):
     return problems
 
 
-def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, verbosity=0, load_inital_data=False, skip=False):
+def migrate_app(app, tree, target_name=None, resolve_mode=None, fake=False, db_dry_run=False, yes=False, verbosity=0, load_inital_data=False, skip=False):
     
     app_name = get_app_name(app)
     verbosity = int(verbosity)
@@ -441,7 +450,6 @@ def migrate_app(app, target_name=None, resolve_mode=None, fake=False, db_dry_run
     pre_migrate.send(None, app=app_name)
     
     # Find out what delightful migrations we have
-    tree = dependency_tree()
     migrations = get_migration_names(app)
     
     # If there aren't any, quit quizically
