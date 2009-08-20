@@ -62,3 +62,10 @@ class Hacks:
         """
         cache.app_models = self.old_app_models
     
+    
+    def repopulate_app_cache(self):
+        """
+        Rebuilds AppCache with the real model definitions.
+        """
+        cache._populate()
+    
