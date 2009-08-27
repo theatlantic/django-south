@@ -7,6 +7,8 @@ class DatabaseOperations(generic.DatabaseOperations):
     """
     SQLite3 implementation of database operations.
     """
+    
+    backend_name = "sqlite3"
 
     # SQLite ignores foreign key constraints. I wish I could.
     supports_foreign_keys = False
