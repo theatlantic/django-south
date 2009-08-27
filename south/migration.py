@@ -295,7 +295,9 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
             if not db.has_ddl_transactions or db_dry_run:
                 if not (hasattr(klass, "no_dry_run") and klass.no_dry_run):
                     db.dry_run = True
-                    db.debug, old_debug = False, db.debug
+                    # Only hide SQL if this is an automatic dry run.
+                    if not db.has_ddl_transactions:
+                        db.debug, old_debug = False, db.debug
                     pending_creates = db.get_pending_creates()
                     db.start_transaction()
                     try:
@@ -308,7 +310,8 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                         traceback.print_exc()
                         print " ! Error found during dry run of migration! Aborting."
                         return False
-                    db.debug = old_debug
+                    if not db.has_ddl_transactions:
+                        db.debug = old_debug
                     db.clear_run_data(pending_creates)
                     db.dry_run = False
                 elif db_dry_run:
