@@ -227,11 +227,14 @@ class Command(BaseCommand):
                 print self.usage_str
                 return
             
-            # Good! Get new things.
             new = dict([
                 (model_key(model), prep_for_freeze(model))
                 for model in models.get_models(app_models_module)
-                if (not getattr(model._meta, "proxy", False) and getattr(model._meta, "managed", True))
+                if (
+                    not getattr(model._meta, "proxy", False) and \
+                    getattr(model._meta, "managed", True) and \
+                    not getattr(model._meta, "abstract", False)
+                )
             ])
             # And filter other apps out of the old
             old = dict([
