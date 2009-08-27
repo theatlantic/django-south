@@ -29,8 +29,14 @@ class DatabaseOperations(generic.DatabaseOperations):
             self.create_index(table_name, [field.column], unique=True)
     
     def _alter_sqlite_table(self, table_name, field_renames={}):
-        model_name = table_name.replace('_', '.', 1)
-        model = self.current_orm[model_name]
+        
+        # Detect the model for the given table name
+        model = None
+        for omodel in self.current_orm:
+            if omodel._meta.db_table == table_name:
+                model = omodel
+        if model is None:
+            raise ValueError("Cannot find ORM model for '%s'." % table_name)
 
         temp_name = table_name + "_temporary_for_schema_change"
         self.rename_table(table_name, temp_name)
