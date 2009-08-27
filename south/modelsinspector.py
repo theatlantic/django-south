@@ -236,8 +236,9 @@ def get_model_fields(model, m2m=False):
     # Go through all bases (that are themselves models, but not Model)
     for base in model.__bases__:
         if base != models.Model and issubclass(base, models.Model):
-            # Looks like we need their fields, Ma.
-            inherited_fields.update(get_model_fields(base))
+            if not base._meta.abstract:
+                # Looks like we need their fields, Ma.
+                inherited_fields.update(get_model_fields(base))
     
     # Now, ask the parser to have a look at this model too.
     try:
