@@ -42,14 +42,22 @@ class DatabaseOperations(generic.DatabaseOperations):
         self.delete_table(temp_name, cascade=False)
     
     def alter_column(self, table_name, name, field, explicit_name=True):
-        self._defer_alter_sqlite_table(table_name, {name : field.column})
+        
+        raise NotImplementedError("The SQLite backend does not yet support alter_column.")
+        # Do initial setup
+        if hasattr(field, 'south_init'):
+            field.south_init()
+        field.set_attributes_from_name(name)
+        
+        self._defer_alter_sqlite_table(table_name, {name: field.column})
 
     def delete_column(self, table_name, column_name):
+        
+        raise NotImplementedError("The SQLite backend does not yet support delete_column.")
         self._defer_alter_sqlite_table(table_name)
     
-    # Nor RENAME COLUMN
     def rename_column(self, table_name, old, new):
-        self._defer_alter_sqlite_table(table_name, {old:new})
+        self._defer_alter_sqlite_table(table_name, {old: new})
     
     # Nor unique creation
     def create_unique(self, table_name, columns):
