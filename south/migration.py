@@ -315,7 +315,7 @@ def run_migrations(toprint, torun, recorder, app, migrations, fake=False, db_dry
                     db.clear_run_data(pending_creates)
                     db.dry_run = False
                 elif db_dry_run:
-                    print " - Migration '%s' is marked for no-dry-run."
+                    print " - Migration '%s' is marked for no-dry-run." % migration
                 # If they really wanted to dry-run, then quit!
                 if db_dry_run:
                     return
