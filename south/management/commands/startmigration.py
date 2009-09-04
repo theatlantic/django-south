@@ -399,12 +399,6 @@ class Command(BaseCommand):
             
             # ManyToMany fields need special attention.
             if isinstance(field, models.ManyToManyField):
-                # Add a frozen model for each side, if they're not already there
-                # (if we just added old versions, we might override new ones)
-                if model not in frozen_models:
-                    frozen_models[model] = last_models
-                if field.rel.to not in last_models:
-                    frozen_models[field.rel.to] = last_models
                 # And a field defn, that's actually a table deletion
                 forwards += DELETE_M2MFIELD_SNIPPET % (
                     model._meta.object_name,
