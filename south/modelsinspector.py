@@ -16,7 +16,12 @@ from django.conf import settings
 from django.utils.functional import Promise
 from django.contrib.contenttypes import generic
 from django.utils.datastructures import SortedDict
-from django.contrib.gis.db.models.fields import GeometryField
+
+try:
+    from django.contrib.gis.db.models.fields import GeometryField
+    has_gis = True
+except Exception: # Almost certainly because they're using an unsupported backend.
+    has_gis = False
 
 NOISY = True
 
@@ -108,16 +113,20 @@ introspection_details = [
             "blank": ["blank", {"default": True}],
         },
     ),
-    (
-        (GeometryField, ),
-        [],
-        {
-            "srid": ["srid", {"default": 4326}],
-            "spatial_index": ["spatial_index", {"default": True}],
-            "dim": ["dim", {"default": 2}],
-        },
-    ),
 ]
+
+if has_gis:
+    introspection_details += [
+        (
+            (GeometryField, ),
+            [],
+            {
+                "srid": ["srid", {"default": 4326}],
+                "spatial_index": ["spatial_index", {"default": True}],
+                "dim": ["dim", {"default": 2}],
+            },
+        ),
+    ]
 
 # Similar, but for Meta, so just the inner level (kwds).
 meta_details = {
@@ -141,7 +150,7 @@ def can_introspect(field):
         return True
     # Check it's a core field (one I've written for)
     module = field.__class__.__module__
-    return module.startswith("django.db") or module.startswith("django.contrib.gis") or module.startswith("django.contrib.localflavor") or module.startswith("django.contrib.contenttypes.generic")
+    return module.startswith("django.db") or (has_gis and module.startswith("django.contrib.gis")) or module.startswith("django.contrib.localflavor") or module.startswith("django.contrib.contenttypes.generic")
 
 
 def matching_details(field):
