@@ -16,6 +16,7 @@ from django.conf import settings
 from django.utils.functional import Promise
 from django.contrib.contenttypes import generic
 from django.utils.datastructures import SortedDict
+from django.contrib.gis.db.models.fields import GeometryField
 
 NOISY = True
 
@@ -105,6 +106,15 @@ introspection_details = [
             "object_id_field": ["object_id_field_name", {"default": "object_id"}],
             "content_type_field": ["content_type_field_name", {"default": "content_type"}],
             "blank": ["blank", {"default": True}],
+        },
+    ),
+    (
+        (GeometryField, ),
+        [],
+        {
+            "srid": ["srid", {"default": 4326}],
+            "spatial_index": ["spatial_index", {"default": True}],
+            "dim": ["dim", {"default": 2}],
         },
     ),
 ]
