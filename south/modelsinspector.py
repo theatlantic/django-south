@@ -4,24 +4,18 @@ rather than direct inspection of models.py.
 """
 
 import datetime
+import re
 
 import modelsparser
-from south.utils import get_attribute, has_spatialite
+from south.utils import get_attribute
 
-import django
 from django.db import models
-from django.contrib.localflavor import us
 from django.db.models.base import ModelBase
 from django.db.models.fields import NOT_PROVIDED
 from django.conf import settings
 from django.utils.functional import Promise
 from django.contrib.contenttypes import generic
 from django.utils.datastructures import SortedDict
-
-has_gis = (settings.DATABASE_ENGINE in ["postgresql", "postgresql_psycopg2", "mysql"]) or \
-          (settings.DATABASE_ENGINE == "sqlite3" and has_spatialite())
-if has_gis:
-    from django.contrib.gis.db.models.fields import GeometryField
 
 NOISY = True
 
@@ -115,32 +109,12 @@ introspection_details = [
     ),
 ]
 
-if has_gis:
-    # Django 1.1's gis module renamed these.
-    if django.VERSION[0] == 1 and django.VERSION[1] >= 1:
-        introspection_details += [
-            (
-                (GeometryField, ),
-                [],
-                {
-                    "srid": ["srid", {"default": 4326}],
-                    "spatial_index": ["spatial_index", {"default": True}],
-                    "dim": ["dim", {"default": 2}],
-                },
-            ),
-        ]
-    else:
-        introspection_details += [
-            (
-                (GeometryField, ),
-                [],
-                {
-                    "srid": ["_srid", {"default": 4326}],
-                    "spatial_index": ["_spatial_index", {"default": True}],
-                    "dim": ["_dim", {"default": 2}],
-                },
-            ),
-        ]
+# Regexes of allowed field full paths
+allowed_fields = [
+    "^django\.db",
+    "^django\.contrib\.contenttypes\.generic",
+    "^django\.contrib\.localflavor",
+]
 
 # Similar, but for Meta, so just the inner level (kwds).
 meta_details = {
@@ -153,6 +127,14 @@ meta_details = {
 any = lambda x: reduce(lambda y, z: y or z, x, False)
 
 
+def add_introspection_rules(rules=[], patterns=[]):
+    "Allows you to add some introspection rules at runtime, e.g. for 3rd party apps."
+    assert isinstance(rules, (list, tuple))
+    assert isinstance(patterns, (list, tuple))
+    allowed_fields.extend(patterns)
+    introspection_details.extend(rules)
+
+
 def can_introspect(field):
     """
     Returns True if we are allowed to introspect this field, False otherwise.
@@ -162,9 +144,12 @@ def can_introspect(field):
     # Check for special attribute
     if hasattr(field, "_south_introspects") and field._south_introspects:
         return True
-    # Check it's a core field (one I've written for)
-    module = field.__class__.__module__
-    return module.startswith("django.db") or (has_gis and module.startswith("django.contrib.gis")) or module.startswith("django.contrib.localflavor") or module.startswith("django.contrib.contenttypes.generic")
+    # Check it's an introspectable field
+    full_name = "%s.%s" % (field.__class__.__module__, field.__class__.__name__)
+    for regex in allowed_fields:
+        if re.match(regex, full_name):
+            return True
+    return False
 
 
 def matching_details(field):
@@ -328,3 +313,6 @@ def get_model_meta(model):
             pass
     
     return meta_def
+
+# Now, load the built-in South introspection plugins
+import south.introspection_plugins
