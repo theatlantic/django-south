@@ -6,8 +6,9 @@ rather than direct inspection of models.py.
 import datetime
 
 import modelsparser
-from south.utils import get_attribute
+from south.utils import get_attribute, has_spatialite
 
+import django
 from django.db import models
 from django.contrib.localflavor import us
 from django.db.models.base import ModelBase
@@ -17,11 +18,10 @@ from django.utils.functional import Promise
 from django.contrib.contenttypes import generic
 from django.utils.datastructures import SortedDict
 
-try:
+has_gis = (settings.DATABASE_ENGINE in ["postgresql", "postgresql_psycopg2", "mysql"]) or \
+          (settings.DATABASE_ENGINE == "sqlite3" and has_spatialite())
+if has_gis:
     from django.contrib.gis.db.models.fields import GeometryField
-    has_gis = True
-except Exception: # Almost certainly because they're using an unsupported backend.
-    has_gis = False
 
 NOISY = True
 
@@ -116,17 +116,31 @@ introspection_details = [
 ]
 
 if has_gis:
-    introspection_details += [
-        (
-            (GeometryField, ),
-            [],
-            {
-                "srid": ["srid", {"default": 4326}],
-                "spatial_index": ["spatial_index", {"default": True}],
-                "dim": ["dim", {"default": 2}],
-            },
-        ),
-    ]
+    # Django 1.1's gis module renamed these.
+    if django.VERSION[0] == 1 and django.VERSION[1] >= 1:
+        introspection_details += [
+            (
+                (GeometryField, ),
+                [],
+                {
+                    "srid": ["srid", {"default": 4326}],
+                    "spatial_index": ["spatial_index", {"default": True}],
+                    "dim": ["dim", {"default": 2}],
+                },
+            ),
+        ]
+    else:
+        introspection_details += [
+            (
+                (GeometryField, ),
+                [],
+                {
+                    "srid": ["_srid", {"default": 4326}],
+                    "spatial_index": ["_spatial_index", {"default": True}],
+                    "dim": ["_dim", {"default": 2}],
+                },
+            ),
+        ]
 
 # Similar, but for Meta, so just the inner level (kwds).
 meta_details = {
