@@ -35,5 +35,14 @@ def get_attribute(item, attribute):
     return value
 
 
+def has_spatialite():
+    try:
+        from ctypes.util import find_library
+    except ImportError:
+        return False
+    from django.conf import settings
+    return bool(getattr(settings, 'SPATIALITE_LIBRARY_PATH', find_library('spatialite')))
+
+
 fst = lambda (x, y): x
 snd = lambda (x, y): y
