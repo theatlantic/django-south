@@ -21,7 +21,7 @@ def has_spatialite():
 def has_geos():
     try:
         from django.contrib.gis.geos import libgeos
-    except ImportError:
+    except (ImportError, OSError):
         return False
     else:
         return True
