@@ -13,8 +13,8 @@ _logger.addHandler(h)
 _logger.setLevel(logging.DEBUG)
 # TODO: Add a log formatter?
 
-def getLogger():
-    debug_on = getattr(settings, "SOUTH_DEBUG_ON", False)
+def get_logger():
+    debug_on = getattr(settings, "SOUTH_LOGGING_ON", False)
     logging_file = getattr(settings, "SOUTH_LOGGING_FILE", False)
     
     if debug_on:
@@ -22,5 +22,5 @@ def getLogger():
             _logger.addHandler( logging.FileHandler(logging_file) )
             _logger.setLevel(logging.DEBUG)
         else:
-            raise IOError, "SOUTH_DEBUG_ON is True. You also need a SOUTH_LOGGING_FILE setting."
+            raise IOError, "SOUTH_LOGGING_ON is True. You also need a SOUTH_LOGGING_FILE setting."
     return _logger
