@@ -1,7 +1,18 @@
 import inspect
+import re
+
 from django.db import connection
 from south.db import generic
 
+# from how .schema works as shown on http://www.sqlite.org/sqlite.html
+GET_TABLE_DEF_SQL = """    
+SELECT sql FROM
+       (SELECT * FROM sqlite_master UNION ALL
+        SELECT * FROM sqlite_temp_master)
+    WHERE tbl_name LIKE '%s'
+      AND type!='meta' AND sql NOT NULL AND name NOT LIKE 'sqlite_%%%%'
+    ORDER BY substr(type,2,1), name;"""
+    
 class DatabaseOperations(generic.DatabaseOperations):
 
     """
@@ -13,6 +24,93 @@ class DatabaseOperations(generic.DatabaseOperations):
     # SQLite ignores foreign key constraints. I wish I could.
     supports_foreign_keys = False
     defered_alters = {}
+    def __init__(self):
+        super(DatabaseOperations, self).__init__()
+        # holds fields defintions gotten from the sql schema.  the key is the table name and then
+        # it's a list of 2 item lists.  the two items in the list are fieldname, sql definition
+        self._fields = {}
+
+    def _populate_current_structure(self, table_name, force=False):
+        # get if we don't have it already or are being forced to refresh it
+        if force or not table_name in self._fields.keys():
+            cursor = connection.cursor()
+            cursor.execute(GET_TABLE_DEF_SQL % table_name)
+            create_table = cursor.fetchall()[0][0]
+            first = create_table.find('(')
+            last = create_table.rfind(')')
+            # rip out the CREATE TABLE xxx ( ) and only get the field definitions plus
+            # add the trailing comma to make the next part easier
+            fields_part = create_table[first+1: last] + ','
+            # pull out the field name and definition for each field
+            self._fields[table_name] = re.findall(r'"(\S+?)"(.*?),', fields_part, re.DOTALL)
+        
+    def _rebuild_table(self, table_name, new_fields):
+        """
+        rebuilds the table using the new definitions.  only one change 
+        can be made per call and it must be either a rename, alter or
+        delete
+        """
+        self._populate_current_structure(table_name)
+        
+        current_fields = self._fields[table_name]
+        temp_table_name = '%s_temp' % table_name
+        operation = None
+        changed_field = None
+        
+        if len(current_fields) != len(new_fields):
+            if len(current_fields) - len(new_fields) != 1:
+                raise ValueError('only one field can be deleted at a time, found %s missing fields' % str(len(current_fields) - len(new_fields)))
+            operation = 'delete'
+            current_field_names = [f[0] for f in current_fields]
+            new_field_names = [f[0] for f in new_fields]
+            # find the deleted field
+            for f in current_field_names:
+                if not f in new_field_names:
+                    changed_field = f
+                    break
+        else:
+            found = False
+            for current, new in zip(current_fields, new_fields):
+                if current[0] != new[0]:
+                    if found:
+                        raise ValueError('can only handle one change per call, found more than one')
+                    operation = 'rename'
+                    changed_field = (current[0], new[0])
+                    found = True
+                elif current[1] != new[1]:
+                    if found:
+                        raise ValueError('can only handle one change per call, found more than one')
+                    operation = 'alter'
+                    changed_field = current[0]
+                    found = True
+            if not found:
+                raise ValueError('no changed found')
+        # create new table as temp
+        create = 'CREATE TABLE "%s" ( %s )'
+        fields_sql = ','.join(['"%s" %s' % (f[0], f[1]) for f in new_fields])
+        sql = create % (temp_table_name, fields_sql)
+        
+        cursor = connection.cursor()
+        cursor.execute(sql)
+        
+        # copy over data
+        # rename, redef or delete?
+        if operation in ['rename', 'alter']:
+            sql = 'insert into %s select * from %s' % (temp_table_name, table_name)
+        elif operation == 'delete':
+            new_field_names = ','.join(['"%s"' % f[0] for f in new_fields])
+            sql = 'insert into %s select %s from %s' % (temp_table_name, new_field_names, table_name)
+        cursor.execute(sql)
+                                
+        # remove existing table
+        self.delete_table(table_name)
+        
+        # rename new table
+        self.rename_table(temp_table_name, table_name)
+        
+        # repopulate field info
+        self._populate_current_structure(table_name, force=True)
+
     def _defer_alter_sqlite_table(self, table_name, field_renames={}):
         table_renames = self.defered_alters.get(table_name, {})
         table_renames.update(field_renames)
@@ -50,23 +148,34 @@ class DatabaseOperations(generic.DatabaseOperations):
         self.delete_table(temp_name, cascade=False)
     
     def alter_column(self, table_name, name, field, explicit_name=True):
-        
-        raise NotImplementedError("The SQLite backend does not yet support alter_column.")
-        # Do initial setup
-        if hasattr(field, 'south_init'):
-            field.south_init()
-        field.set_attributes_from_name(name)
-        
-        self._defer_alter_sqlite_table(table_name, {name: field.column})
+        self._populate_current_structure(table_name)
+        new_fields = []
+        for field_name, field_def in self._fields[table_name]:
+            if field_name == name:
+                new_fields.append((name, self.column_sql(table_name, name, field)))
+            else:
+                new_fields.append((field_name, field_def))
+        self._rebuild_table(table_name, new_fields)
+                
 
     def delete_column(self, table_name, column_name):
-        
-        raise NotImplementedError("The SQLite backend does not yet support delete_column.")
-        self._defer_alter_sqlite_table(table_name)
+        self._populate_current_structure(table_name)
+        new_fields = []
+        for field_name, field_def in self._fields[table_name]:
+            if field_name != column_name:
+                new_fields.append((field_name, field_def))
+        self._rebuild_table(table_name, new_fields)
     
     def rename_column(self, table_name, old, new):
-        self._defer_alter_sqlite_table(table_name, {old: new})
-    
+        self._populate_current_structure(table_name)
+        new_fields = []
+        for field_name, field_def in self._fields[table_name]:
+            if field_name == old:
+                new_fields.append((new, field_def))
+            else:
+                new_fields.append((field_name, field_def))
+        self._rebuild_table(table_name, new_fields)
+            
     # Nor unique creation
     def create_unique(self, table_name, columns):
         """
@@ -102,3 +211,5 @@ class DatabaseOperations(generic.DatabaseOperations):
         self.defered_alters = {}
 
         generic.DatabaseOperations.execute_deferred_sql(self)
+
+    
