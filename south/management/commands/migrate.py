@@ -38,7 +38,7 @@ class Command(BaseCommand):
     help = "Runs migrations for all apps."
     args = "[appname] [migrationname|zero] [--all] [--list] [--skip] [--merge] [--no-initial-data] [--fake] [--db-dry-run]"
 
-    def handle(self, app=None, target=None, skip=False, merge=False, backwards=False, fake=False, db_dry_run=False, list=False, **options):
+    def handle(self, app=None, target=None, skip=False, merge=False, backwards=False, fake=False, db_dry_run=False, show_list=False, **options):
 
         # Work out what the resolve mode is
         resolve_mode = merge and "merge" or (skip and "skip" or None)
@@ -71,12 +71,13 @@ class Command(BaseCommand):
                 print "./manage.py migrate " + self.args
                 return
         else:
-            apps = migration.all_migrations()
+            apps = list(migration.all_migrations())
+            print apps
         
-        if list and apps:
+        if show_list and apps:
             list_migrations(apps)
         
-        if not list:
+        if not show_list:
             tree = migration.dependency_tree()
             
             for app in apps:
