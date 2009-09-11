@@ -114,6 +114,10 @@ class _FakeORM(object):
         
         # Reset AppCache
         hacks.unclear_app_cache()
+    
+    
+    def __iter__(self):
+        return iter(self.models.values())
 
     
     def __getattr__(self, key):
