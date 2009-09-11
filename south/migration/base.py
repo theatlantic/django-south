@@ -10,7 +10,7 @@ from django.db import models
 from south import exceptions
 from south.migration.utils import depends, dfs, flatten, get_app_name
 from south.orm import LazyFakeORM, FakeORM
-from south.utils import memoize
+from south.utils import memoize, ask_for_it_by_name
 
 
 def all_migrations(applications=None):
@@ -19,7 +19,10 @@ def all_migrations(applications=None):
     """
     if applications is None:
         applications = models.get_apps()
-    for app in applications:
+    for model_module in applications:
+        # The app they've passed is the models module - go up one level
+        app_name = ".".join(model_module.__name__.split(".")[:-1])
+        app = ask_for_it_by_name(app_name)
         try:
             yield Migrations(app)
         except exceptions.NoMigrations:
@@ -85,6 +88,7 @@ class _Migrations(list):
         self._migrations = module
         filenames = []
         dirname = os.path.dirname(self._migrations.__file__)
+        print dirname
         for f in os.listdir(dirname):
             if self.MIGRATION_FILENAME.match(os.path.basename(f)):
                 filenames.append(f)

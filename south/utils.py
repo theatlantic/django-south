@@ -14,7 +14,11 @@ def _ask_for_it_by_name(name):
         modulename=bits[0]
         
     module = __import__(modulename, {}, {}, bits[-1])
-    return getattr(module, bits[-1])
+    
+    if len(bits) == 1:
+        return module
+    else:
+        return getattr(module, bits[-1])
 
 
 def ask_for_it_by_name(name): 

@@ -13,6 +13,7 @@ from south.migration.migrators import (Backwards, Forwards,
                                        DryRunMigrator, FakeMigrator,
                                        LoadInitialDataMigrator)
 from south.migration.utils import SortedSet
+from south.migration.base import all_migrations
 from south.signals import pre_migrate, post_migrate
 
 
