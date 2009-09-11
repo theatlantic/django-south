@@ -56,4 +56,3 @@ if not skiptest:
     from south.tests.db import *
     from south.tests.logic import *
     from south.tests.autodetection import *
-    from south.tests.logger import *
