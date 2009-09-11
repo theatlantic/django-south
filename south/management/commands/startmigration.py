@@ -227,10 +227,14 @@ class Command(BaseCommand):
                 print self.usage_str
                 return
             
-            # Good! Get new things.
             new = dict([
                 (model_key(model), prep_for_freeze(model))
                 for model in models.get_models(app_models_module)
+                if (
+                    not getattr(model._meta, "proxy", False) and \
+                    getattr(model._meta, "managed", True) and \
+                    not getattr(model._meta, "abstract", False)
+                )
             ])
             # And filter other apps out of the old
             old = dict([
@@ -395,12 +399,6 @@ class Command(BaseCommand):
             
             # ManyToMany fields need special attention.
             if isinstance(field, models.ManyToManyField):
-                # Add a frozen model for each side, if they're not already there
-                # (if we just added old versions, we might override new ones)
-                if model not in frozen_models:
-                    frozen_models[model] = last_models
-                if field.rel.to not in last_models:
-                    frozen_models[field.rel.to] = last_models
                 # And a field defn, that's actually a table deletion
                 forwards += DELETE_M2MFIELD_SNIPPET % (
                     model._meta.object_name,
@@ -417,11 +415,6 @@ class Command(BaseCommand):
                     poss_ormise(app, field.rel.to, field.rel.to._meta.object_name)
                     )
                 continue
-            
-            # Add any dependencies
-            deps = field_dependencies(field, last_models)
-            deps.update(frozen_models)
-            frozen_models = deps
             
             # Work out the definition
             triple = remove_useless_attributes(triple)
@@ -446,11 +439,6 @@ class Command(BaseCommand):
         for model, fields, last_models in deleted_models:
             
             print " - Deleted model '%s.%s'" % (model._meta.app_label,model._meta.object_name)
-            
-            # Add the model's dependencies to the frozens
-            deps = model_dependencies(model, last_models)
-            deps.update(frozen_models)
-            frozen_models = deps
             
             # Turn the (class, args, kwargs) format into a string
             fields = triples_to_defs(app, model, fields)
@@ -529,12 +517,12 @@ class Command(BaseCommand):
                 cols,
             )
             
-            backwards += DELETE_UNIQUE_SNIPPET % (
+            backwards = DELETE_UNIQUE_SNIPPET % (
                 ", ".join(ut),
                 model._meta.object_name,
                 model._meta.db_table,
                 cols,
-            )
+            ) + backwards
         
         
         ### Deleted unique_togethers ###
@@ -547,12 +535,12 @@ class Command(BaseCommand):
             
             cols = [get_field_column(model, f) for f in ut]
             
-            forwards += DELETE_UNIQUE_SNIPPET % (
+            forwards = DELETE_UNIQUE_SNIPPET % (
                 ", ".join(ut),
                 model._meta.object_name,
                 model._meta.db_table,
                 cols,
-            )
+            ) + forwards
             
             backwards += CREATE_UNIQUE_SNIPPET % (
                 ", ".join(ut),

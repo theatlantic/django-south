@@ -77,9 +77,12 @@ class Command(BaseCommand):
             list_migrations(apps)
         
         if not list:
+            tree = migration.dependency_tree()
+            
             for app in apps:
                 result = migration.migrate_app(
                     app,
+                    tree,
                     resolve_mode = resolve_mode,
                     target_name = target,
                     fake = fake,

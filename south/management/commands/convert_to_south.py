@@ -6,6 +6,7 @@ from django.core import management
 from optparse import make_option
 from django.core.exceptions import ImproperlyConfigured
 from south.migration import Migrations
+from south.hacks import hacks
 import sys
 
 class Command(BaseCommand):
@@ -50,7 +51,14 @@ class Command(BaseCommand):
         # Finally! It seems we've got a candidate, so do the two-command trick
         verbosity = int(options.get('verbosity', 0))
         management.call_command("startmigration", app, initial=True, verbosity=verbosity)
+        
+        # Now, we need to re-clean and sanitise appcache
+        hacks.clear_app_cache()
+        hacks.repopulate_app_cache()
+        
+        # Now, migrate
         management.call_command("migrate", app, "0001", fake=True, verbosity=verbosity)
+        
         print 
         print "App '%s' converted. Note that South assumed the application's models matched the database" % app
         print "(i.e. you haven't changed it since last syncdb); if you have, you should delete the %s/migrations"
