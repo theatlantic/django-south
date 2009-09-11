@@ -207,7 +207,7 @@ class Command(BaseCommand):
         if auto:
             # Get the last migration for this app
             last_models = None
-            app_module = migration.get_app(app)
+            app_module = migration.Migrations.from_name(app)
             if app_module is None:
                 print "You cannot use automatic detection on the first migration of an app. Try --initial instead."
             else:
