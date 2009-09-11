@@ -3,6 +3,7 @@ import datetime
 import string
 import random
 import re
+import sys
 
 from django.core.management.color import no_style
 from django.db import connection, transaction, models
@@ -12,6 +13,7 @@ from django.dispatch import dispatcher
 from django.conf import settings
 from django.utils.datastructures import SortedDict
 
+import logging
 
 def alias(attrname):
     """
@@ -76,6 +78,11 @@ class DatabaseOperations(object):
         if self.debug:
             print "   = %s" % sql, params
 
+        logger = logging.getLogger("south")
+        logger.addHandler( logging.StreamHandler(sys.stdout) )
+        logger.setLevel(logging.DEBUG)
+        logger.debug('south execute "%s" with params "%s"' % (sql, params))
+        
         if self.dry_run:
             return []
 
