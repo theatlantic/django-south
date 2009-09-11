@@ -429,10 +429,15 @@ class DatabaseOperations(object):
                     # Now do some very cheap quoting. TODO: Redesign return values to avoid this.
                     if isinstance(default, basestring):
                         default = "'%s'" % default.replace("'", "''")
-                    elif isinstance(default, datetime.date):
+                    elif isinstance(default, (datetime.date, datetime.time)):
                         default = "'%s'" % default
                     sql += " DEFAULT %s"
                     sqlparams = (default)
+            elif not field.null and field.blank:
+                if field.empty_strings_allowed:
+                    sql += " DEFAULT ''"
+                else:
+                    raise ValueError("Attempting to add a non null column that isn't character based without an explicit default value.")
 
             if field.rel and self.supports_foreign_keys:
                 self.add_deferred_sql(

@@ -262,7 +262,7 @@ class Command(BaseCommand):
             # Add items to the todo lists
             added_models.update(am)
             added_fields.update(af)
-            changed_fields.extend(cf)
+            changed_fields.extend([(m, fn, ot, nt, last_orm) for m, fn, ot, nt in cf])
             
             # Deleted models are from the past, and so we use instances instead.
             for mkey in dm:
@@ -459,9 +459,10 @@ class Command(BaseCommand):
         
         
         ### Changed fields ###
-        for mkey, field_name, old_triple, new_triple in changed_fields:
+        for mkey, field_name, old_triple, new_triple, last_orm in changed_fields:
             
             model = model_unkey(mkey)
+            
             old_def = triples_to_defs(app, model, {
                 field_name: old_triple,
             })[field_name]
@@ -469,8 +470,16 @@ class Command(BaseCommand):
                 field_name: new_triple,
             })[field_name]
             
-            # We need to create the field, to see if it needs _id, or if it's an M2M
+            # We need to create the fields, to see if it needs _id, or if it's an M2M
             field = model._meta.get_field_by_name(field_name)[0]
+            old_field = last_orm[mkey + ":" + field_name]
+            
+            if field.column != old_field.column:
+                forwards += RENAME_COLUMN_SNIPPET % {
+                    "field_name": field_name,
+                    "old_column": old_field.column,
+                    "new_column": field.column,
+                }
             
             if hasattr(field, "m2m_db_table"):
                 # See if anything has ACTUALLY changed
@@ -497,6 +506,13 @@ class Command(BaseCommand):
                 field.get_attname(),
                 "orm[%r]" % (mkey + ":" + field.name),
             )
+            
+            if field.column != old_field.column:
+                backwards += RENAME_COLUMN_SNIPPET % {
+                    "field_name": field_name,
+                    "old_column": field.column,
+                    "new_column": old_field.column,
+                }
         
         
         ### Added unique_togethers ###
@@ -1046,5 +1062,9 @@ CREATE_UNIQUE_SNIPPET = '''
 DELETE_UNIQUE_SNIPPET = '''
         # Deleting unique_together for [%s] on %s.
         db.delete_unique(%r, %r)
+        '''
+RENAME_COLUMN_SNIPPET = '''
+        # Renaming column for field '%(field_name)s'.
+        db.rename_column(%(old_column)r, %(new_column)r)
         '''
 FIELD_NEEDS_DEF_SNIPPET = "<< PUT FIELD DEFINITION HERE >>"
