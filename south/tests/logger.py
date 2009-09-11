@@ -31,14 +31,14 @@ class TestLogger(unittest.TestCase):
                                             # to avoid issues where other tests
                                             # set this to True. settings is shared
                                             # between these tests.
-        db.create_table("test1", [('email_confirmed', models.BooleanField(default=False))])
+        db.create_table("test9", [('email_confirmed', models.BooleanField(default=False))])
         
     def test_db_execute_logging_validfile(self):
         """ Does logging work when passing in a valid file?
         """
         settings.SOUTH_DEBUG_ON = True
         settings.SOUTH_LOGGING_FILE = self.test_path
-        db.create_table("test3", [('email_confirmed', models.BooleanField(default=False))])
+        db.create_table("test10", [('email_confirmed', models.BooleanField(default=False))])
         
         # remove the test log file
         os.remove(self.test_path) 
@@ -48,6 +48,6 @@ class TestLogger(unittest.TestCase):
         """
         settings.SOUTH_DEBUG_ON = True
         self.assertRaises(IOError,
-            db.create_table, "test3", [('email_confirmed', models.BooleanField(default=False))])
+            db.create_table, "test11", [('email_confirmed', models.BooleanField(default=False))])
         
         

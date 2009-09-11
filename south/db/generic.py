@@ -13,7 +13,7 @@ from django.dispatch import dispatcher
 from django.conf import settings
 from django.utils.datastructures import SortedDict
 
-from south.logger import getLogger
+from south.logger import get_logger
 
 def alias(attrname):
     """
@@ -78,7 +78,7 @@ class DatabaseOperations(object):
         if self.debug:
             print "   = %s" % sql, params
 
-        getLogger().debug('south execute "%s" with params "%s"' % (sql, params))
+        get_logger().debug('south execute "%s" with params "%s"' % (sql, params))
         
         if self.dry_run:
             return []
@@ -436,8 +436,9 @@ class DatabaseOperations(object):
             elif not field.null and field.blank:
                 if field.empty_strings_allowed:
                     sql += " DEFAULT ''"
-                else:
-                    raise ValueError("Attempting to add a non null column that isn't character based without an explicit default value.")
+                # Error here would be nice, but doesn't seem to play fair.
+                #else:
+                #    raise ValueError("Attempting to add a non null column that isn't character based without an explicit default value.")
 
             if field.rel and self.supports_foreign_keys:
                 self.add_deferred_sql(
