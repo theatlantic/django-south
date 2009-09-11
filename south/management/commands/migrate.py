@@ -38,7 +38,7 @@ class Command(BaseCommand):
     help = "Runs migrations for all apps."
     args = "[appname] [migrationname|zero] [--all] [--list] [--skip] [--merge] [--no-initial-data] [--fake] [--db-dry-run]"
 
-    def handle(self, app=None, target=None, skip=False, merge=False, backwards=False, fake=False, db_dry_run=False, show_list=False, **options):
+    def handle(self, app=None, target=None, skip=False, merge=False, backwards=False, fake=False, db_dry_run=False, list=False, **options):
 
         # Work out what the resolve mode is
         resolve_mode = merge and "merge" or (skip and "skip" or None)
@@ -64,20 +64,18 @@ class Command(BaseCommand):
 
         # Migrate each app
         if app:
-            try:
-                apps = [Migrations.from_name(app.split(".")[-1])]
-            except NoMigrations:
+            apps = [migration.get_app(app.split(".")[-1])]
+            if apps == [None]:
                 print "The app '%s' does not appear to use migrations." % app
                 print "./manage.py migrate " + self.args
                 return
         else:
-            apps = list(migration.all_migrations())
-            print apps
+            apps = migration.get_migrated_apps()
         
-        if show_list and apps:
+        if list and apps:
             list_migrations(apps)
         
-        if not show_list:
+        if not list:
             tree = migration.dependency_tree()
             
             for app in apps:
@@ -89,7 +87,7 @@ class Command(BaseCommand):
                     fake = fake,
                     db_dry_run = db_dry_run,
                     verbosity = int(options.get('verbosity', 0)),
-                    load_initial_data = not options.get('no_initial_data', False),
+                    load_inital_data = not options.get('no_initial_data', False),
                     skip = skip,
                 )
                 if result is False:
