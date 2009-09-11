@@ -198,7 +198,7 @@ class TestOperations(unittest.TestCase):
         db.add_column("test4", "add1", models.IntegerField(default=3), keep_default=False)
         # Add a FK with keep_default=False (#69)
         User = db.mock_model(model_name='User', db_table='auth_user', db_tablespace='', pk_field_name='id', pk_field_type=models.AutoField, pk_field_args=[], pk_field_kwargs={})
-        db.add_column("test4", "user", models.ForeignKey(User), keep_default=False)
+        db.add_column("test4", "user", models.ForeignKey(User, null=True), keep_default=False)
         db.delete_column("test4", "add1")
         
         db.rollback_transaction()
