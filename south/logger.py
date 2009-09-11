@@ -2,9 +2,16 @@ import sys
 import logging
 from django.conf import settings
 
+class NullHandler(logging.Handler):
+    def emit(self, record):
+        pass
+
+h = NullHandler()
+
 _logger = logging.getLogger("south")
-_logger.addHandler( logging.StreamHandler(sys.stdout) ) # FIXME: NullHandler
+_logger.addHandler(h)
 _logger.setLevel(logging.DEBUG)
+# TODO: Add a log formatter?
 
 def getLogger():
     debug_on = getattr(settings, "SOUTH_DEBUG_ON", False)
