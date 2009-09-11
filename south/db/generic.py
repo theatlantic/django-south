@@ -429,6 +429,11 @@ class DatabaseOperations(object):
                         default = "'%s'" % default
                     sql += " DEFAULT %s"
                     sqlparams = (default)
+            elif not field.null and field.blank:
+                if field.empty_strings_allowed:
+                    sql += " DEFAULT ''"
+                else:
+                    raise ValueError("Attempting to add a non null column that isn't character based without an explicit default value.")
 
             if field.rel and self.supports_foreign_keys:
                 self.add_deferred_sql(
@@ -672,7 +677,7 @@ class DatabaseOperations(object):
         """
         if self.debug:
             print " - Sending post_syncdb signal for %s: %s" % (app_label, model_names)
-        app = models.Migrations.from_name(app_label)
+        app = models.get_app(app_label)
         if not app:
             return
 
