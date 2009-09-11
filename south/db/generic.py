@@ -13,7 +13,7 @@ from django.dispatch import dispatcher
 from django.conf import settings
 from django.utils.datastructures import SortedDict
 
-from south.logger import logger
+from south.logger import getLogger
 
 def alias(attrname):
     """
@@ -78,7 +78,7 @@ class DatabaseOperations(object):
         if self.debug:
             print "   = %s" % sql, params
 
-        logger.debug('south execute "%s" with params "%s"' % (sql, params))
+        getLogger().debug('south execute "%s" with params "%s"' % (sql, params))
         
         if self.dry_run:
             return []

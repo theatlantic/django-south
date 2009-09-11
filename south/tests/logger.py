@@ -20,31 +20,31 @@ class TestLogger(unittest.TestCase):
     """
     Tests if the various logging functions.
     """
-
-    # TODO: Test if DEBUG is False
-    
     def setUp(self):
         db.debug = False
         db.clear_deferred_sql()
-        settings.DEBUG = True
-
+        
     def test_db_execute_logging_nofile(self):
-        """ Does logging degrade nicely if no file.
+        """ Does logging degrade nicely if SOUTH_DEBUG_ON not set?
         """
+        settings.SOUTH_DEBUG_ON = False
         db.create_table("test1", [('email_confirmed', models.BooleanField(default=False))])
         
-    # def test_db_execute_logging_garbagefile(self):
-    #     """ Does logging degrade nicely if garbage file.
-    #     """
-    #     settings.SOUTH_LOGGING_FILE = "garbage path"
-    #     db.create_table("test2", [('email_confirmed', models.BooleanField(default=False))])
-        
     def test_db_execute_logging_validfile(self):
-        """ Does logging degrade nicely if valid file.
+        """ Does logging work when passing in a valid file?
         """
+        settings.SOUTH_DEBUG_ON = True
         settings.SOUTH_LOGGING_FILE = os.path.join(
             os.path.dirname(__file__),
             "test.log",
         )
         db.create_table("test3", [('email_confirmed', models.BooleanField(default=False))])
+
+    def test_db_execute_logging_missingfilename(self):
+        """ Does logging raise an error if there is a missing filename?
+        """
+        settings.SOUTH_DEBUG_ON = True
+        self.assertRaises(IOError,
+            db.create_table, "test3", [('email_confirmed', models.BooleanField(default=False))])
+        
         
