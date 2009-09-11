@@ -22,23 +22,26 @@ class TestLogger(unittest.TestCase):
     """
     def setUp(self):
         db.debug = False
-        db.clear_deferred_sql()
+        self.test_path = os.path.join(os.path.dirname(__file__),"test.log")
         
     def test_db_execute_logging_nofile(self):
         """ Does logging degrade nicely if SOUTH_DEBUG_ON not set?
         """
-        settings.SOUTH_DEBUG_ON = False
+        settings.SOUTH_DEBUG_ON = False     # this needs to be set to False
+                                            # to avoid issues where other tests
+                                            # set this to True. settings is shared
+                                            # between these tests.
         db.create_table("test1", [('email_confirmed', models.BooleanField(default=False))])
         
     def test_db_execute_logging_validfile(self):
         """ Does logging work when passing in a valid file?
         """
         settings.SOUTH_DEBUG_ON = True
-        settings.SOUTH_LOGGING_FILE = os.path.join(
-            os.path.dirname(__file__),
-            "test.log",
-        )
+        settings.SOUTH_LOGGING_FILE = self.test_path
         db.create_table("test3", [('email_confirmed', models.BooleanField(default=False))])
+        
+        # remove the test log file
+        os.remove(self.test_path) 
 
     def test_db_execute_logging_missingfilename(self):
         """ Does logging raise an error if there is a missing filename?
