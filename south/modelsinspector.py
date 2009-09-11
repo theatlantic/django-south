@@ -4,12 +4,12 @@ rather than direct inspection of models.py.
 """
 
 import datetime
+import re
 
 import modelsparser
 from south.utils import get_attribute
 
 from django.db import models
-from django.contrib.localflavor import us
 from django.db.models.base import ModelBase
 from django.db.models.fields import NOT_PROVIDED
 from django.conf import settings
@@ -81,6 +81,13 @@ introspection_details = [
         },
     ),
     (
+        (models.BooleanField, ),
+        [],
+        {
+            "default": ["default", {"default": NOT_PROVIDED, "converter": bool}],
+        },
+    ),
+    (
         (models.FilePathField, ),
         [],
         {
@@ -102,6 +109,13 @@ introspection_details = [
     ),
 ]
 
+# Regexes of allowed field full paths
+allowed_fields = [
+    "^django\.db",
+    "^django\.contrib\.contenttypes\.generic",
+    "^django\.contrib\.localflavor",
+]
+
 # Similar, but for Meta, so just the inner level (kwds).
 meta_details = {
     "db_table": ["db_table", {"default_attr_concat": ["%s_%s", "app_label", "module_name"]}],
@@ -113,6 +127,14 @@ meta_details = {
 any = lambda x: reduce(lambda y, z: y or z, x, False)
 
 
+def add_introspection_rules(rules=[], patterns=[]):
+    "Allows you to add some introspection rules at runtime, e.g. for 3rd party apps."
+    assert isinstance(rules, (list, tuple))
+    assert isinstance(patterns, (list, tuple))
+    allowed_fields.extend(patterns)
+    introspection_details.extend(rules)
+
+
 def can_introspect(field):
     """
     Returns True if we are allowed to introspect this field, False otherwise.
@@ -122,9 +144,12 @@ def can_introspect(field):
     # Check for special attribute
     if hasattr(field, "_south_introspects") and field._south_introspects:
         return True
-    # Check it's a core field (one I've written for)
-    module = field.__class__.__module__
-    return module.startswith("django.db") or module.startswith("django.contrib.gis") or module.startswith("django.contrib.localflavor") or module.startswith("django.contrib.contenttypes.generic")
+    # Check it's an introspectable field
+    full_name = "%s.%s" % (field.__class__.__module__, field.__class__.__name__)
+    for regex in allowed_fields:
+        if re.match(regex, full_name):
+            return True
+    return False
 
 
 def matching_details(field):
@@ -176,6 +201,9 @@ def get_value(field, descriptor):
             raise IsDefault
     # Models get their own special repr()
     if isinstance(value, ModelBase):
+        # If it's a proxy model, follow it back to its non-proxy parent
+        if getattr(value._meta, "proxy", False):
+            value = value._meta.proxy_for_model
         return "orm['%s.%s']" % (value._meta.app_label, value._meta.object_name)
     # Callables get called.
     elif callable(value):
@@ -186,9 +214,12 @@ def get_value(field, descriptor):
         if value == datetime.date.today:
             return "datetime.date.today"
         # All other callables get called.
-        return repr(value())
-    else:
-        return repr(value)
+        value = value()
+    # Now, apply the converter func if there is one
+    if "converter" in options:
+        value = options['converter'](value)
+    # Return the final value
+    return repr(value)
 
 
 def introspector(field):
@@ -223,11 +254,15 @@ def get_model_fields(model, m2m=False):
     # Go through all bases (that are themselves models, but not Model)
     for base in model.__bases__:
         if base != models.Model and issubclass(base, models.Model):
-            # Looks like we need their fields, Ma.
-            inherited_fields.update(get_model_fields(base))
+            if not base._meta.abstract:
+                # Looks like we need their fields, Ma.
+                inherited_fields.update(get_model_fields(base))
     
     # Now, ask the parser to have a look at this model too.
-    parser_fields = modelsparser.get_model_fields(model, m2m) or {}
+    try:
+        parser_fields = modelsparser.get_model_fields(model, m2m) or {}
+    except TypeError: # Almost certainly a not-real module
+        parser_fields = {}
     
     # Now, go through all the fields and try to get their definition
     source = model._meta.local_fields[:]
@@ -278,3 +313,6 @@ def get_model_meta(model):
             pass
     
     return meta_def
+
+# Now, load the built-in South introspection plugins
+import south.introspection_plugins

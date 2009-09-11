@@ -7,6 +7,8 @@ class DatabaseOperations(generic.DatabaseOperations):
     django-pyodbc (sql_server.pyodbc) implementation of database operations.
     """
     
+    backend_name = "pyodbc"
+    
     add_column_string = 'ALTER TABLE %s ADD %s;'
     alter_string_set_type = 'ALTER COLUMN %(column)s %(type)s'
     alter_string_drop_null = 'ALTER COLUMN %(column)s %(type)s NOT NULL'
