@@ -156,6 +156,9 @@ class DatabaseOperations(object):
         #    fields = fields.items()
         #except AttributeError:
         #    pass
+        
+        if len(table_name) > 63:
+            print "   ! WARNING: You have a table name longer than 63 characters; this will not fully work on PostgreSQL or MySQL."
 
         columns = [
             self.column_sql(table_name, field_name, field)
