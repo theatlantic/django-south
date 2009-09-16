@@ -1,7 +1,13 @@
 
 import unittest
+import os
+import sys
 from django.conf import settings
 from south.hacks import hacks
+
+# Add the tests directory so fakeapp is on sys.path
+test_root = os.path.dirname(__file__)
+sys.path.append(test_root)
 
 # Note: the individual test files are imported below this.
 
@@ -36,6 +42,7 @@ class Monkeypatcher(unittest.TestCase):
         """
         Changes the Django environment so we can run tests against our test apps.
         """
+        # Set the installed apps
         hacks.set_installed_apps(["fakeapp", "otherfakeapp"])
     
     
@@ -57,3 +64,4 @@ if not skiptest:
     from south.tests.logic import *
     from south.tests.autodetection import *
     from south.tests.logger import *
+    from south.tests.inspector import *
