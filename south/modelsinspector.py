@@ -211,6 +211,8 @@ def get_value(field, descriptor):
         # context (and because it changes all the time; people will file bugs otherwise).
         if value == datetime.datetime.now:
             return "datetime.datetime.now"
+        if value == datetime.datetime.utcnow:
+            return "datetime.datetime.utcnow"
         if value == datetime.date.today:
             return "datetime.date.today"
         # All other callables get called.
