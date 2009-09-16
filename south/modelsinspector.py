@@ -199,14 +199,8 @@ def get_value(field, descriptor):
         default_value = format % tuple(map(lambda x: get_attribute(field, x), attrs))
         if value == default_value:
             raise IsDefault
-    # Models get their own special repr()
-    if isinstance(value, ModelBase):
-        # If it's a proxy model, follow it back to its non-proxy parent
-        if getattr(value._meta, "proxy", False):
-            value = value._meta.proxy_for_model
-        return "orm['%s.%s']" % (value._meta.app_label, value._meta.object_name)
     # Callables get called.
-    elif callable(value):
+    if callable(value):
         # Datetime.datetime.now is special, as we can access it from the eval
         # context (and because it changes all the time; people will file bugs otherwise).
         if value == datetime.datetime.now:
@@ -217,6 +211,12 @@ def get_value(field, descriptor):
             return "datetime.date.today"
         # All other callables get called.
         value = value()
+    # Models get their own special repr()
+    if isinstance(value, ModelBase):
+        # If it's a proxy model, follow it back to its non-proxy parent
+        if getattr(value._meta, "proxy", False):
+            value = value._meta.proxy_for_model
+        return "orm['%s.%s']" % (value._meta.app_label, value._meta.object_name)
     # Now, apply the converter func if there is one
     if "converter" in options:
         value = options['converter'](value)
