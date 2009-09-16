@@ -178,7 +178,6 @@ def get_value(field, descriptor):
     attrname, options = descriptor
     value = get_attribute(field, attrname)
     # Lazy-eval functions get eval'd.
-    # Annoyingly, we can't do an isinstance() test
     if isinstance(value, Promise):
         value = unicode(value)
     # If the value is the same as the default, omit it for clarity

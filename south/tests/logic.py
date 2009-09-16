@@ -8,11 +8,6 @@ from south import migration
 from south.tests import Monkeypatcher
 from south.utils import snd
 
-# Add the tests directory so fakeapp is on sys.path
-test_root = os.path.dirname(__file__)
-sys.path.append(test_root)
-
-
 class TestMigrationLogic(Monkeypatcher):
 
     """
