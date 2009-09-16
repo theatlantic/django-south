@@ -10,7 +10,7 @@ import modelsparser
 from south.utils import get_attribute
 
 from django.db import models
-from django.db.models.base import ModelBase
+from django.db.models.base import ModelBase, Model
 from django.db.models.fields import NOT_PROVIDED
 from django.conf import settings
 from django.utils.functional import Promise
@@ -200,7 +200,7 @@ def get_value(field, descriptor):
         if value == default_value:
             raise IsDefault
     # Callables get called.
-    if callable(value):
+    if callable(value) and not isinstance(value, ModelBase):
         # Datetime.datetime.now is special, as we can access it from the eval
         # context (and because it changes all the time; people will file bugs otherwise).
         if value == datetime.datetime.now:
@@ -217,6 +217,9 @@ def get_value(field, descriptor):
         if getattr(value._meta, "proxy", False):
             value = value._meta.proxy_for_model
         return "orm['%s.%s']" % (value._meta.app_label, value._meta.object_name)
+    # As do model instances
+    if isinstance(value, Model):
+        return "orm['%s.%s'].objects.get(pk=%r)" % (value.__class__._meta.app_label, value.__class__._meta.object_name, value.pk)
     # Now, apply the converter func if there is one
     if "converter" in options:
         value = options['converter'](value)
