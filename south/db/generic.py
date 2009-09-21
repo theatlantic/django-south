@@ -359,7 +359,7 @@ class DatabaseOperations(object):
         if not isinstance(columns, (list, tuple)):
             columns = [columns]
         
-        name = self.create_index_name(table_name, columns)
+        name = self.create_index_name(table_name, columns, suffix="_uniq")
         
         cols = ", ".join(map(qn, columns))
         self.execute("ALTER TABLE %s ADD CONSTRAINT %s UNIQUE (%s)" % (qn(table_name), qn(name), cols))
@@ -504,7 +504,7 @@ class DatabaseOperations(object):
     drop_foreign_key = alias('delete_foreign_key')
 
     
-    def create_index_name(self, table_name, column_names):
+    def create_index_name(self, table_name, column_names, suffix=""):
         """
         Generate a unique name for the index
         """
@@ -514,10 +514,10 @@ class DatabaseOperations(object):
             index_unique_name = '_%x' % abs(hash((table_name, ','.join(column_names))))
         
         # If the index name is too long, truncate it
-        index_name = ('%s_%s%s' % (table_name, column_names[0], index_unique_name))
+        index_name = ('%s_%s%s%s' % (table_name, column_names[0], index_unique_name, suffix))
         if len(index_name) > self.max_index_name_length:
-            part = ('_%s%s' % (column_names[0], index_unique_name))
-            index_name = '%s%s' % (table_name[:(self.max_index_name_length-len(part))], part)
+            part = ('_%s%s%s' % (column_names[0], index_unique_name, suffix))
+            index_name = '%s%s%s' % (table_name[:(self.max_index_name_length-len(part))], part)
         
         return index_name
 
