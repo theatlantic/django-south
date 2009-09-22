@@ -436,7 +436,7 @@ class DatabaseOperations(object):
                         default = "'%s'" % default
                     sql += " DEFAULT %s"
                     sqlparams = (default)
-            elif not field.null and field.blank:
+            elif (not field.null and field.blank) or field.get_default() == '':
                 if field.empty_strings_allowed:
                     sql += " DEFAULT ''"
                 # Error here would be nice, but doesn't seem to play fair.
