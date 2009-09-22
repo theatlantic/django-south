@@ -121,7 +121,9 @@ class DatabaseOperations(generic.DatabaseOperations):
         # Run ALTER TABLE with no unique column
         unique, field._unique, field.db_index = field.unique, False, False
         # If it's not nullable, and has no default, raise an error (SQLite is picky)
-        if not field.null and (not field.has_default() or field.get_default() is None):
+        if (not field.null and 
+            (not field.has_default() or field.get_default() is None) and
+            not field.empty_strings_allowed):
             raise ValueError("You cannot add a null=False column without a default value.")
         # Don't try and drop the default, it'll fail
         kwds['keep_default'] = True
