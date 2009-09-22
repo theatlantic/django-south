@@ -268,7 +268,7 @@ class DatabaseOperations(object):
         if self.has_check_constraints:
             check_constraints = self._constraints_affecting_columns(table_name, [name], "CHECK")
             for constraint in check_constraints:
-                self.execute(self.delete_check_sql % {'table':table_name, 'constraint': constraint})
+                self.execute(self.delete_check_sql % {'table': qn(table_name), 'constraint': qn(constraint)})
 
         # First, change the type
         params = {
