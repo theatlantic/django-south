@@ -493,13 +493,14 @@ class DatabaseOperations(object):
 
     def delete_foreign_key(self, table_name, column):
         "Drop a foreign key constraint"
+        qn = connection.ops.quote_name
         if self.dry_run:
             return # We can't look at the DB to get the constraints
         constraints = list(self._constraints_affecting_columns(table_name, [column], "FOREIGN KEY"))
         if not constraints:
             raise ValueError("Cannot find a FOREIGN KEY constraint on table %s, column %s" % (table_name, column))
         for constraint_name in constraints:
-            self.execute(self.delete_foreign_key_sql % (table_name, constraint_name))
+            self.execute(self.delete_foreign_key_sql % (qn(table_name), qn(constraint_name)))
     
     drop_foreign_key = alias('delete_foreign_key')
 
