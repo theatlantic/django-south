@@ -517,7 +517,7 @@ class DatabaseOperations(object):
         index_name = ('%s_%s%s%s' % (table_name, column_names[0], index_unique_name, suffix))
         if len(index_name) > self.max_index_name_length:
             part = ('_%s%s%s' % (column_names[0], index_unique_name, suffix))
-            index_name = '%s%s%s' % (table_name[:(self.max_index_name_length-len(part))], part)
+            index_name = '%s%s' % (table_name[:(self.max_index_name_length-len(part))], part)
         
         return index_name
 
