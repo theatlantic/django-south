@@ -575,7 +575,8 @@ class Command(BaseCommand):
         
         # Fill out frozen model definitions
         for model, last_models in frozen_models.items():
-            all_models[model_key(model)] = prep_for_freeze(model, last_models)
+            if not (hasattr(model._meta, "proxy") and model._meta.proxy):
+                all_models[model_key(model)] = prep_for_freeze(model, last_models)
         
         # Do some model cleanup, and warnings
         for modelname, model in all_models.items():
