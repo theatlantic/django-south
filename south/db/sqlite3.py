@@ -2,6 +2,8 @@ import inspect
 import re
 
 from django.db import connection
+from django.db.models import ForeignKey
+
 from south.db import generic
 
 # from how .schema works as shown on http://www.sqlite.org/sqlite.html
@@ -156,7 +158,11 @@ class DatabaseOperations(generic.DatabaseOperations):
         new_fields = []
         for field_name, field_def in self._fields[table_name]:
             if field_name == name:
-                new_fields.append((name, self.column_sql(table_name, name, field)))
+                if isinstance(field, ForeignKey):
+                    field_name = name[:-3] # exclude the _id when calling column_sql
+                else:
+                    field_name = name
+                new_fields.append((name, self.column_sql(table_name, field_name, field)))
             else:
                 new_fields.append((field_name, field_def))
         self._rebuild_table(table_name, new_fields)
