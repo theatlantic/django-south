@@ -432,7 +432,7 @@ class DatabaseOperations(object):
                     # Now do some very cheap quoting. TODO: Redesign return values to avoid this.
                     if isinstance(default, basestring):
                         default = "'%s'" % default.replace("'", "''")
-                    elif isinstance(default, (datetime.date, datetime.time)):
+                    elif isinstance(default, (datetime.date, datetime.time, datetime.datetime)):
                         default = "'%s'" % default
                     sql += " DEFAULT %s"
                     sqlparams = (default)
