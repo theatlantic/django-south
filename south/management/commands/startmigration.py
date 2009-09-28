@@ -575,13 +575,9 @@ class Command(BaseCommand):
         
         # Fill out frozen model definitions
         for model, last_models in frozen_models.items():
-            # Non-proxies get a standard freeze
-            if not (hasattr(model._meta, "proxy") and model._meta.proxy):
-                all_models[model_key(model)] = prep_for_freeze(model, last_models)
-            # Proxy models' parents are frozen
-            else:
+            if hasattr(model._meta, "proxy") and model._meta.proxy:
                 model = model._meta.proxy_for_model
-                all_models[model_key(model)] = prep_for_freeze(model, last_models)
+            all_models[model_key(model)] = prep_for_freeze(model, last_models)
         
         # Do some model cleanup, and warnings
         for modelname, model in all_models.items():
