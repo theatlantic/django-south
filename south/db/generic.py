@@ -422,7 +422,7 @@ class DatabaseOperations(object):
             sqlparams = ()
             # if the field is "NOT NULL" and a default value is provided, create the column with it
             # this allows the addition of a NOT NULL field to a table with existing rows
-            if not field.null and getattr(field, '_suppress_default', True) and field.has_default():
+            if not field.null and not getattr(field, '_suppress_default', False) and field.has_default():
                 default = field.get_default()
                 # If the default is actually None, don't add a default term
                 if default is not None:
@@ -436,7 +436,7 @@ class DatabaseOperations(object):
                         default = "'%s'" % default
                     sql += " DEFAULT %s"
                     sqlparams = (default)
-            elif (not field.null and field.blank) or field.get_default() == '':
+            elif (not field.null and field.blank) or ((field.get_default() == '') and (not getattr(field, '_suppress_default', False))):
                 if field.empty_strings_allowed:
                     sql += " DEFAULT ''"
                 # Error here would be nice, but doesn't seem to play fair.
