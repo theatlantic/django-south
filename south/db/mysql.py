@@ -143,5 +143,5 @@ class DatabaseOperations(generic.DatabaseOperations):
         This particular override stops us sending DEFAULTs for BLOB/TEXT columns.
         """
         if field.db_type().upper() in ["BLOB", "TEXT", "LONGTEXT"]:
-            field._suppress_default = False
+            field._suppress_default = True
         return field
