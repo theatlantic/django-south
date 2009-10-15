@@ -437,7 +437,7 @@ class DatabaseOperations(object):
                     sql += " DEFAULT %s"
                     sqlparams = (default)
             elif (not field.null and field.blank) or ((field.get_default() == '') and (not getattr(field, '_suppress_default', False))):
-                if field.empty_strings_allowed:
+                if field.empty_strings_allowed and connection.features.interprets_empty_strings_as_nulls:
                     sql += " DEFAULT ''"
                 # Error here would be nice, but doesn't seem to play fair.
                 #else:
