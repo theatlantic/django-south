@@ -330,6 +330,18 @@ class TestOperations(unittest.TestCase):
         finally:
             db.rollback_transaction()
     
+    def test_text_default(self):
+        """
+        MySQL cannot have blank defaults on TEXT columns.
+        """
+        db.start_transaction()
+        try:
+            db.create_table("test_textdef", [
+                ('textcol', models.TextField(blank=True)),
+            ])
+        finally:
+            db.rollback_transaction()
+    
     def test_add_unique_fk(self):
         """
         Test adding a ForeignKey with unique=True or a OneToOneField
