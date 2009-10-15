@@ -61,5 +61,5 @@ class Command(BaseCommand):
         
         print 
         print "App '%s' converted. Note that South assumed the application's models matched the database" % app
-        print "(i.e. you haven't changed it since last syncdb); if you have, you should delete the %s/migrations"
+        print "(i.e. you haven't changed it since last syncdb); if you have, you should delete the %s/migrations" % app
         print "directory, revert models.py so it matches the database, and try again."
