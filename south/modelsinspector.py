@@ -265,7 +265,7 @@ def get_model_fields(model, m2m=False):
     # Now, ask the parser to have a look at this model too.
     try:
         parser_fields = modelsparser.get_model_fields(model, m2m) or {}
-    except TypeError: # Almost certainly a not-real module
+    except (TypeError, IndentationError): # Almost certainly a not-real module
         parser_fields = {}
     
     # Now, go through all the fields and try to get their definition
