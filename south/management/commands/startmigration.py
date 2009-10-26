@@ -33,6 +33,8 @@ class Command(BaseCommand):
             help='Generate a Create Table migration for the specified model.  Add multiple models to this migration with subsequent --model parameters.'),
         make_option('--add-field', action='append', dest='added_field_list', type='string',
             help='Generate an Add Column migration for the specified modelname.fieldname - you can use this multiple times to add more than one column.'),
+        make_option('--add-index', action='append', dest='added_index_list', type='string',
+            help='Generate an Add Index migration for the specified modelname.fieldname - you can use this multiple times to add more than one column.'),
         make_option('--initial', action='store_true', dest='initial', default=False,
             help='Generate the initial schema for the app.'),
         make_option('--auto', action='store_true', dest='auto', default=False,
@@ -45,12 +47,13 @@ class Command(BaseCommand):
     help = "Creates a new template migration for the given app"
     usage_str = "Usage: ./manage.py startmigration appname migrationname [--initial] [--auto] [--model ModelName] [--add-field ModelName.field_name] [--freeze] [--stdout]"
     
-    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, freeze_list=None, auto=False, stdout=False, **options):
+    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, freeze_list=None, auto=False, stdout=False, added_index_list=None, **options):
         
         # Any supposed lists that are None become empty lists
         added_model_list = added_model_list or []
         added_field_list = added_field_list or []
-        
+        added_index_list = added_index_list or []
+
         # --stdout means name = -
         if stdout:
             name = "-"
@@ -160,6 +163,10 @@ class Command(BaseCommand):
         changed_fields = [] # (mkey, fname, old_def, new_def)
         added_uniques = set() # (mkey, field_names)
         deleted_uniques = set() # (mkey, field_names)
+
+        added_indexes = set()
+        deleted_indexes = []
+        
         
         # --initial means 'add all models in this app'.
         if initial:
@@ -181,6 +188,15 @@ class Command(BaseCommand):
                 print "The field specification '%s' is not in modelname.fieldname format." % fielddef
             else:
                 added_fields.add(("%s.%s" % (app, modelname), fieldname))
+        
+        # same thing as above, but for indexes
+        for fielddef in added_index_list:
+            try:
+                modelname, fieldname = fielddef.split(".", 1)
+            except ValueError:
+                print "The field specification '%s' is not in modelname.fieldname format." % fielddef
+            else:
+                added_indexes.add(("%s.%s" % (app, modelname), fieldname))
         
         # Add anything frozen (I almost called the dict Iceland...)
         if freeze_list:
@@ -456,7 +472,42 @@ class Command(BaseCommand):
                 model._meta.app_label,
                 model._meta.object_name,
             )
-        
+
+        ### Added indexes. going here, since it might add to added_uniques ###
+        for mkey, field_name in added_indexes:
+            # Get the model
+            model = model_unkey(mkey)
+            # Get the field
+            try:
+                field = model._meta.get_field(field_name)
+            except FieldDoesNotExist:
+                print "Model '%s' doesn't have a field '%s'" % (mkey, field_name)
+                return
+
+            if field.unique:
+                ut = (mkey, (field.name,))
+                added_uniques.add(ut)
+
+            elif field.db_index:
+                # Create migrations
+                forwards += CREATE_INDEX_SNIPPET % (
+                    model._meta.object_name,
+                    field.name,
+                    model._meta.db_table,
+                    field.name,
+                )
+
+                backwards += DELETE_INDEX_SNIPPET % (
+                    model._meta.object_name,
+                    field.name,
+                    model._meta.db_table,
+                    field.column,
+                )
+                print " + Added index for '%s.%s'" % (mkey, field_name)
+
+            else:
+                print "Field '%s.%s' does not have db_index or unique set to True" % (mkey, field_name)
+                return
         
         ### Changed fields ###
         for mkey, field_name, old_triple, new_triple, last_orm in changed_fields:
@@ -1070,3 +1121,12 @@ RENAME_COLUMN_SNIPPET = '''
         db.rename_column(%(old_column)r, %(new_column)r)
         '''
 FIELD_NEEDS_DEF_SNIPPET = "<< PUT FIELD DEFINITION HERE >>"
+
+CREATE_INDEX_SNIPPET = '''
+        # Adding index on '%s.%s'
+        db.create_index(%r, [%r])
+        '''
+DELETE_INDEX_SNIPPET = '''
+        # Deleting index on '%s.%s'
+        db.delete_index(%r, [%r])
+        '''
