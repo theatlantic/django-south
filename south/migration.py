@@ -101,7 +101,7 @@ def get_migration(app, name):
         print " ! Migration %s:%s probably doesn't exist." % (get_app_name(app), name)
         print " - Traceback:"
         raise
-    except Exception, e:
+    except Exception:
         print "While loading migration '%s.%s':" % (get_app_name(app), name)
         raise
 

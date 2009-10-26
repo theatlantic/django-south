@@ -71,7 +71,6 @@ class TestOperations(unittest.TestCase):
         Test = db.mock_model(model_name='Test', db_table='test5a',
                              db_tablespace='', pk_field_name='ID',
                              pk_field_type=models.AutoField, pk_field_args=[])
-        cursor = connection.cursor()
         db.start_transaction()
         db.create_table("test5a", [('ID', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True))])
         db.create_table("test5b", [
