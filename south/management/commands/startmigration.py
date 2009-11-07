@@ -136,9 +136,8 @@ class Command(BaseCommand):
                 pass
         
         # Make the new filename
-        new_filename = "%04i%s_%s.py" % (
+        new_filename = "%04i_%s.py" % (
             highest_number + 1,
-            "".join([random.choice(string.letters.lower()) for i in range(0)]), # Possible random stuff insertion
             name,
         )
         
