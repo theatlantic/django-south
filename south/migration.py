@@ -80,6 +80,7 @@ def get_migration_names(app):
 
             # if its a folder, and doesn't have an __init__.py file
             if os.path.splitext(filename)[1] is "" \
+                and os.path.isdir(filename) \
                 and "__init__.py" not in os.listdir(os.path.join(os.path.dirname(app.__file__), filename)):
                 continue
 
