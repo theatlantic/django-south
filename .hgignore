@@ -5,5 +5,3 @@ syntax: glob
 # Ignore dist builds and egg info
 dist/*
 South.egg-info/*
-# Ignore test log
-south/tests/test.log

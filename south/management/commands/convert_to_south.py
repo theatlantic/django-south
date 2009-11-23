@@ -5,7 +5,7 @@ from django.db import models
 from django.core import management
 from optparse import make_option
 from django.core.exceptions import ImproperlyConfigured
-from south.migration import get_app
+from south.migration import Migrations
 from south.hacks import hacks
 import sys
 
@@ -44,7 +44,7 @@ class Command(BaseCommand):
             return
         
         # Ask South if it thinks it's already got migrations
-        if get_app(app_module):
+        if Migrations.from_name(app_module):
             print "This application is already managed by South."
             return
         
@@ -61,5 +61,5 @@ class Command(BaseCommand):
         
         print 
         print "App '%s' converted. Note that South assumed the application's models matched the database" % app
-        print "(i.e. you haven't changed it since last syncdb); if you have, you should delete the %s/migrations" % app
+        print "(i.e. you haven't changed it since last syncdb); if you have, you should delete the %s/migrations"
         print "directory, revert models.py so it matches the database, and try again."

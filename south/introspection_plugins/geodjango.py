@@ -7,7 +7,31 @@ from django.conf import settings
 
 from south.modelsinspector import add_introspection_rules
 
-has_gis = "django.contrib.gis" in settings.INSTALLED_APPS
+
+def has_spatialite():
+    "Checks for the presence of SpataiLite"
+    try:
+        from ctypes.util import find_library
+    except ImportError:
+        return False
+    from django.conf import settings
+    return bool(getattr(settings, 'SPATIALITE_LIBRARY_PATH', find_library('spatialite')))
+
+
+def has_geos():
+    try:
+        from django.contrib.gis.geos import libgeos
+    except (ImportError, OSError):
+        return False
+    else:
+        return True
+
+
+# First, work out if GIS is enabled
+# (If it isn't importing the field will fail)
+has_gis = has_geos() and \
+          ((settings.DATABASE_ENGINE in ["postgresql", "postgresql_psycopg2", "mysql"]) or \
+          (settings.DATABASE_ENGINE == "sqlite3" and has_spatialite()))
 
 if has_gis:
     # Alright,import the field
@@ -34,7 +58,7 @@ if has_gis:
                 [],
                 {
                     "srid": ["_srid", {"default": 4326}],
-                    "spatial_index": ["_index", {"default": True}],
+                    "spatial_index": ["_spatial_index", {"default": True}],
                     "dim": ["_dim", {"default": 2}],
                 },
             ),

@@ -3,7 +3,6 @@ import datetime
 import string
 import random
 import re
-import sys
 
 from django.core.management.color import no_style
 from django.db import connection, transaction, models
@@ -13,7 +12,6 @@ from django.dispatch import dispatcher
 from django.conf import settings
 from django.utils.datastructures import SortedDict
 
-from south.logger import get_logger
 
 def alias(attrname):
     """
@@ -78,8 +76,6 @@ class DatabaseOperations(object):
         if self.debug:
             print "   = %s" % sql, params
 
-        get_logger().debug('south execute "%s" with params "%s"' % (sql, params))
-        
         if self.dry_run:
             return []
 
@@ -156,9 +152,6 @@ class DatabaseOperations(object):
         #    fields = fields.items()
         #except AttributeError:
         #    pass
-        
-        if len(table_name) > 63:
-            print "   ! WARNING: You have a table name longer than 63 characters; this will not fully work on PostgreSQL or MySQL."
 
         columns = [
             self.column_sql(table_name, field_name, field)
@@ -268,7 +261,7 @@ class DatabaseOperations(object):
         if self.has_check_constraints:
             check_constraints = self._constraints_affecting_columns(table_name, [name], "CHECK")
             for constraint in check_constraints:
-                self.execute(self.delete_check_sql % {'table': qn(table_name), 'constraint': qn(constraint)})
+                self.execute(self.delete_check_sql % {'table':table_name, 'constraint': constraint})
 
         # First, change the type
         params = {
@@ -359,7 +352,7 @@ class DatabaseOperations(object):
         if not isinstance(columns, (list, tuple)):
             columns = [columns]
         
-        name = self.create_index_name(table_name, columns, suffix="_uniq")
+        name = self.create_index_name(table_name, columns)
         
         cols = ", ".join(map(qn, columns))
         self.execute("ALTER TABLE %s ADD CONSTRAINT %s UNIQUE (%s)" % (qn(table_name), qn(name), cols))
@@ -422,7 +415,7 @@ class DatabaseOperations(object):
             sqlparams = ()
             # if the field is "NOT NULL" and a default value is provided, create the column with it
             # this allows the addition of a NOT NULL field to a table with existing rows
-            if not field.null and not getattr(field, '_suppress_default', False) and field.has_default():
+            if not field.null and getattr(field, '_suppress_default', True) and field.has_default():
                 default = field.get_default()
                 # If the default is actually None, don't add a default term
                 if default is not None:
@@ -432,16 +425,10 @@ class DatabaseOperations(object):
                     # Now do some very cheap quoting. TODO: Redesign return values to avoid this.
                     if isinstance(default, basestring):
                         default = "'%s'" % default.replace("'", "''")
-                    elif isinstance(default, (datetime.date, datetime.time, datetime.datetime)):
+                    elif isinstance(default, datetime.date):
                         default = "'%s'" % default
                     sql += " DEFAULT %s"
                     sqlparams = (default)
-            elif (not field.null and field.blank) or ((field.get_default() == '') and (not getattr(field, '_suppress_default', False))):
-                if field.empty_strings_allowed and connection.features.interprets_empty_strings_as_nulls:
-                    sql += " DEFAULT ''"
-                # Error here would be nice, but doesn't seem to play fair.
-                #else:
-                #    raise ValueError("Attempting to add a non null column that isn't character based without an explicit default value.")
 
             if field.rel and self.supports_foreign_keys:
                 self.add_deferred_sql(
@@ -493,34 +480,26 @@ class DatabaseOperations(object):
 
     def delete_foreign_key(self, table_name, column):
         "Drop a foreign key constraint"
-        qn = connection.ops.quote_name
         if self.dry_run:
             return # We can't look at the DB to get the constraints
         constraints = list(self._constraints_affecting_columns(table_name, [column], "FOREIGN KEY"))
         if not constraints:
             raise ValueError("Cannot find a FOREIGN KEY constraint on table %s, column %s" % (table_name, column))
         for constraint_name in constraints:
-            self.execute(self.delete_foreign_key_sql % (qn(table_name), qn(constraint_name)))
+            self.execute(self.delete_foreign_key_sql % (table_name, constraint_name))
     
     drop_foreign_key = alias('delete_foreign_key')
 
     
-    def create_index_name(self, table_name, column_names, suffix=""):
+    def create_index_name(self, table_name, column_names):
         """
         Generate a unique name for the index
         """
         index_unique_name = ''
-        
         if len(column_names) > 1:
             index_unique_name = '_%x' % abs(hash((table_name, ','.join(column_names))))
         
-        # If the index name is too long, truncate it
-        index_name = ('%s_%s%s%s' % (table_name, column_names[0], index_unique_name, suffix))
-        if len(index_name) > self.max_index_name_length:
-            part = ('_%s%s%s' % (column_names[0], index_unique_name, suffix))
-            index_name = '%s%s' % (table_name[:(self.max_index_name_length-len(part))], part)
-        
-        return index_name
+        return ('%s_%s%s' % (table_name, column_names[0], index_unique_name))[:self.max_index_name_length]
 
 
     def create_index_sql(self, table_name, column_names, unique=False, db_tablespace=''):
@@ -693,7 +672,7 @@ class DatabaseOperations(object):
         """
         if self.debug:
             print " - Sending post_syncdb signal for %s: %s" % (app_label, model_names)
-        app = models.get_app(app_label)
+        app = models.Migrations.from_name(app_label)
         if not app:
             return
 
