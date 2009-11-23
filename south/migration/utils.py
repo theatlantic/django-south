@@ -1,6 +1,8 @@
+import sys
 from collections import deque
 
 from django.utils.datastructures import SortedDict
+from django.db import models
 
 from south import exceptions
 
@@ -28,6 +30,23 @@ def get_app_name(app):
     i.e. for <module django.contrib.auth.models> will return 'auth'
     """
     return app.__name__.split('.')[-2]
+
+
+def app_label_to_app_module(app_label):
+    """
+    Given the app label, returns the module of the app itself (unlike models.get_app,
+    which returns the models module)
+    """
+    # Get the models module
+    app = models.get_app(app_label)
+    module_name = ".".join(app.__name__.split(".")[:-1])
+    try:
+        module = sys.modules[module_name]
+    except KeyError:
+        __import__(module_name, {}, {}, [''])
+        module = sys.modules[module_name]
+    return module
+
 
 def flatten(*stack):
     stack = deque(stack)

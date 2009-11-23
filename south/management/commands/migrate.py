@@ -11,12 +11,14 @@ from django.conf import settings
 from django.db import models
 
 from south import migration
+from south.migration import Migration, Migrations
+from south.migration.utils import get_app_name
 
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
         make_option('--all', action='store_true', dest='all_apps', default=False,
             help='Run the specified migration for all apps.'),
-        make_option('--list', action='store_true', dest='list', default=False,
+        make_option('--list', action='store_true', dest='show_list', default=False,
             help='List migrations noting those that have been applied'),
         make_option('--skip', action='store_true', dest='skip', default=False,
             help='Will skip over out-of-order missing migrations'),
@@ -72,19 +74,17 @@ class Command(BaseCommand):
                 return
         else:
             apps = list(migration.all_migrations())
-            print apps
         
+        # Do we need to show the list of migrations?
         if show_list and apps:
             list_migrations(apps)
         
         if not show_list:
-            tree = migration.dependency_tree()
             
             for app in apps:
                 result = migration.migrate_app(
                     app,
-                    tree,
-                    resolve_mode = resolve_mode,
+                    #resolve_mode = resolve_mode,
                     target_name = target,
                     fake = fake,
                     db_dry_run = db_dry_run,
@@ -97,26 +97,27 @@ class Command(BaseCommand):
 
 
 def list_migrations(apps):
+    """
+    Prints a list of all available migrations, and which ones are currently applied.
+    Accepts a list of Migrations instances.
+    """
     from south.models import MigrationHistory
-    apps = list(apps)
-    names = [migration.get_app_name(app) for app in apps]
-    applied_migrations = MigrationHistory.objects.filter(app_name__in=names)
+    applied_migrations = MigrationHistory.objects.filter(app_name__in=[app.app_name() for app in apps])
     applied_migrations = ['%s.%s' % (mi.app_name,mi.migration) for mi in applied_migrations]
 
     print
     for app in apps:
-        print migration.get_app_name(app)
-        all_migrations = migration.get_migration_names(app)
-        for migration_name in all_migrations:
-            long_form = '%s.%s' % (migration.get_app_name(app),migration_name)
-            if long_form in applied_migrations:
-                print format_migration_list_item(migration_name)
+        print " " + app.app_name()
+        # Get the migrations object
+        for migration in app:
+            if migration.full_name() in applied_migrations:
+                print format_migration_list_item(migration.name())
             else:
-                print format_migration_list_item(migration_name, applied=False)
+                print format_migration_list_item(migration.name(), applied=False)
         print
 
 
 def format_migration_list_item(name, applied=True):
     if applied:
-        return '   * %s' % name
-    return '     %s' % name
+        return '  (*) %s' % name
+    return '  ( ) %s' % name

@@ -11,6 +11,7 @@ from south import exceptions
 from south.migration.utils import depends, dfs, flatten, get_app_name
 from south.orm import LazyFakeORM, FakeORM
 from south.utils import memoize, ask_for_it_by_name
+from south.migration.utils import app_label_to_app_module
 
 
 def all_migrations(applications=None):
@@ -24,49 +25,47 @@ def all_migrations(applications=None):
         app_name = ".".join(model_module.__name__.split(".")[:-1])
         app = ask_for_it_by_name(app_name)
         try:
+            print app
             yield Migrations(app)
         except exceptions.NoMigrations:
             pass
 
-def Migrations(application):
-    if isinstance(application, basestring):
-        app_name = application
-    else:
-        app_name = application.__name__
-    if app_name not in Migrations.cache:
-        Migrations.cache[app_name] = _Migrations(application)
-    return Migrations.cache[app_name]
-Migrations.cache = {}
 
-class _Migrations(list):
+class Migrations(list):
     """
     Holds a list of Migration objects for a particular app.
     """
-
+    
+    # Already-created instances are stored in here; there is only ever one
+    # instance per app
+    _instances = {} 
+    
     MIGRATION_FILENAME = re.compile(r'(?!__init__)' # Don't match __init__.py
                                     r'[^.]*'        # Don't match dotfiles
                                     r'\.py$')       # Match only .py files
 
+    ### Constructing ###
+    
     def __new__(cls, application):
+        "Special __new__ which makes sure there's only once instance per app label."
+        # Work out the app label
         if isinstance(application, basestring):
-            return cls.from_name(application)
-        return super(_Migrations, cls).__new__(cls)
+            app_label = application.split('.')[-1]
+        else:
+            app_label = application.__name__.split('.')[-1]
+        # If we don't already have an instance, make one
+        if app_label not in cls._instances:
+            cls._instances[app_label] = super(Migrations, cls).__new__(cls)
+            cls._instances[app_label].load_application(app_label_to_app_module(app_label))
+        # Return the stored class
+        return cls._instances[app_label]
 
-    def __init__(self, application):
+    def load_application(self, application):
         if hasattr(application, '__name__'):
             self._cache = {}
             self.application = application
-
-    @classmethod
-    def from_name(cls, app_name):
-        app = models.get_app(app_name)
-        module_name = get_app_name(app)
-        try:
-            module = sys.modules[module_name]
-        except KeyError:
-            __import__(module_name, {}, {}, [''])
-            module = sys.modules[module_name]
-        return cls(module)
+    
+    ### 'Normal' methods ###
 
     def get_application(self):
         return self._application
@@ -88,7 +87,6 @@ class _Migrations(list):
         self._migrations = module
         filenames = []
         dirname = os.path.dirname(self._migrations.__file__)
-        print dirname
         for f in os.listdir(dirname):
             if self.MIGRATION_FILENAME.match(os.path.basename(f)):
                 filenames.append(f)
@@ -139,6 +137,11 @@ class _Migrations(list):
 
 
 class Migration(object):
+    
+    """
+    Class which represents a particular migration file on-disk.
+    """
+    
     def __init__(self, migrations, filename):
         """
         Returns the migration class implied by 'filename'.
@@ -166,6 +169,7 @@ class Migration(object):
         return self.migrations.full_name() + '.' + self.name()
 
     def migration(self):
+        "Tries to load the actual migration module"
         full_name = self.full_name()
         app_name = self.app_name()
         try:
@@ -184,13 +188,16 @@ class Migration(object):
     migration = memoize(migration)
 
     def migration_class(self):
+        "Returns the Migration class from the module"
         return self.migration().Migration
 
     def migration_instance(self):
+        "Instantiates the migration_class"
         return self.migration_class()()
     migration_instance = memoize(migration_instance)
 
     def previous(self):
+        "Returns the migration that comes before this one in the sequence."
         index = self.migrations.index(self) - 1
         if index < 0:
             return None
@@ -198,6 +205,7 @@ class Migration(object):
     previous = memoize(previous)
 
     def next(self):
+        "Returns the migration that comes after this one in the sequence."
         index = self.migrations.index(self) + 1
         if index >= len(self.migrations):
             return None
@@ -205,6 +213,7 @@ class Migration(object):
     next = memoize(next)
 
     def dependencies(self):
+        "Returns the list of migrations this migration depends on."
         result = [self.previous()]
         if result[0] is None:
             result = []
@@ -232,6 +241,7 @@ class Migration(object):
             self._dependents.appendleft(migration)
 
     def dependents(self):
+        "Returns the list of migrations that depend on this one"
         self.migrations.calculate_dependents()
         return self._dependents
     dependents = memoize(dependents)
