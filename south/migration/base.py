@@ -25,10 +25,34 @@ def all_migrations(applications=None):
         app_name = ".".join(model_module.__name__.split(".")[:-1])
         app = ask_for_it_by_name(app_name)
         try:
-            print app
             yield Migrations(app)
         except exceptions.NoMigrations:
             pass
+
+
+class MigrationsMetaclass(type):
+    
+    """
+    Metaclass which ensures there is only one instance of a Migrations for
+    any given app.
+    """
+    
+    def __init__(self, name, bases, dict):
+        super(MigrationsMetaclass, self).__init__(name, bases, dict)
+        self.instances = {}
+    
+    def __call__(self, application):
+        # Work out the app label
+        if isinstance(application, basestring):
+            app_label = application.split('.')[-1]
+        else:
+            app_label = application.__name__.split('.')[-1]
+        
+        # If we don't already have an instance, make one
+        if app_label not in self.instances:
+            self.instances[app_label] = super(MigrationsMetaclass, self).__call__(app_label_to_app_module(app_label))
+        
+        return self.instances[app_label]
 
 
 class Migrations(list):
@@ -36,36 +60,16 @@ class Migrations(list):
     Holds a list of Migration objects for a particular app.
     """
     
-    # Already-created instances are stored in here; there is only ever one
-    # instance per app
-    _instances = {} 
+    __metaclass__ = MigrationsMetaclass
     
     MIGRATION_FILENAME = re.compile(r'(?!__init__)' # Don't match __init__.py
                                     r'[^.]*'        # Don't match dotfiles
                                     r'\.py$')       # Match only .py files
 
-    ### Constructing ###
-    
-    def __new__(cls, application):
-        "Special __new__ which makes sure there's only once instance per app label."
-        # Work out the app label
-        if isinstance(application, basestring):
-            app_label = application.split('.')[-1]
-        else:
-            app_label = application.__name__.split('.')[-1]
-        # If we don't already have an instance, make one
-        if app_label not in cls._instances:
-            cls._instances[app_label] = super(Migrations, cls).__new__(cls)
-            cls._instances[app_label].load_application(app_label_to_app_module(app_label))
-        # Return the stored class
-        return cls._instances[app_label]
-
-    def load_application(self, application):
+    def __init__(self, application):
         if hasattr(application, '__name__'):
             self._cache = {}
             self.application = application
-    
-    ### 'Normal' methods ###
 
     def get_application(self):
         return self._application
