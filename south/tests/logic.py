@@ -13,11 +13,6 @@ from south.migration.utils import depends, dfs, flatten, get_app_name
 from south.models import MigrationHistory
 from south.tests import Monkeypatcher
 
-# Add the tests directory so fakeapp is on sys.path
-test_root = os.path.dirname(__file__)
-sys.path.append(test_root)
-
-
 class TestMigration(Monkeypatcher):
     installed_apps = ["fakeapp", "otherfakeapp", "brokenapp"]
 

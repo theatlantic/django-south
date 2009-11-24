@@ -71,7 +71,6 @@ class TestOperations(unittest.TestCase):
         Test = db.mock_model(model_name='Test', db_table='test5a',
                              db_tablespace='', pk_field_name='ID',
                              pk_field_type=models.AutoField, pk_field_args=[])
-        cursor = connection.cursor()
         db.start_transaction()
         db.create_table("test5a", [('ID', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True))])
         db.create_table("test5b", [
@@ -198,7 +197,7 @@ class TestOperations(unittest.TestCase):
         db.add_column("test4", "add1", models.IntegerField(default=3), keep_default=False)
         # Add a FK with keep_default=False (#69)
         User = db.mock_model(model_name='User', db_table='auth_user', db_tablespace='', pk_field_name='id', pk_field_type=models.AutoField, pk_field_args=[], pk_field_kwargs={})
-        db.add_column("test4", "user", models.ForeignKey(User), keep_default=False)
+        db.add_column("test4", "user", models.ForeignKey(User, null=True), keep_default=False)
         db.delete_column("test4", "add1")
         
         db.rollback_transaction()
@@ -315,6 +314,32 @@ class TestOperations(unittest.TestCase):
         else:
             self.fail("Could insert non-unique pair.")
         db.delete_unique("test_unique", ["spam", "eggs", "ham_id"])
+    
+    def test_capitalised_constraints(self):
+        """
+        Under PostgreSQL at least, capitalised constrains must be quoted.
+        """
+        db.start_transaction()
+        try:
+            db.create_table("test_capconst", [
+                ('SOMECOL', models.PositiveIntegerField(primary_key=True)),
+            ])
+            # Alter it so it's not got the check constraint
+            db.alter_column("test_capconst", "SOMECOL", models.IntegerField())
+        finally:
+            db.rollback_transaction()
+    
+    def test_text_default(self):
+        """
+        MySQL cannot have blank defaults on TEXT columns.
+        """
+        db.start_transaction()
+        try:
+            db.create_table("test_textdef", [
+                ('textcol', models.TextField(blank=True)),
+            ])
+        finally:
+            db.rollback_transaction()
     
     def test_add_unique_fk(self):
         """

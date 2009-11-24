@@ -189,7 +189,10 @@ class STTree(object):
 
 def get_model_tree(model):
     # Get the source of the model's file
-    source = open(inspect.getsourcefile(model)).read().replace("\r\n", "\n").replace("\r","\n") + "\n"
+    try:
+        source = inspect.getsource(model).replace("\r\n", "\n").replace("\r","\n") + "\n"
+    except IOError:
+        return None
     tree = STTree(parser.suite(source).totuple())
     # Now, we have to find it
     for poss in tree.find("compound_stmt"):
