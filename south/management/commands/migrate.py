@@ -13,6 +13,7 @@ from django.db import models
 from south import migration
 from south.migration import Migration, Migrations
 from south.migration.utils import get_app_name
+from south.exceptions import NoMigrations
 
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
@@ -67,7 +68,7 @@ class Command(BaseCommand):
         # Migrate each app
         if app:
             try:
-                apps = [Migrations.from_name(app.split(".")[-1])]
+                apps = [Migrations(app)]
             except NoMigrations:
                 print "The app '%s' does not appear to use migrations." % app
                 print "./manage.py migrate " + self.args
@@ -110,7 +111,7 @@ def list_migrations(apps):
         print " " + app.app_name()
         # Get the migrations object
         for migration in app:
-            if migration.full_name() in applied_migrations:
+            if migration.app_name() + "." + migration.name() in applied_migrations:
                 print format_migration_list_item(migration.name())
             else:
                 print format_migration_list_item(migration.name(), applied=False)
