@@ -187,7 +187,7 @@ class FakeMigrator(MigratorWrapper):
 
 class LoadInitialDataMigrator(MigratorWrapper):
     def load_initial_data(self, target):
-        if target != target.migrations[-1]:
+        if target is None or target != target.migrations[-1]:
             return
         # Load initial data, if we ended up at target
         if self.verbosity:

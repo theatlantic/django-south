@@ -9,7 +9,7 @@ from django.db import models
 
 from south import exceptions
 from south.migration.utils import depends, dfs, flatten, get_app_name
-from south.orm import LazyFakeORM, FakeORM
+from south.orm import FakeORM
 from south.utils import memoize, ask_for_it_by_name
 from south.migration.utils import app_label_to_app_module
 
@@ -296,7 +296,7 @@ class Migration(object):
     prev_orm = memoize(prev_orm)
 
     def orm(self):
-        return LazyFakeORM(self.migration().Migration, self.app_name())
+        return FakeORM(self.migration().Migration, self.app_name())
     orm = memoize(orm)
 
     def no_dry_run(self):
