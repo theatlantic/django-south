@@ -217,7 +217,10 @@ class Forwards(Migrator):
 
     @staticmethod
     def title(target):
-        return " - Migrating forwards to %s." % target.name()
+        if target is not None:
+            return " - Migrating forwards to %s." % target.name()
+        else:
+            assert False, "You cannot migrate forwards to zero."
 
     @staticmethod
     def status(migration):
@@ -281,7 +284,10 @@ class Backwards(Migrator):
 
     @staticmethod
     def title(target):
-        return " - Migrating backwards to just after %s." % target.name()
+        if target is None:
+            return " - Migrating backwards to zero state."
+        else:
+            return " - Migrating backwards to just after %s." % target.name()
 
     @staticmethod
     def status(migration):

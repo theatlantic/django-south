@@ -106,7 +106,7 @@ class Migrations(list):
     def __getitem__(self, value):
         if isinstance(value, basestring):
             return self.migration(value)
-        return super(_Migrations, self).__getitem__(value)
+        return super(Migrations, self).__getitem__(value)
 
     def _guess_migration(self, prefix):
         prefix = Migration.strip_filename(prefix)
