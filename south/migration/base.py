@@ -31,6 +31,15 @@ def all_migrations(applications=None):
             pass
 
 
+def application_to_app_label(application):
+    "Works out the app label from either the app label, the app name, or the module"
+    if isinstance(application, basestring):
+        app_label = application.split('.')[-1]
+    else:
+        app_label = application.__name__.split('.')[-1]
+    return app_label
+
+
 class MigrationsMetaclass(type):
     
     """
@@ -43,11 +52,8 @@ class MigrationsMetaclass(type):
         self.instances = {}
     
     def __call__(self, application):
-        # Work out the app label
-        if isinstance(application, basestring):
-            app_label = application.split('.')[-1]
-        else:
-            app_label = application.__name__.split('.')[-1]
+        
+        app_label = application_to_app_label(application)
         
         # If we don't already have an instance, make one
         if app_label not in self.instances:
@@ -76,6 +82,27 @@ class Migrations(list):
         if hasattr(application, '__name__'):
             self._cache = {}
             self.application = application
+    
+    @classmethod
+    def create_migrations_directory(self, application, verbose=True):
+        "Given an application, ensures that the migrations directory is ready."
+        app_module = app_label_to_app_module(application_to_app_label(application))
+        migrations_dir = os.path.join(
+            os.path.dirname(app_module.__file__),
+            "migrations",
+        )
+        # Make the directory if it's not already there
+        if not os.path.isdir(migrations_dir):
+            if verbose:
+                print "Creating migrations directory at '%s'..." % migrations_dir
+            os.mkdir(migrations_dir)
+        # Same for __init__.py
+        init_path = os.path.join(migrations_dir, "__init__.py")
+        if not os.path.isfile(init_path):
+            # Touch the init py file
+            if verbose:
+                print "Creating __init__.py in '%s'..." % migrations_dir
+            open(init_path, "w").close()
 
     def get_application(self):
         return self._application
