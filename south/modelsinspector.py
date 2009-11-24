@@ -318,5 +318,6 @@ def get_model_meta(model):
     
     return meta_def
 
+
 # Now, load the built-in South introspection plugins
 import south.introspection_plugins
