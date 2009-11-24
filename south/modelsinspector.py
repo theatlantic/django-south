@@ -10,7 +10,7 @@ import modelsparser
 from south.utils import get_attribute
 
 from django.db import models
-from django.db.models.base import ModelBase
+from django.db.models.base import ModelBase, Model
 from django.db.models.fields import NOT_PROVIDED
 from django.conf import settings
 from django.utils.functional import Promise
@@ -178,7 +178,6 @@ def get_value(field, descriptor):
     attrname, options = descriptor
     value = get_attribute(field, attrname)
     # Lazy-eval functions get eval'd.
-    # Annoyingly, we can't do an isinstance() test
     if isinstance(value, Promise):
         value = unicode(value)
     # If the value is the same as the default, omit it for clarity
@@ -199,22 +198,27 @@ def get_value(field, descriptor):
         default_value = format % tuple(map(lambda x: get_attribute(field, x), attrs))
         if value == default_value:
             raise IsDefault
+    # Callables get called.
+    if callable(value) and not isinstance(value, ModelBase):
+        # Datetime.datetime.now is special, as we can access it from the eval
+        # context (and because it changes all the time; people will file bugs otherwise).
+        if value == datetime.datetime.now:
+            return "datetime.datetime.now"
+        if value == datetime.datetime.utcnow:
+            return "datetime.datetime.utcnow"
+        if value == datetime.date.today:
+            return "datetime.date.today"
+        # All other callables get called.
+        value = value()
     # Models get their own special repr()
     if isinstance(value, ModelBase):
         # If it's a proxy model, follow it back to its non-proxy parent
         if getattr(value._meta, "proxy", False):
             value = value._meta.proxy_for_model
         return "orm['%s.%s']" % (value._meta.app_label, value._meta.object_name)
-    # Callables get called.
-    elif callable(value):
-        # Datetime.datetime.now is special, as we can access it from the eval
-        # context (and because it changes all the time; people will file bugs otherwise).
-        if value == datetime.datetime.now:
-            return "datetime.datetime.now"
-        if value == datetime.date.today:
-            return "datetime.date.today"
-        # All other callables get called.
-        value = value()
+    # As do model instances
+    if isinstance(value, Model):
+        return "orm['%s.%s'].objects.get(pk=%r)" % (value.__class__._meta.app_label, value.__class__._meta.object_name, value.pk)
     # Now, apply the converter func if there is one
     if "converter" in options:
         value = options['converter'](value)
@@ -261,7 +265,7 @@ def get_model_fields(model, m2m=False):
     # Now, ask the parser to have a look at this model too.
     try:
         parser_fields = modelsparser.get_model_fields(model, m2m) or {}
-    except TypeError: # Almost certainly a not-real module
+    except (TypeError, IndentationError): # Almost certainly a not-real module
         parser_fields = {}
     
     # Now, go through all the fields and try to get their definition
