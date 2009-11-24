@@ -106,7 +106,8 @@ class Migrations(list):
                 # If it's a module directory, only append if it contains __init__.py[c].
                 if os.path.isdir(full_path):
                     if not (os.path.isfile(os.path.join(full_path, "__init__.py")) or \
-                      os.path.isfile(os.path.join(full_path, "__init__.pyc"))):
+                      (getattr(settings, "SOUTH_USE_PYC", False) and \
+                      os.path.isfile(os.path.join(full_path, "__init__.pyc")))):
                         continue
                 filenames.append(f)
         filenames.sort()
