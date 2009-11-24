@@ -691,9 +691,11 @@ class DatabaseOperations(object):
         over all models within the app sending the signal.  This is a
         patch we should push Django to make  For now, this should work.
         """
+        
         if self.debug:
             print " - Sending post_syncdb signal for %s: %s" % (app_label, model_names)
-        app = models.Migrations.from_name(app_label)
+        
+        app = models.get_app(app_label)
         if not app:
             return
 
