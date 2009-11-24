@@ -6,6 +6,7 @@ import sys
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
+from django.conf import settings
 
 from south import exceptions
 from south.migration.utils import depends, dfs, flatten, get_app_name
@@ -62,9 +63,14 @@ class Migrations(list):
     
     __metaclass__ = MigrationsMetaclass
     
-    MIGRATION_FILENAME = re.compile(r'(?!__init__)' # Don't match __init__.py
-                                    r'[^.]*'        # Don't match dotfiles
-                                    r'\.py$')       # Match only .py files
+    if getattr(settings, "SOUTH_USE_PYC", False):
+        MIGRATION_FILENAME = re.compile(r'(?!__init__)' # Don't match __init__.py
+                                        r'[^.]*'        # Don't match dotfiles
+                                        r'(\.pyc?)?$')     # Match .py or .pyc files, or module dirs
+    else:
+        MIGRATION_FILENAME = re.compile(r'(?!__init__)' # Don't match __init__.py
+                                        r'[^.]*'        # Don't match dotfiles
+                                        r'(\.py)?$')       # Match only .py files, or module dirs
 
     def __init__(self, application):
         if hasattr(application, '__name__'):
@@ -93,6 +99,15 @@ class Migrations(list):
         dirname = os.path.dirname(self._migrations.__file__)
         for f in os.listdir(dirname):
             if self.MIGRATION_FILENAME.match(os.path.basename(f)):
+                full_path = os.path.join(dirname, f)
+                # If it's a .pyc file, only append if the .py isn't already around
+                if f.endswith(".pyc") and (os.path.isfile(full_path[:-1])):
+                    continue
+                # If it's a module directory, only append if it contains __init__.py[c].
+                if os.path.isdir(full_path):
+                    if not (os.path.isfile(os.path.join(full_path, "__init__.py")) or \
+                      os.path.isfile(os.path.join(full_path, "__init__.pyc"))):
+                        continue
                 filenames.append(f)
         filenames.sort()
         self.extend(self.migration(f) for f in filenames)
