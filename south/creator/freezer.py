@@ -47,9 +47,9 @@ def prep_for_freeze(model):
     for name, field in fields.items():
         fields[name] = remove_useless_attributes(field)
     # See if there's a Meta
-    meta = modelsinspector.get_model_meta(model)
-    if meta:
-        fields['Meta'] = remove_useless_meta(meta)
+    fields['Meta'] = remove_useless_meta(modelsinspector.get_model_meta(model))
+    # Add in our own special item to track the object name
+    fields['Meta']['object_name'] = model._meta.object_name
     return fields
 
 ### Dependency resolvers

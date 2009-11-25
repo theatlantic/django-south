@@ -77,12 +77,18 @@ class AutoChanges(BaseChanges):
                 # Find fields that have vanished.
                 for fieldname in old_fields:
                     if fieldname not in new_fields:
-                        yield ("DeleteField", {"model": self.old_orm[key], "field": fieldname, "field_def": old_fields[fieldname]})
+                        if isinstance(self.old_orm[key+":"+fieldname], models.ManyToManyField):
+                            yield ("DeleteM2M", {"model": self.old_orm[key], "field": fieldname})
+                        else:
+                            yield ("DeleteField", {"model": self.old_orm[key], "field": fieldname, "field_def": old_fields[fieldname]})
                 
                 # And ones that have appeared
                 for fieldname in new_fields:
                     if fieldname not in old_fields:
-                        yield ("AddField", {"model": self.current_model_from_key(key), "field": fieldname, "field_def": new_fields[fieldname]})
+                        if isinstance(self.current_model_from_key(key)._meta.get_field_by_name(fieldname)[0], models.ManyToManyField):
+                            yield ("AddM2M", {"model": self.old_orm[key], "field": fieldname})
+                        else:
+                            yield ("AddField", {"model": self.current_model_from_key(key), "field": fieldname, "field_def": new_fields[fieldname]})
                 
                 # For the ones that exist in both models, see if they were changed
                 for fieldname in set(old_fields).intersection(set(new_fields)):
