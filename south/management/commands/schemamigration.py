@@ -130,6 +130,11 @@ class Command(DataCommand):
                 action = action_class(**params)
                 action.add_forwards(forwards_actions)
                 action.add_backwards(backwards_actions)
+                print >>sys.stderr, action.console_line()
+        
+        # Nowt happen? That's not good for --auto.
+        if auto and not forwards_actions:
+            self.error("Nothing seems to have changed.")
         
         # Work out which apps to freeze
         apps_to_freeze = self.calc_frozen_apps(migrations, freeze_list)

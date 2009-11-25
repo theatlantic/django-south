@@ -97,7 +97,7 @@ class Command(BaseCommand):
         """
         Prints the error, and exits with the given code.
         """
-        print >>sys.stderr(message)
+        print >>sys.stderr, message
         sys.exit(code)
 
 

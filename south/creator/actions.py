@@ -28,6 +28,10 @@ class Action(object):
     def add_backwards(self, backwards):
         backwards.append(self.backwards_code())
     
+    def console_line(self):
+        "Returns the string to print on the console, e.g. ' + Added field foo'"
+        raise NotImplementedError
+    
     @classmethod
     def triples_to_defs(cls, fields):
         # Turn the (class, args, kwargs) format into a string
@@ -71,6 +75,13 @@ class AddModel(Action):
     def __init__(self, model, model_def):
         self.model = model
         self.model_def = model_def
+    
+    def console_line(self):
+        "Returns the string to print on the console, e.g. ' + Added field foo'"
+        return " + Added model %s.%s" % (
+            self.model._meta.app_label, 
+            self.model._meta.object_name,
+        )
 
     def forwards_code(self):
         
@@ -97,6 +108,13 @@ class DeleteModel(AddModel):
     """
     Deletion of a model. Takes the Model subclass that is being created.
     """
+    
+    def console_line(self):
+        "Returns the string to print on the console, e.g. ' + Added field foo'"
+        return " - Deleted model %s.%s" % (
+            self.model._meta.app_label, 
+            self.model._meta.object_name,
+        )
 
     def forwards_code(self):
         return AddModel.backwards_code(self)
@@ -123,6 +141,14 @@ class AddField(Action):
         self.field_name = field
         self.field_def = field_def
     
+    def console_line(self):
+        "Returns the string to print on the console, e.g. ' + Added field foo'"
+        return " + Added field %s on %s.%s" % (
+            self.field_name,
+            self.model._meta.app_label, 
+            self.model._meta.object_name,
+        )
+    
     def forwards_code(self):
         
         return self.FORWARDS_TEMPLATE % {
@@ -144,6 +170,14 @@ class DeleteField(AddField):
     """
     Removes a field from a model. Takes a Model class and the field name.
     """
+    
+    def console_line(self):
+        "Returns the string to print on the console, e.g. ' + Added field foo'"
+        return " - Deleted field %s on %s.%s" % (
+            self.field_name,
+            self.model._meta.app_label, 
+            self.model._meta.object_name,
+        )
     
     def forwards_code(self):
         return AddField.backwards_code(self)
@@ -169,6 +203,14 @@ class AddUnique(Action):
         self.model = model
         self.fields = fields
     
+    def console_line(self):
+        "Returns the string to print on the console, e.g. ' + Added field foo'"
+        return " + Added unique constraint for %s on %s.%s" % (
+            self.fields,
+            self.model._meta.app_label, 
+            self.model._meta.object_name,
+        )
+    
     def forwards_code(self):
         
         return self.FORWARDS_TEMPLATE % {
@@ -189,6 +231,14 @@ class DeleteUnique(AddUnique):
     """
     Removes a unique constraint from a model. Takes a Model class and the field names.
     """
+    
+    def console_line(self):
+        "Returns the string to print on the console, e.g. ' + Added field foo'"
+        return " - Deleted unique constraint for %s on %s.%s" % (
+            self.fields,
+            self.model._meta.app_label, 
+            self.model._meta.object_name,
+        )
     
     def forwards_code(self):
         return AddUnique.backwards_code(self)
@@ -217,6 +267,14 @@ class AddM2M(Action):
     def __init__(self, model, field):
         self.model = model
         self.field_name = field
+    
+    def console_line(self):
+        "Returns the string to print on the console, e.g. ' + Added field foo'"
+        return " + Added M2M %s on %s.%s" % (
+            self.field_name,
+            self.model._meta.app_label, 
+            self.model._meta.object_name,
+        )
     
     def forwards_code(self):
         
@@ -247,6 +305,14 @@ class DeleteM2M(AddM2M):
     """
     Adds a unique constraint to a model. Takes a Model class and the field names.
     """
+    
+    def console_line(self):
+        "Returns the string to print on the console, e.g. ' + Added field foo'"
+        return " - Deleted M2M %s on %s.%s" % (
+            self.field_name,
+            self.model._meta.app_label, 
+            self.model._meta.object_name,
+        )
     
     def forwards_code(self):
         return AddM2M.backwards_code(self)
