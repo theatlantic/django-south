@@ -36,6 +36,8 @@ class Command(BaseCommand):
             help='Generate an Add Column migration for the specified modelname.fieldname - you can use this multiple times to add more than one column.'),
         make_option('--add-index', action='append', dest='added_index_list', type='string',
             help='Generate an Add Index migration for the specified modelname.fieldname - you can use this multiple times to add more than one column.'),
+        make_option('--freeze', action='append', dest='freeze_list', type='string',
+            help='Freeze the specified model(s). Pass in either an app name (to freeze the whole app) or a single model, as appname.modelname.'),
         make_option('--initial', action='store_true', dest='initial', default=False,
             help='Generate the initial schema for the app.'),
         make_option('--auto', action='store_true', dest='auto', default=False,
@@ -46,12 +48,13 @@ class Command(BaseCommand):
     help = "Creates a new template migration for the given app"
     usage_str = "Usage: ./manage.py schemamigration appname migrationname [--initial] [--auto] [--add-model ModelName] [--add-field ModelName.field_name] [--stdout]"
     
-    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, auto=False, stdout=False, added_index_list=None, verbosity=1, **options):
+    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, freeze_list=None, initial=False, auto=False, stdout=False, added_index_list=None, verbosity=1, **options):
         
         # Any supposed lists that are None become empty lists
         added_model_list = added_model_list or []
         added_field_list = added_field_list or []
         added_index_list = added_index_list or []
+        freeze_list = freeze_list or []
 
         # --stdout means name = -
         if stdout:
@@ -59,14 +62,10 @@ class Command(BaseCommand):
         
         # Make sure options are compatable
         if initial and (added_model_list or added_field_list or auto):
-            print "You cannot use --initial and other options together"
-            print self.usage_str
-            return
+            self.error("You cannot use --initial and other options together\n" + self.usage_str)
         
         if auto and (added_model_list or added_field_list or initial):
-            print "You cannot use --auto and other options together"
-            print self.usage_str
-            return
+            self.error("You cannot use --auto and other options together\n" + self.usage_str)
         
         # specify the default name 'initial' if a name wasn't specified and we're
         # doing a migration for an entire app
@@ -75,14 +74,10 @@ class Command(BaseCommand):
         
         # if not name, there's an error
         if not name:
-            print "You must name this migration"
-            print self.usage_str
-            return
+            self.error("You must provide a name for this migration\n" + self.usage_str)
         
         if not app:
-            print "Please provide an app in which to create the migration."
-            print self.usage_str
-            return
+            self.error("You must provide an app to create a migration for.\n" + self.usage_str)
         
         # Get the Migrations for this app (creating the migrations dir if needed)
         try:
@@ -108,9 +103,16 @@ class Command(BaseCommand):
         
         # What actions do we need to do?
         if auto:
-            # Get the old migration, etc.
-            raise NotImplementedError
+            # Get the old migration
+            try:
+                last_migration = migrations[-1]
+            except IndexError:
+                self.error("You cannot use --auto on an app with no migrations. Try --initial.")
+            # Make sure it has stored models
+            if migrations.app_label() not in getattr(last_migration.migration_class(), "complete_apps", []):
+                self.error("You cannot use automatic detection, since the previous migration does not have this whole app frozen.\nEither make migrations using '--freeze %s' or set 'SOUTH_AUTO_FREEZE_APP = True' in your settings.py." % migrations.app_label())
         elif initial:
+            # Do an initial migration
             change_source = changes.InitialChanges(migrations)
         else:
             raise NotImplementedError
@@ -129,11 +131,18 @@ class Command(BaseCommand):
                 action.add_forwards(forwards_actions)
                 action.add_backwards(backwards_actions)
         
-        # Get the frozen models string.
+        # Work out which apps to freeze
+        apps_to_freeze = []
+        for to_freeze in freeze_list:
+            if "." in to_freeze:
+                self.error("You cannot freeze %r; you must provide an app label, like 'auth' or 'books'." % to_freeze)
+            # Make sure it's a real app
+            if not models.get_app(to_freeze):
+                self.error("You cannot freeze %r; it's not an installed app." % to_freeze)
+            # OK, it's fine
+            apps_to_freeze.append(to_freeze)
         if getattr(settings, 'SOUTH_AUTO_FREEZE_APP', True):
-            apps_to_freeze = [migrations.app_label()]
-        else:
-            apps_to_freeze = []
+            apps_to_freeze.append(migrations.app_label())
         
         # So, what's in this file, then?
         file_contents = MIGRATION_TEMPLATE % {
@@ -152,6 +161,13 @@ class Command(BaseCommand):
             fp.write(file_contents)
             fp.close()
             print "Created %s." % new_filename
+    
+    def error(self, message, code=1):
+        """
+        Prints the error, and exits with the given code.
+        """
+        print >>sys.stderr(message)
+        sys.exit(code)
 
 
 MIGRATION_TEMPLATE = """# encoding: utf-8
