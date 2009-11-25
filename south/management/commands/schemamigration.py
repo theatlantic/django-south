@@ -140,7 +140,7 @@ class Command(BaseCommand):
             "forwards": "\n".join(forwards_actions), 
             "backwards": "\n".join(backwards_actions), 
             "frozen_models":  freezer.freeze_apps(apps_to_freeze),
-            "complete_apps": "--",#complete_apps and "complete_apps = [%s]" % (", ".join(map(repr, complete_apps))) or ""
+            "complete_apps": apps_to_freeze and "complete_apps = [%s]" % (", ".join(map(repr, apps_to_freeze))) or ""
         }
         
         # - is a special name which means 'print to stdout'
