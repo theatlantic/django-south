@@ -28,22 +28,28 @@ class Action(object):
     def add_backwards(self, backwards):
         backwards.append(self.backwards_code())
     
-    def triples_to_defs(self, fields):
+    @classmethod
+    def triples_to_defs(cls, fields):
         # Turn the (class, args, kwargs) format into a string
         for field, triple in fields.items():
-            triple = remove_useless_attributes(triple, db=True)
-            if triple is None:
-                print "WARNING: Cannot get definition for '%s' on '%s'. Please edit the migration manually." % (
-                    field,
-                    model_key(model),
-                )
-                fields[field] = "<<??>>"
-            else:
-                fields[field] = "self.gf(%r)(%s)" % (
-                    triple[0], # Field full path
-                    ", ".join(triple[1] + ["%s=%s" % (kwd, val) for kwd, val in triple[2].items()]), # args and kwds
-                )
+            fields[field] = cls.triple_to_def(triple)
         return fields
+    
+    @classmethod
+    def triple_to_def(cls, triple):
+        "Turns a single triple into a definition."
+        triple = remove_useless_attributes(triple, db=True)
+        if triple is None:
+            print "WARNING: Cannot get definition for '%s' on '%s'. Please edit the migration manually." % (
+                field,
+                model_key(model),
+            )
+            return "<<??>>"
+        else:
+            return "self.gf(%r)(%s)" % (
+                triple[0], # Field full path
+                ", ".join(triple[1] + ["%s=%s" % (kwd, val) for kwd, val in triple[2].items()]), # args and kwds
+            )
     
     
 class AddModel(Action):
@@ -123,7 +129,7 @@ class AddField(Action):
             "model_name": self.model._meta.object_name,
             "table_name": self.model._meta.db_table,
             "field_name": self.field_name,
-            "field_def": self.field_def,
+            "field_def": self.triple_to_def(self.field_def),
         }
 
     def backwards_code(self):
@@ -145,3 +151,47 @@ class DeleteField(AddField):
     def backwards_code(self):
         return AddField.forwards_code(self)
 
+
+class AddUnique(Action):
+    """
+    Adds a unique constraint to a model. Takes a Model class and the field names.
+    """
+    
+    FORWARDS_TEMPLATE = '''
+        # Adding unique constraint on '%(model_name)s', fields %(fields)s
+        db.add_unique(%(table_name)r, %(fields)r)'''
+    
+    BACKWARDS_TEMPLATE = '''
+        # Removing unique constraint on '%(model_name)s', fields %(fields)s
+        db.delete_unique(%(table_name)r, %(fields)r)'''
+    
+    def __init__(self, model, fields):
+        self.model = model
+        self.fields = fields
+    
+    def forwards_code(self):
+        
+        return self.FORWARDS_TEMPLATE % {
+            "model_name": self.model._meta.object_name,
+            "table_name": self.model._meta.db_table,
+            "fields": self.fields,
+        }
+
+    def backwards_code(self):
+        return self.BACKWARDS_TEMPLATE % {
+            "model_name": self.model._meta.object_name,
+            "table_name": self.model._meta.db_table,
+            "fields": self.fields,
+        }
+
+
+class DeleteUnique(AddUnique):
+    """
+    Removes a unique constraint from a model. Takes a Model class and the field names.
+    """
+    
+    def forwards_code(self):
+        return AddUnique.backwards_code(self)
+
+    def backwards_code(self):
+        return AddUnique.forwards_code(self)

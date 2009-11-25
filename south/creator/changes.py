@@ -5,7 +5,7 @@ commandline, or by using autodetection, etc.
 
 from django.db import models
 
-from south.creator.freezer import remove_useless_attributes
+from south.creator.freezer import remove_useless_attributes, freeze_apps
 
 class AutoChanges(object):
     """
@@ -191,6 +191,14 @@ class InitialChanges(object):
         self.migrations = migrations
     
     def get_changes(self):
-        # Get the app's models
+        # Get the frozen models for this app
+        model_defs = freeze_apps(self.migrations.app_label())
+        
         for model in models.get_models(models.get_app(self.migrations.app_label())):
-            yield ("AddModel", {"model": model})
+            
+            model_def = model_defs[model._meta.app_label + "." + model._meta.object_name]
+            
+            yield ("AddModel", {
+                "model": model,
+                "model_def": dict((k, v) for k, v in model_defs.items() if k != "Meta"),
+            })
