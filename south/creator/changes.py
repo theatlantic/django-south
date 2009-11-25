@@ -57,13 +57,19 @@ class AutoChanges(BaseChanges):
         # See if anything's vanished
         for key in self.old_defs:
             if key not in self.new_defs:
-                yield ("DeleteModel", {"model": self.old_orm[key], "model_def": self.old_defs[key]})
+                yield ("DeleteModel", {
+                    "model": self.old_orm[key], 
+                    "model_def": self.split_model_def(self.old_orm[key], self.old_defs[key])[0],
+                })
                 deleted_models.add(key)
         
         # Or appeared
         for key in self.new_defs:
             if key not in self.old_defs:
-                yield ("AddModel", {"model": self.current_model_from_key(key), "model_def": self.new_defs[key]})
+                yield ("AddModel", {
+                    "model": self.current_model_from_key(key), 
+                    "model_def": self.split_model_def(self.current_model_from_key(key), self.new_defs[key])[0],
+                })
         
         # Now, for every model that's stayed the same, check its fields.
         for key in self.old_defs:
