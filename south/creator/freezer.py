@@ -12,6 +12,8 @@ def freeze_apps(apps):
     """
     Takes a list of app labels, and returns a string of their frozen form.
     """
+    if isinstance(apps, basestring):
+        apps = [apps]
     frozen_models = set()
     # For each app, add in all its models
     for app in apps:

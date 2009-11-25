@@ -15,4 +15,5 @@ class SchemaMigration(BaseMigration):
     pass
 
 class DataMigration(BaseMigration):
-    pass
+    # Data migrations shouldn't be dry-run
+    no_dry_run = True
