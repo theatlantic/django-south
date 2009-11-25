@@ -38,13 +38,13 @@ class AutoChanges(object):
         # See if anything's vanished
         for key in self.old_defs:
             if key not in self.new_defs:
-                yield ("DeleteModel", {"model": self.old_orm[key]})
+                yield ("DeleteModel", {"model": self.old_orm[key], "model_def": self.old_defs[key]})
                 deleted_models.add(key)
         
         # Or appeared
         for key in self.new_defs:
             if key not in self.old_defs:
-                yield ("AddModel", {"model": self.current_model_from_key(key)})
+                yield ("AddModel", {"model": self.current_model_from_key(key), "model_def": self.new_defs[key]})
         
         # Now, for every model that's stayed the same, check its fields.
         for key in self.old_defs:
@@ -58,12 +58,12 @@ class AutoChanges(object):
                 # Find fields that have vanished.
                 for fieldname in old_fields:
                     if fieldname not in new_fields:
-                        yield ("DeleteField", {"model": self.old_orm[key], "field": fieldname})
+                        yield ("DeleteField", {"model": self.old_orm[key], "field": fieldname, "field_def": self.old_defs[key][fieldname]})
                 
                 # And ones that have appeared
                 for fieldname in new_fields:
                     if fieldname not in old_fields:
-                        yield ("AddField", {"model": self.current_model_from_key(key), "field": fieldname})
+                        yield ("AddField", {"model": self.current_model_from_key(key), "field": fieldname, "field_def": self.new_defs[key][fieldname]})
                 
                 # For the ones that exist in both models, see if they were changed
                 for fieldname in old_fields.intersection(new_fields):
@@ -74,6 +74,8 @@ class AutoChanges(object):
                             "old_model": self.old_orm[key],
                             "new_model": self.current_model_from_key(key),
                             "field": fieldname,
+                            "old_def": self.old_defs[key][fieldname],
+                            "new_def": self.new_defs[key][fieldname],
                         })
                     # See if their uniques have changed
                     old_triple = self.old_defs[key][fieldname]
