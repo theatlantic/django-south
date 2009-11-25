@@ -129,16 +129,16 @@ def get_migrator(direction, db_dry_run, fake, load_initial_data):
     return direction
 
 def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False):
-    app_name = migrations.app_name()
+    app_label = migrations.app_label()
 
     verbosity = int(verbosity)
     db.debug = (verbosity > 1)
     # Fire off the pre-migrate signal
-    pre_migrate.send(None, app=app_name)
+    pre_migrate.send(None, app=app_label)
     
     # If there aren't any, quit quizically
     if not migrations:
-        print "? You have no migrations for the '%s' app. You might want some." % app_name
+        print "? You have no migrations for the '%s' app. You might want some." % app_label
         return
     
     # Check there's no strange ones in the database
@@ -151,7 +151,7 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
         if target_name not in ('zero', None) and target.name() != target_name:
             print " - Soft matched migration %s to %s." % (target_name,
                                                            target.name())
-        print "Running migrations for %s:" % app_name
+        print "Running migrations for %s:" % app_label
     
     # Get the forwards and reverse dependencies for this target
     direction, problems, workplan = get_direction(target, applied,
@@ -166,6 +166,6 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
         success = migrator.migrate_many(target, workplan)
         # Finally, fire off the post-migrate signal
         if success:
-            post_migrate.send(None, app=app_name)
+            post_migrate.send(None, app=app_label)
     elif verbosity:
         print '- Nothing to migrate.'
