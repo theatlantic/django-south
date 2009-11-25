@@ -11,10 +11,10 @@ class MigrationHistory(models.Model):
     @classmethod
     def for_migration(cls, migration):
         try:
-            return cls.objects.get(app_name=migration.app_name(),
+            return cls.objects.get(app_name=migration.app_label(),
                                    migration=migration.name())
         except cls.DoesNotExist:
-            return cls(app_name=migration.app_name(),
+            return cls(app_name=migration.app_label(),
                        migration=migration.name())
 
     def get_migrations(self):
