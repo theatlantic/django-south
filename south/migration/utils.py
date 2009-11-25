@@ -24,9 +24,9 @@ class SortedSet(SortedDict):
         [self.add(k) for k in iterable]
 
 
-def get_app_name(app):
+def get_app_label(app):
     """
-    Returns the _internal_ app name for the given app module.
+    Returns the _internal_ app label for the given app module.
     i.e. for <module django.contrib.auth.models> will return 'auth'
     """
     return app.__name__.split('.')[-2]

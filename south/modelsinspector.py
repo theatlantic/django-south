@@ -1,12 +1,11 @@
 """
-Like south.modelsparser, but using introspection where possible
+Like the old south.modelsparser, but using introspection where possible
 rather than direct inspection of models.py.
 """
 
 import datetime
 import re
 
-import modelsparser
 from south.utils import get_attribute
 
 from django.db import models
@@ -262,12 +261,6 @@ def get_model_fields(model, m2m=False):
                 # Looks like we need their fields, Ma.
                 inherited_fields.update(get_model_fields(base))
     
-    # Now, ask the parser to have a look at this model too.
-    try:
-        parser_fields = modelsparser.get_model_fields(model, m2m) or {}
-    except (TypeError, IndentationError): # Almost certainly a not-real module
-        parser_fields = {}
-    
     # Now, go through all the fields and try to get their definition
     source = model._meta.local_fields[:]
     if m2m:
@@ -289,11 +282,6 @@ def get_model_fields(model, m2m=False):
             args, kwargs = introspector(field)
             # That's our definition!
             field_defs[field.name] = (field_class, args, kwargs)
-        # Hmph. Is it parseable?
-        elif parser_fields.get(field.name, None):
-            if NOISY:
-                print " ( Parsing field: %s" % field.name
-            field_defs[field.name] = parser_fields[field.name]
         # Shucks, no definition!
         else:
             if NOISY:

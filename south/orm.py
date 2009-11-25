@@ -92,18 +92,18 @@ class _FakeORM(object):
             if "Meta" not in data:
                 data['Meta'] = {}
             try:
-                app_name, model_name = name.split(".", 1)
+                app_label, model_name = name.split(".", 1)
             except ValueError:
-                app_name = self.default_app
+                app_label = self.default_app
                 model_name = name
-                name = "%s.%s" % (app_name, model_name)
+                name = "%s.%s" % (app_label, model_name)
             
             name = name.lower()
             self.models[name] = name
-            model_names.append((name, app_name, model_name, data))
+            model_names.append((name, app_label, model_name, data))
         
-        for name, app_name, model_name, data in model_names:
-            self.models[name] = self.make_model(app_name, model_name, data)
+        for name, app_label, model_name, data in model_names:
+            self.models[name] = self.make_model(app_label, model_name, data)
         
         # And perform the second run to iron out any circular/backwards depends.
         self.retry_failed_fields()

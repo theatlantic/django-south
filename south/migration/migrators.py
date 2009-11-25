@@ -105,7 +105,7 @@ class Migrator(object):
 
     def send_ran_migration(self, migration):
         ran_migration.send(None,
-                           app=migration.app_name(),
+                           app=migration.app_label(),
                            migration=migration,
                            method=self.__class__.__name__.lower())
 
@@ -191,11 +191,11 @@ class LoadInitialDataMigrator(MigratorWrapper):
             return
         # Load initial data, if we ended up at target
         if self.verbosity:
-            print " - Loading initial data for %s." % target.app_name()
+            print " - Loading initial data for %s." % target.app_label()
         # Override Django's get_apps call temporarily to only load from the
         # current app
         old_get_apps = models.get_apps
-        models.get_apps = lambda: [models.get_app(target.app_name())]
+        models.get_apps = lambda: [models.get_app(target.app_label())]
         try:
             call_command('loaddata', 'initial_data', verbosity=self.verbosity)
         finally:

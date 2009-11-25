@@ -9,7 +9,7 @@ from django.db import models
 from django.conf import settings
 
 from south import exceptions
-from south.migration.utils import depends, dfs, flatten, get_app_name
+from south.migration.utils import depends, dfs, flatten, get_app_label
 from south.orm import FakeORM
 from south.utils import memoize, ask_for_it_by_name
 from south.migration.utils import app_label_to_app_module
@@ -23,8 +23,8 @@ def all_migrations(applications=None):
         applications = models.get_apps()
     for model_module in applications:
         # The app they've passed is the models module - go up one level
-        app_name = ".".join(model_module.__name__.split(".")[:-1])
-        app = ask_for_it_by_name(app_name)
+        app_path = ".".join(model_module.__name__.split(".")[:-1])
+        app = ask_for_it_by_name(app_path)
         try:
             yield Migrations(app)
         except exceptions.NoMigrations:
@@ -168,9 +168,9 @@ class Migrations(list):
             return self[-1]
         else:
             return self._guess_migration(prefix=target_name)
-
-    def app_name(self):
-        return get_app_name(self._migrations)
+    
+    def app_label(self):
+        return get_app_label(self._migrations)
 
     def full_name(self):
         return self._migrations.__name__
@@ -197,13 +197,13 @@ class Migration(object):
         self.filename = filename
 
     def __str__(self):
-        return self.app_name() + ':' + self.name()
+        return self.app_label() + ':' + self.name()
 
     def __repr__(self):
         return u'<Migration: %s>' % unicode(self)
 
-    def app_name(self):
-        return self.migrations.app_name()
+    def app_label(self):
+        return self.migrations.app_label()
 
     @staticmethod
     def strip_filename(filename):
@@ -218,7 +218,6 @@ class Migration(object):
     def migration(self):
         "Tries to load the actual migration module"
         full_name = self.full_name()
-        app_name = self.app_name()
         try:
             migration = sys.modules[full_name]
         except KeyError:
@@ -334,12 +333,12 @@ class Migration(object):
         previous = self.previous()
         if previous is None:
             # First migration? The 'previous ORM' is empty.
-            return FakeORM(None, self.app_name())
+            return FakeORM(None, self.app_label())
         return previous.orm()
     prev_orm = memoize(prev_orm)
 
     def orm(self):
-        return FakeORM(self.migration().Migration, self.app_name())
+        return FakeORM(self.migration().Migration, self.app_label())
     orm = memoize(orm)
 
     def no_dry_run(self):

@@ -202,8 +202,8 @@ class Command(BaseCommand):
             for item in freeze_list:
                 if "." in item:
                     # It's a specific model
-                    app_name, model_name = item.split(".", 1)
-                    model = models.get_model(app_name, model_name)
+                    app_label, model_name = item.split(".", 1)
+                    model = models.get_model(app_label, model_name)
                     if model is None:
                         print "Cannot find the model '%s' to freeze it." % item
                         print self.usage_str

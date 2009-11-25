@@ -9,7 +9,7 @@ import StringIO
 from south import exceptions
 from south.migration import migrate_app
 from south.migration.base import all_migrations, Migration, Migrations
-from south.migration.utils import depends, dfs, flatten, get_app_name
+from south.migration.utils import depends, dfs, flatten, get_app_label
 from south.models import MigrationHistory
 from south.tests import Monkeypatcher
 
@@ -36,9 +36,9 @@ class TestMigration(Monkeypatcher):
                           '<Migration: fakeapp:0003_alter_spam>'],
                          migrations)
 
-    def test_app_name(self):
+    def test_app_label(self):
         self.assertEqual(['fakeapp', 'fakeapp', 'fakeapp'],
-                         [m.app_name() for m in self.fakeapp])
+                         [m.app_label() for m in self.fakeapp])
                          
     def test_name(self):
         self.assertEqual(['0001_spam', '0002_eggs', '0003_alter_spam'],
@@ -395,10 +395,10 @@ class TestMigrations(Monkeypatcher):
         self.assertRaises(exceptions.UnknownMigration,
                           migration.guess_migration, "0001_jam")
 
-    def test_app_name(self):
+    def test_app_label(self):
         names = ['fakeapp', 'otherfakeapp']
         self.assertEqual(names,
-                         [Migrations(n).app_name() for n in names])
+                         [Migrations(n).app_label() for n in names])
     
     def test_full_name(self):
         names = ['fakeapp', 'otherfakeapp']
@@ -440,7 +440,7 @@ class TestMigrationLogic(Monkeypatcher):
             ((u"fakeapp", u"0001_spam"),
              (u"fakeapp", u"0002_eggs"),
              (u"fakeapp", u"0003_alter_spam"),),
-            MigrationHistory.objects.values_list("app_name", "migration"),
+            MigrationHistory.objects.values_list("app_label", "migration"),
         )
         
         # Now roll them backwards
@@ -587,14 +587,14 @@ class TestMigrationLogic(Monkeypatcher):
 class TestMigrationUtils(Monkeypatcher):
     installed_apps = ["fakeapp", "otherfakeapp"]
 
-    def test_get_app_name(self):
+    def test_get_app_label(self):
         self.assertEqual(
             "southtest",
-            get_app_name(self.create_fake_app("southtest.models")),
+            get_app_label(self.create_fake_app("southtest.models")),
         )
         self.assertEqual(
             "baz",
-            get_app_name(self.create_fake_app("foo.bar.baz.models")),
+            get_app_label(self.create_fake_app("foo.bar.baz.models")),
         )
 
 class TestUtils(unittest.TestCase):
