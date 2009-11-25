@@ -11,7 +11,7 @@ from django.db.models.loading import cache
 from django.core import management
 import sys
 
-def get_app_name(app):
+def get_app_label(app):
     return '.'.join( app.__name__.split('.')[0:-1] )
 
 class Command(NoArgsCommand):
@@ -36,13 +36,13 @@ class Command(NoArgsCommand):
         apps_needing_sync = []
         apps_migrated = []
         for app in models.get_apps():
-            app_name = get_app_name(app)
+            app_label = get_app_label(app)
             migrations = migration.Migrations.from_name(app)
             if migrations is None or migrate_all:
-                apps_needing_sync.append(app_name)
+                apps_needing_sync.append(app_label)
             else:
                 # This is a migrated app, leave it
-                apps_migrated.append(app_name)
+                apps_migrated.append(app_label)
         verbosity = int(options.get('verbosity', 0))
         
         # Run syncdb on only the ones needed
@@ -52,7 +52,7 @@ class Command(NoArgsCommand):
         old_installed, settings.INSTALLED_APPS = settings.INSTALLED_APPS, apps_needing_sync
         old_app_store, cache.app_store = cache.app_store, SortedDict([
             (k, v) for (k, v) in cache.app_store.items()
-            if get_app_name(k) in apps_needing_sync
+            if get_app_label(k) in apps_needing_sync
         ])
         
         # This will allow the setting of the MySQL storage engine, for example.
