@@ -5,6 +5,7 @@ commandline, or by using autodetection, etc.
 
 from django.db import models
 
+from south.creator.freezer import remove_useless_attributes
 
 class AutoChanges(object):
     """
@@ -17,16 +18,17 @@ class AutoChanges(object):
         self.old_orm = old_orm
         self.new_defs = new_defs
     
+    def current_model_from_key(self, key):
+        app_label, model_name = key.split(".")
+        return models.get_model(app_label, model_name)
+    
     def get_changes(self):
         """
         Returns the difference between the old and new sets of models as a 5-tuple:
         added_models, deleted_models, added_fields, deleted_fields, changed_fields
         """
         
-        added_models = set()
         deleted_models = set()
-        ignored_models = set() # Stubs for backwards
-        continued_models = set() # Models that existed before and after
         added_fields = set()
         deleted_fields = set()
         changed_fields = []
@@ -34,56 +36,73 @@ class AutoChanges(object):
         deleted_uniques = set()
         
         # See if anything's vanished
-        for key in old:
-            if key not in new:
-                if "_stub" not in old[key]:
-                    deleted_models.add(key)
-                else:
-                    ignored_models.add(key)
+        for key in self.old_defs:
+            if key not in self.new_defs:
+                yield ("DeleteModel", {"model": self.old_orm[key]})
+                deleted_models.add(key)
         
         # Or appeared
-        for key in new:
-            if key not in old:
-                added_models.add(key)
+        for key in self.new_defs:
+            if key not in self.old_defs:
+                yield ("AddModel", {"model": self.current_model_from_key(key)})
         
         # Now, for every model that's stayed the same, check its fields.
-        for key in old:
-            if key not in deleted_models and key not in ignored_models:
-                continued_models.add(key)
+        for key in self.old_defs:
+            if key not in deleted_models:
+                
                 still_there = set()
+                
+                old_fields = set([x for x in self.old_defs[key].keys() if x != "Meta"])
+                new_fields = set([x for x in self.new_defs[key].keys() if x != "Meta"])
+                
                 # Find fields that have vanished.
-                for fieldname in old[key]:
-                    if fieldname != "Meta" and fieldname not in new[key]:
-                        deleted_fields.add((key, fieldname))
-                    else:
-                        still_there.add(fieldname)
+                for fieldname in old_fields:
+                    if fieldname not in new_fields:
+                        yield ("DeleteField", {"model": self.old_orm[key], "field": fieldname})
+                
                 # And ones that have appeared
-                for fieldname in new[key]:
-                    if fieldname != "Meta" and fieldname not in old[key]:
-                        added_fields.add((key, fieldname))
+                for fieldname in new_fields:
+                    if fieldname not in old_fields:
+                        yield ("AddField", {"model": self.current_model_from_key(key), "field": fieldname})
+                
                 # For the ones that exist in both models, see if they were changed
-                for fieldname in still_there:
-                    if fieldname != "Meta":
-                        if different_attributes(
-                         remove_useless_attributes(old[key][fieldname], True),
-                         remove_useless_attributes(new[key][fieldname], True)):
-                            changed_fields.append((key, fieldname, old[key][fieldname], new[key][fieldname]))
-                        # See if their uniques have changed
-                        old_triple = old[key][fieldname]
-                        new_triple = new[key][fieldname]
-                        if is_triple(old_triple) and is_triple(new_triple):
-                            if old_triple[2].get("unique", "False") != new_triple[2].get("unique", "False"):
-                                # Make sure we look at the one explicitly given to see what happened
-                                if "unique" in old_triple[2]:
-                                    if old_triple[2]['unique'] == "False":
-                                        added_uniques.add((key, (fieldname,)))
-                                    else:
-                                        deleted_uniques.add((key, (fieldname,)))
+                for fieldname in old_fields.intersection(new_fields):
+                    if self.different_attributes(
+                     remove_useless_attributes(self.old_defs[key][fieldname], True),
+                     remove_useless_attributes(self.new_defs[key][fieldname], True)):
+                        yield ("ChangeField", {
+                            "old_model": self.old_orm[key],
+                            "new_model": self.current_model_from_key(key),
+                            "field": fieldname,
+                        })
+                    # See if their uniques have changed
+                    old_triple = self.old_defs[key][fieldname]
+                    new_triple = self.new_defs[key][fieldname]
+                    if self.is_triple(old_triple) and self.is_triple(new_triple):
+                        if old_triple[2].get("unique", "False") != new_triple[2].get("unique", "False"):
+                            # Make sure we look at the one explicitly given to see what happened
+                            if "unique" in old_triple[2]:
+                                if old_triple[2]['unique'] == "False":
+                                    yield ("AddUnique", {
+                                        "model": self.current_model_from_key(key),
+                                        "fields": [fieldname],
+                                    })
                                 else:
-                                    if new_triple[2]['unique'] == "False":
-                                        deleted_uniques.add((key, (fieldname,)))
-                                    else:
-                                        added_uniques.add((key, (fieldname,)))
+                                    yield ("DeleteUnique", {
+                                        "model": self.old_orm[key],
+                                        "fields": [fieldname],
+                                    })
+                            else:
+                                if new_triple[2]['unique'] == "False":
+                                    yield ("DeleteUnique", {
+                                        "model": self.old_orm[key],
+                                        "fields": [fieldname],
+                                    })
+                                else:
+                                    yield ("AddUnique", {
+                                        "model": self.current_model_from_key(key),
+                                        "fields": [fieldname],
+                                    })
 
     @classmethod
     def is_triple(cls, triple):

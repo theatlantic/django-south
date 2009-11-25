@@ -82,3 +82,25 @@ class AddModel(Action):
             "model_name": self.model._meta.object_name,
             "table_name": self.model._meta.db_table,
         }
+    
+    
+class DeleteModel(AddModel):
+    """
+    Deletion of a model. Takes the Model subclass that is being created.
+    """
+
+    def forwards_code(self):
+        return AddModel.backwards_code()
+
+    def backwards_code(self):
+        return AddModel.forwards_code()
+    
+    
+class AddField(Action):
+    """
+    Adds a field to a model. Takes a Model class and the field name.
+    """
+    
+    def __init__(self, model, fieldname):
+        self.model = model
+        self.fieldname = fieldname
