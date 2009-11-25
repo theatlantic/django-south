@@ -147,7 +147,7 @@ class Command(DataCommand):
             print file_contents
         # Write the migration file if the name isn't -
         else:
-            fp = open(os.path.join(migrations_dir, new_filename), "w")
+            fp = open(os.path.join(migrations.migrations_dir(), new_filename), "w")
             fp.write(file_contents)
             fp.close()
             print >>sys.stderr, "Created %s." % new_filename
