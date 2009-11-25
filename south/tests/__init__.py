@@ -35,14 +35,16 @@ class Monkeypatcher(unittest.TestCase):
         """
         Changes the Django environment so we can run tests against our test apps.
         """
-        hacks.set_installed_apps(self.installed_apps)
+        if getattr(self, 'installed_apps', None):
+            hacks.set_installed_apps(self.installed_apps)
     
     
     def tearDown(self):
         """
         Undoes what setUp did.
         """
-        hacks.reset_installed_apps()
+        if getattr(self, 'installed_apps', None):
+            hacks.reset_installed_apps()
 
 
 # Try importing all tests if asked for (then we can run 'em)
