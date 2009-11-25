@@ -113,11 +113,11 @@ class Command(BaseCommand):
                 self.error("You cannot use automatic detection, since the previous migration does not have this whole app frozen.\nEither make migrations using '--freeze %s' or set 'SOUTH_AUTO_FREEZE_APP = True' in your settings.py." % migrations.app_label())
             # Alright, construct two model dicts to run the differ on.
             old_defs = dict(
-                (k, v) for k, v in last_migration.models.items()
+                (k, v) for k, v in last_migration.migration_class().models.items()
                 if k.split(".")[0] == migrations.app_label()
             )
             new_defs = dict(
-                (k, v) for k, v in freezer.freeze_apps([migrations.app_label()])
+                (k, v) for k, v in freezer.freeze_apps([migrations.app_label()]).items()
                 if k.split(".")[0] == migrations.app_label()
             )
             change_source = changes.AutoChanges(
