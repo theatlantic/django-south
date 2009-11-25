@@ -948,7 +948,7 @@ def different_attributes(old, new):
     """
     Backwards-compat comparison that ignores orm. on the RHS and not the left
     and which knows django.db.models.fields.CharField = models.CharField.
-    Has a whole load of tests in tests/autodetectoion.py.
+    Has a whole load of tests in tests/autodetection.py.
     """
     
     # If they're not triples, just do normal comparison
