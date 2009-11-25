@@ -62,13 +62,16 @@ class AddModel(Action):
         # Deleting model '%(model_name)s'
         db.delete_table(%(table_name)r)'''
 
-    def __init__(self, model):
+    def __init__(self, model, model_def):
         self.model = model
+        self.model_def = model_def
 
     def forwards_code(self):
         
-        fields = modelsinspector.get_model_fields(self.model)
-        field_defs = "\n            ".join(["(%r, %s)" % (name, defn) for name, defn in self.triples_to_defs(fields).items()])
+        field_defs = "\n            ".join([
+            "(%r, %s)" % (name, defn) for name, defn
+            in self.triples_to_defs(self.model_def).items()
+        ])
         
         return self.FORWARDS_TEMPLATE % {
             "model_name": self.model._meta.object_name,
@@ -90,10 +93,10 @@ class DeleteModel(AddModel):
     """
 
     def forwards_code(self):
-        return AddModel.backwards_code()
+        return AddModel.backwards_code(self)
 
     def backwards_code(self):
-        return AddModel.forwards_code()
+        return AddModel.forwards_code(self)
     
     
 class AddField(Action):
@@ -101,6 +104,44 @@ class AddField(Action):
     Adds a field to a model. Takes a Model class and the field name.
     """
     
-    def __init__(self, model, fieldname):
+    FORWARDS_TEMPLATE = '''
+        # Adding field '%(model_name)s.%(field_name)s'
+        db.add_field(%(table_name)r, %(field_name)r, %(field_def)s)'''
+    
+    BACKWARDS_TEMPLATE = '''
+        # Deleting field '%(model_name)s.%(field_name)s'
+        db.delete_field(%(table_name)r, %(field_name)r)'''
+    
+    def __init__(self, model, field, field_def):
         self.model = model
-        self.fieldname = fieldname
+        self.field_name = field
+        self.field_def = field_def
+    
+    def forwards_code(self):
+        
+        return self.FORWARDS_TEMPLATE % {
+            "model_name": self.model._meta.object_name,
+            "table_name": self.model._meta.db_table,
+            "field_name": self.field_name,
+            "field_def": self.field_def,
+        }
+
+    def backwards_code(self):
+        return self.BACKWARDS_TEMPLATE % {
+            "model_name": self.model._meta.object_name,
+            "table_name": self.model._meta.db_table,
+            "field_name": self.field_name,
+        }
+    
+    
+class DeleteField(AddField):
+    """
+    Removes a field from a model. Takes a Model class and the field name.
+    """
+    
+    def forwards_code(self):
+        return AddField.backwards_code(self)
+
+    def backwards_code(self):
+        return AddField.forwards_code(self)
+
