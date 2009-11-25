@@ -24,14 +24,14 @@ class BaseChanges(object):
         for name, triple in model_def.items():
             if name == "Meta":
                 meta = triple
-            elif isinstance(model._meta.get_field_by_name(name), models.ManyToManyField):
+            elif isinstance(model._meta.get_field_by_name(name)[0], models.ManyToManyField):
                 m2m_fields[name] = triple
             else:
                 real_fields[name] = triple
         return real_fields, meta, m2m_fields
 
 
-class AutoChanges(object):
+class AutoChanges(BaseChanges):
     """
     Detects changes by 'diffing' two sets of frozen model definitions.
     """
@@ -71,34 +71,34 @@ class AutoChanges(object):
                 
                 still_there = set()
                 
-                old_fields = set([x for x in self.old_defs[key].keys() if x != "Meta"])
-                new_fields = set([x for x in self.new_defs[key].keys() if x != "Meta"])
+                old_fields, old_meta, old_m2ms = self.split_model_def(self.old_orm[key], self.old_defs[key])
+                new_fields, new_meta, new_m2ms = self.split_model_def(self.current_model_from_key(key), self.new_defs[key])
                 
                 # Find fields that have vanished.
                 for fieldname in old_fields:
                     if fieldname not in new_fields:
-                        yield ("DeleteField", {"model": self.old_orm[key], "field": fieldname, "field_def": self.old_defs[key][fieldname]})
+                        yield ("DeleteField", {"model": self.old_orm[key], "field": fieldname, "field_def": old_fields[fieldname]})
                 
                 # And ones that have appeared
                 for fieldname in new_fields:
                     if fieldname not in old_fields:
-                        yield ("AddField", {"model": self.current_model_from_key(key), "field": fieldname, "field_def": self.new_defs[key][fieldname]})
+                        yield ("AddField", {"model": self.current_model_from_key(key), "field": fieldname, "field_def": new_fields[fieldname]})
                 
                 # For the ones that exist in both models, see if they were changed
-                for fieldname in old_fields.intersection(new_fields):
+                for fieldname in set(old_fields).intersection(set(new_fields)):
                     if self.different_attributes(
-                     remove_useless_attributes(self.old_defs[key][fieldname], True),
-                     remove_useless_attributes(self.new_defs[key][fieldname], True)):
+                     remove_useless_attributes(old_fields[fieldname], True),
+                     remove_useless_attributes(new_fields[fieldname], True)):
                         yield ("ChangeField", {
                             "old_model": self.old_orm[key],
                             "new_model": self.current_model_from_key(key),
                             "field": fieldname,
-                            "old_def": self.old_defs[key][fieldname],
-                            "new_def": self.new_defs[key][fieldname],
+                            "old_def": old_fields[fieldname],
+                            "new_def": new_fields[fieldname],
                         })
                     # See if their uniques have changed
-                    old_triple = self.old_defs[key][fieldname]
-                    new_triple = self.new_defs[key][fieldname]
+                    old_triple = old_fields[fieldname]
+                    new_triple = new_fields[fieldname]
                     if self.is_triple(old_triple) and self.is_triple(new_triple):
                         if old_triple[2].get("unique", "False") != new_triple[2].get("unique", "False"):
                             # Make sure we look at the one explicitly given to see what happened
@@ -124,6 +124,30 @@ class AutoChanges(object):
                                         "model": self.current_model_from_key(key),
                                         "fields": [fieldname],
                                     })
+                
+                ## See if the unique_togethers have changed
+                # First, normalise them into lists of sets.
+                old_unique_together = eval(old_meta.get("unique_together", "[]"))
+                new_unique_together = eval(new_meta.get("unique_together", "[]"))
+                if old_unique_together and isinstance(old_unique_together[0], basestring):
+                    old_unique_together = [old_unique_together]
+                if new_unique_together and isinstance(new_unique_together[0], basestring):
+                    new_unique_together = [new_unique_together]
+                old_unique_together = map(set, old_unique_together)
+                new_unique_together = map(set, new_unique_together)
+                # See if any appeared or disappeared
+                for item in old_unique_together:
+                    if item not in new_unique_together:
+                        yield ("DeleteUnique", {
+                            "model": self.old_orm[key],
+                            "fields": list(item),
+                        })
+                for item in new_unique_together:
+                    if item not in old_unique_together:
+                        yield ("AddUnique", {
+                            "model": self.current_model_from_key(key),
+                            "fields": list(item),
+                        })
 
     @classmethod
     def is_triple(cls, triple):
@@ -237,10 +261,9 @@ class InitialChanges(BaseChanges):
                             "fields": list(fields),
                         })
             
-            print m2m_fields
             # Finally, see if there's some M2M action
-            for name, triple in m2m_fields:
-                field = model._meta.get_field_by_name(name)
+            for name, triple in m2m_fields.items():
+                field = model._meta.get_field_by_name(name)[0]
                 # But only if it's not through=foo (#120)
                 if (not field.rel.through) or getattr(field.rel.through._meta, "auto_created", False):
                     yield ("AddM2M", {
