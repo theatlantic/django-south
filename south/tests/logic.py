@@ -440,7 +440,7 @@ class TestMigrationLogic(Monkeypatcher):
             ((u"fakeapp", u"0001_spam"),
              (u"fakeapp", u"0002_eggs"),
              (u"fakeapp", u"0003_alter_spam"),),
-            MigrationHistory.objects.values_list("app_label", "migration"),
+            MigrationHistory.objects.values_list("app_name", "migration"),
         )
         
         # Now roll them backwards
