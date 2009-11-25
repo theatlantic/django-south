@@ -195,3 +195,62 @@ class DeleteUnique(AddUnique):
 
     def backwards_code(self):
         return AddUnique.forwards_code(self)
+
+
+class AddM2M(Action):
+    """
+    Adds a unique constraint to a model. Takes a Model class and the field names.
+    """
+    
+    FORWARDS_TEMPLATE = '''
+        # Adding M2M field %(field_name)s on '%(model_name)s'
+        db.create_table('%(table_name)s', (
+            ('id', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)),
+            ('%(left_field)s', models.ForeignKey(orm[%(left_model_key)r], null=False)),
+            ('%(right_field)s', models.ForeignKey(orm[%(right_model_key)r], null=False))
+        ))'''
+    
+    BACKWARDS_TEMPLATE = '''
+        # Removing M2M field %(field_name)s on '%(model_name)s'
+        db.delete_table('%(table_name)s')'''
+    
+    def __init__(self, model, field):
+        self.model = model
+        self.field_name = field
+    
+    def forwards_code(self):
+        
+        field = self.model._meta.get_field_by_name(self.field_name)[0]
+        
+        return self.FORWARDS_TEMPLATE % {
+            "model_name": self.model._meta.object_name,
+            "field_name": self.field_name,
+            "table_name": field.m2m_db_table(),
+            "left_field": field.m2m_column_name()[:-3], # Remove the _id part
+            "left_model_key": model_key(self.model),
+            "right_field": field.m2m_reverse_name()[:-3], # Remove the _id part
+            "right_model_key": model_key(field.rel.to),
+        }
+
+    def backwards_code(self):
+        
+        field = self.model._meta.get_field_by_name(self.field_name)[0]
+        
+        return self.BACKWARDS_TEMPLATE % {
+            "model_name": self.model._meta.object_name,
+            "field_name": self.field_name,
+            "table_name": field.m2m_db_table(),
+        }
+
+
+class DeleteM2M(AddM2M):
+    """
+    Adds a unique constraint to a model. Takes a Model class and the field names.
+    """
+    
+    def forwards_code(self):
+        return AddM2M.backwards_code(self)
+
+    def backwards_code(self):
+        return AddM2M.forwards_code(self)
+    
