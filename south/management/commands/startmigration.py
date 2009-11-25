@@ -14,9 +14,6 @@ from optparse import make_option
 from django.core.management.base import BaseCommand
 from django.core.management.color import no_style
 from django.db import models
-from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
-from django.contrib.contenttypes.generic import GenericRelation
-from django.db.models.fields import FieldDoesNotExist
 from django.conf import settings
 
 try:

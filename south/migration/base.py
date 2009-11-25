@@ -181,6 +181,21 @@ class Migrations(list):
                 migration.add_dependent(None)
                 for dependency in migration.dependencies():
                     dependency.add_dependent(migration)
+    
+    def next_filename(self, name):
+        "Returns the fully-formatted filename of what a new migration 'name' would be"
+        highest_number = 0
+        for migration in self:
+            try:
+                number = int(migration.name().split("_")[0])
+                highest_number = max(highest_number, number)
+            except ValueError:
+                pass
+        # Work out the new filename
+        return "%04i_%s.py" % (
+            highest_number + 1,
+            name,
+        )
 
 
 class Migration(object):
