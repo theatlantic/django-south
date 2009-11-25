@@ -19,33 +19,27 @@ except NameError:
 from django.core.management.base import BaseCommand
 from django.core.management.color import no_style
 from django.db import models
-from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
-from django.contrib.contenttypes.generic import GenericRelation
-from django.db.models.fields import FieldDoesNotExist
 from django.conf import settings
 
 from south.migration import Migrations
 from south.exceptions import NoMigrations
 from south.creator import changes, actions, freezer
+from south.management.commands.datamigration import Command as DataCommand
 
-class Command(BaseCommand):
-    option_list = BaseCommand.option_list + (
+class Command(DataCommand):
+    option_list = DataCommand.option_list + (
         make_option('--add-model', action='append', dest='added_model_list', type='string',
             help='Generate a Create Table migration for the specified model.  Add multiple models to this migration with subsequent --model parameters.'),
         make_option('--add-field', action='append', dest='added_field_list', type='string',
             help='Generate an Add Column migration for the specified modelname.fieldname - you can use this multiple times to add more than one column.'),
         make_option('--add-index', action='append', dest='added_index_list', type='string',
             help='Generate an Add Index migration for the specified modelname.fieldname - you can use this multiple times to add more than one column.'),
-        make_option('--freeze', action='append', dest='freeze_list', type='string',
-            help='Freeze the specified model(s). Pass in either an app name (to freeze the whole app) or a single model, as appname.modelname.'),
         make_option('--initial', action='store_true', dest='initial', default=False,
             help='Generate the initial schema for the app.'),
         make_option('--auto', action='store_true', dest='auto', default=False,
             help='Attempt to automatically detect differences from the last migration.'),
-        make_option('--stdout', action='store_true', dest='stdout', default=False,
-            help='Print the migration to stdout instead of writing it to a file.'),
     )
-    help = "Creates a new template migration for the given app"
+    help = "Creates a new template schema migration for the given app"
     usage_str = "Usage: ./manage.py schemamigration appname migrationname [--initial] [--auto] [--add-model ModelName] [--add-field ModelName.field_name] [--stdout]"
     
     def handle(self, app=None, name="", added_model_list=None, added_field_list=None, freeze_list=None, initial=False, auto=False, stdout=False, added_index_list=None, verbosity=1, **options):
@@ -87,19 +81,7 @@ class Command(BaseCommand):
             migrations = Migrations(app)
         
         # See what filename is next in line. We assume they use numbers.
-        highest_number = 0
-        for migration in migrations:
-            try:
-                number = int(migration.name().split("_")[0])
-                highest_number = max(highest_number, number)
-            except ValueError:
-                pass
-        
-        # Work out the new filename
-        new_filename = "%04i_%s.py" % (
-            highest_number + 1,
-            name,
-        )
+        new_filename = migrations.next_filename(name)
         
         # What actions do we need to do?
         if auto:
@@ -150,17 +132,7 @@ class Command(BaseCommand):
                 action.add_backwards(backwards_actions)
         
         # Work out which apps to freeze
-        apps_to_freeze = []
-        for to_freeze in freeze_list:
-            if "." in to_freeze:
-                self.error("You cannot freeze %r; you must provide an app label, like 'auth' or 'books'." % to_freeze)
-            # Make sure it's a real app
-            if not models.get_app(to_freeze):
-                self.error("You cannot freeze %r; it's not an installed app." % to_freeze)
-            # OK, it's fine
-            apps_to_freeze.append(to_freeze)
-        if getattr(settings, 'SOUTH_AUTO_FREEZE_APP', True):
-            apps_to_freeze.append(migrations.app_label())
+        apps_to_freeze = self.calc_frozen_apps(migrations, freeze_list)
         
         # So, what's in this file, then?
         file_contents = MIGRATION_TEMPLATE % {
@@ -178,14 +150,7 @@ class Command(BaseCommand):
             fp = open(os.path.join(migrations_dir, new_filename), "w")
             fp.write(file_contents)
             fp.close()
-            print "Created %s." % new_filename
-    
-    def error(self, message, code=1):
-        """
-        Prints the error, and exits with the given code.
-        """
-        print >>sys.stderr(message)
-        sys.exit(code)
+            print >>sys.stderr, "Created %s." % new_filename
 
 
 MIGRATION_TEMPLATE = """# encoding: utf-8

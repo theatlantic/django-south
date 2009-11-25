@@ -5,7 +5,7 @@ commandline, or by using autodetection, etc.
 
 from django.db import models
 
-from south.creator.freezer import remove_useless_attributes, freeze_apps
+from south.creator.freezer import remove_useless_attributes, freeze_apps, model_key
 
 class AutoChanges(object):
     """
@@ -29,11 +29,6 @@ class AutoChanges(object):
         """
         
         deleted_models = set()
-        added_fields = set()
-        deleted_fields = set()
-        changed_fields = []
-        added_uniques = set()
-        deleted_uniques = set()
         
         # See if anything's vanished
         for key in self.old_defs:
@@ -192,13 +187,28 @@ class InitialChanges(object):
     
     def get_changes(self):
         # Get the frozen models for this app
-        model_defs = freeze_apps(self.migrations.app_label())
+        model_defs = freeze_apps([self.migrations.app_label()])
         
         for model in models.get_models(models.get_app(self.migrations.app_label())):
             
-            model_def = model_defs[model._meta.app_label + "." + model._meta.object_name]
-            
+            # Firstly, add all the models
+            model_def = model_defs[model_key(model)]
             yield ("AddModel", {
                 "model": model,
-                "model_def": dict((k, v) for k, v in model_defs.items() if k != "Meta"),
+                "model_def": dict((k, v) for k, v in model_def.items() if k != "Meta"),
             })
+            
+            # Then, add any uniqueness that's around
+            meta = model_def.get("Meta", {})
+            if meta:
+                unique_together = eval(meta.get("unique_together", []))
+                if unique_together:
+                    # If it's only a single tuple, make it into the longer one
+                    if isinstance(unique_together[0], basestring):
+                        unique_together = [unique_together]
+                    # For each combination, make an action for it
+                    for fields in unique_together:
+                        yield ("AddUnique", {
+                            "model": model,
+                            "fields": list(fields),
+                        })
