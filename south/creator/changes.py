@@ -7,6 +7,30 @@ from django.db import models
 
 from south.creator.freezer import remove_useless_attributes, freeze_apps, model_key
 
+
+class BaseChanges(object):
+    """
+    Base changes class.
+    """
+    
+    def split_model_def(self, model, model_def):
+        """
+        Given a model and its model def (a dict of field: triple), returns three
+        items: the real fields dict, the Meta dict, and the M2M fields dict.
+        """
+        real_fields = {}
+        meta = {}
+        m2m_fields = {}
+        for name, triple in model_def.items():
+            if name == "Meta":
+                meta = triple
+            elif isinstance(model._meta.get_field_by_name(name), models.ManyToManyField):
+                m2m_fields[name] = triple
+            else:
+                real_fields[name] = triple
+        return real_fields, meta, m2m_fields
+
+
 class AutoChanges(object):
     """
     Detects changes by 'diffing' two sets of frozen model definitions.
@@ -177,7 +201,7 @@ class ManualChanges(object):
         ]
     
     
-class InitialChanges(object):
+class InitialChanges(BaseChanges):
     """
     Creates all models; handles --initial.
     """
@@ -191,15 +215,15 @@ class InitialChanges(object):
         
         for model in models.get_models(models.get_app(self.migrations.app_label())):
             
-            # Firstly, add all the models
-            model_def = model_defs[model_key(model)]
+            real_fields, meta, m2m_fields = self.split_model_def(model, model_defs[model_key(model)])
+            
+            # Firstly, add the main table and fields
             yield ("AddModel", {
                 "model": model,
-                "model_def": dict((k, v) for k, v in model_def.items() if k != "Meta"),
+                "model_def": real_fields,
             })
             
             # Then, add any uniqueness that's around
-            meta = model_def.get("Meta", {})
             if meta:
                 unique_together = eval(meta.get("unique_together", []))
                 if unique_together:
@@ -212,3 +236,14 @@ class InitialChanges(object):
                             "model": model,
                             "fields": list(fields),
                         })
+            
+            print m2m_fields
+            # Finally, see if there's some M2M action
+            for name, triple in m2m_fields:
+                field = model._meta.get_field_by_name(name)
+                # But only if it's not through=foo (#120)
+                if (not field.rel.through) or getattr(field.rel.through._meta, "auto_created", False):
+                    yield ("AddM2M", {
+                        "model": model,
+                        "field": name,
+                    })

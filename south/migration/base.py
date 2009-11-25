@@ -103,6 +103,14 @@ class Migrations(list):
             if verbose:
                 print "Creating __init__.py in '%s'..." % migrations_dir
             open(init_path, "w").close()
+    
+    def migrations_dir(self):
+        "Returns the full path of the migrations directory"
+        return os.path.dirname(self._migrations.__file__)
+    
+    def migrations_module(self):
+        "Returns the module name of the migrations module for this"
+        return self._application.__name__ + '.migrations'
 
     def get_application(self):
         return self._application
@@ -111,9 +119,8 @@ class Migrations(list):
         self._application = application
         if not hasattr(application, 'migrations'):
             try:
-                module = __import__(application.__name__ + '.migrations', {}, {})
-                application.migrations = module.migrations
-                self._migrations = application.migrations
+                module = __import__(self.migrations_module(), {}, {}, '')
+                self._migrations = application.migrations = module.migrations
             except ImportError:
                 raise exceptions.NoMigrations(application)
         self._load_migrations_module(application.migrations)
