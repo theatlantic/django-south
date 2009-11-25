@@ -24,7 +24,10 @@ def freeze_apps(apps):
     model_defs = {}
     for model in frozen_models:
         model_defs[model_key(model)] = prep_for_freeze(model)
-    return pprint_frozen_models(model_defs)
+    return model_defs
+    
+def freeze_apps_to_string(apps):
+    return pprint_frozen_models(freeze_apps(apps))
     
 ### 
 

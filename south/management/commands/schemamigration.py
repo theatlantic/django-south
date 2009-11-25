@@ -111,10 +111,28 @@ class Command(BaseCommand):
             # Make sure it has stored models
             if migrations.app_label() not in getattr(last_migration.migration_class(), "complete_apps", []):
                 self.error("You cannot use automatic detection, since the previous migration does not have this whole app frozen.\nEither make migrations using '--freeze %s' or set 'SOUTH_AUTO_FREEZE_APP = True' in your settings.py." % migrations.app_label())
+            # Alright, construct two model dicts to run the differ on.
+            old_defs = dict(
+                (k, v) for k, v in last_migration.models.items()
+                if k.split(".")[0] == migrations.app_label()
+            )
+            new_defs = dict(
+                (k, v) for k, v in freezer.freeze_apps([migrations.app_label()])
+                if k.split(".")[0] == migrations.app_label()
+            )
+            change_source = changes.AutoChanges(
+                migrations = migrations,
+                old_defs = old_defs,
+                old_orm = last_migration.orm(),
+                new_defs = new_defs,
+            )
+        
         elif initial:
             # Do an initial migration
             change_source = changes.InitialChanges(migrations)
+        
         else:
+            # Read the commands manually off of the arguments
             raise NotImplementedError
         
         # Get the actions, and then insert them into the actions lists
@@ -148,7 +166,7 @@ class Command(BaseCommand):
         file_contents = MIGRATION_TEMPLATE % {
             "forwards": "\n".join(forwards_actions), 
             "backwards": "\n".join(backwards_actions), 
-            "frozen_models":  freezer.freeze_apps(apps_to_freeze),
+            "frozen_models":  freezer.freeze_apps_to_string(apps_to_freeze),
             "complete_apps": apps_to_freeze and "complete_apps = [%s]" % (", ".join(map(repr, apps_to_freeze))) or ""
         }
         

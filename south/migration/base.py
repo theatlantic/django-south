@@ -338,7 +338,7 @@ class Migration(object):
     prev_orm = memoize(prev_orm)
 
     def orm(self):
-        return FakeORM(self.migration().Migration, self.app_label())
+        return FakeORM(self.migration_class(), self.app_label())
     orm = memoize(orm)
 
     def no_dry_run(self):
