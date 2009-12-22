@@ -103,7 +103,7 @@ def list_migrations(apps):
     Accepts a list of Migrations instances.
     """
     from south.models import MigrationHistory
-    applied_migrations = MigrationHistory.objects.filter(app_name__in=[app.app_name() for app in apps])
+    applied_migrations = MigrationHistory.objects.filter(app_name__in=[app.app_label() for app in apps])
     applied_migrations = ['%s.%s' % (mi.app_name,mi.migration) for mi in applied_migrations]
 
     print
