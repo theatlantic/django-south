@@ -220,7 +220,7 @@ class _FakeORM(object):
     
     def make_meta(self, app, model, data, stub=False):
         "Makes a Meta class out of a dict of eval-able arguments."
-        results = {'app_label': app}
+        results = {'app_label': app.lower()}
         for key, code in data.items():
             # Some things we never want to use.
             if key in ["_bases"]:
