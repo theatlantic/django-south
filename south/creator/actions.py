@@ -4,6 +4,9 @@ Each one has a class, which can take the action description and insert code
 blocks into the forwards() and backwards() methods, in the right place.
 """
 
+import sys
+import datetime
+
 from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
 from django.db.models.fields import FieldDoesNotExist
 
@@ -140,6 +143,46 @@ class AddField(Action):
         self.model = model
         self.field_name = field
         self.field_def = field_def
+        
+        # See if they've made a NOT NULL column but also have no default (far too common)
+        is_null = self.field_def[2].get("null", False)
+        default = self.field_def[2].get("default", None)
+        if not is_null and not default:
+            # Oh dear. Ask them what to do.
+            print " ? The field '%s.%s' does not have a default specified, yet is NOT NULL." % (
+                self.model._meta.object_name,
+                self.field_name,
+            )
+            print " ? Since you are adding or removing this field, you MUST specify a default"
+            print " ? value to use for existing rows. Would you like to:"
+            print " ?  1. Quit now, and add a default to the field in models.py"
+            print " ?  2. Specify a one-off value to use for existing columns now"
+            while True: 
+                choice = raw_input(" ? Please select a choice: ")
+                if choice == "1":
+                    sys.exit(1)
+                elif choice == "2":
+                    break
+                else:
+                    print " ! Invalid choice."
+            # OK, they want to pick their own one-time default. Who are we to refuse?
+            print " ? Please enter Python code for your one-off default value."
+            print " ? The datetime module is available, so you can do e.g. datetime.date.today()"
+            while True:
+                code = raw_input(" >>> ")
+                if not code:
+                    print " ! Please enter some code, or 'exit' (with no quotes) to exit."
+                elif code == "exit":
+                    sys.exit(1)
+                else:
+                    try:
+                        result = eval(code, {}, {"datetime": datetime})
+                    except (SyntaxError, NameError), e:
+                        print " ! Invalid input: %s" % e
+                    else:
+                        break
+            # Right, add the default in.
+            self.field_def[2]['default'] = repr(result)
     
     def console_line(self):
         "Returns the string to print on the console, e.g. ' + Added field foo'"
