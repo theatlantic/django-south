@@ -79,6 +79,7 @@ class Migrations(list):
                                         r'(\.py)?$')       # Match only .py files, or module dirs
 
     def __init__(self, application):
+        "Constructor. Takes the module of the app, NOT its models (like get_app returns)"
         if hasattr(application, '__name__'):
             self._cache = {}
             self.application = application

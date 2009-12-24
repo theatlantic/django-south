@@ -1,15 +1,22 @@
+"""
+Overridden syncdb command
+"""
+
+import sys
+from optparse import make_option
+
 from django.core.management.base import NoArgsCommand, BaseCommand 
 from django.core.management.color import no_style
 from django.utils.datastructures import SortedDict
-from optparse import make_option
-from south import migration
-from south.db import db
 from django.core.management.commands import syncdb
 from django.conf import settings
 from django.db import models
 from django.db.models.loading import cache
 from django.core import management
-import sys
+
+from south import migration
+from south.db import db
+from south.exceptions import NoMigrations
 
 def get_app_label(app):
     return '.'.join( app.__name__.split('.')[0:-1] )
@@ -37,12 +44,17 @@ class Command(NoArgsCommand):
         apps_migrated = []
         for app in models.get_apps():
             app_label = get_app_label(app)
-            migrations = migration.Migrations.from_name(app)
-            if migrations is None or migrate_all:
+            if migrate_all:
                 apps_needing_sync.append(app_label)
             else:
-                # This is a migrated app, leave it
-                apps_migrated.append(app_label)
+                try:
+                    migrations = migration.Migrations(app_label)
+                except NoMigrations:
+                    # It needs syncing
+                    apps_needing_sync.append(app_label)
+                else:
+                    # This is a migrated app, leave it
+                    apps_migrated.append(app_label)
         verbosity = int(options.get('verbosity', 0))
         
         # Run syncdb on only the ones needed
