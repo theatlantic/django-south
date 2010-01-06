@@ -26,8 +26,8 @@ class DatabaseOperations(generic.DatabaseOperations):
     # SQLite ignores foreign key constraints. I wish I could.
     supports_foreign_keys = False
     defered_alters = {}
-    def __init__(self):
-        super(DatabaseOperations, self).__init__()
+    def __init__(self, db_alias):
+        super(DatabaseOperations, self).__init__(db_alias)
         # holds fields defintions gotten from the sql schema.  the key is the table name and then
         # it's a list of 2 item lists.  the two items in the list are fieldname, sql definition
         self._fields = {}
@@ -35,7 +35,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     def _populate_current_structure(self, table_name, force=False):
         # get if we don't have it already or are being forced to refresh it
         if force or not table_name in self._fields.keys():
-            cursor = connection.cursor()
+            cursor = self._get_connection().cursor()
             cursor.execute(GET_TABLE_DEF_SQL % table_name)
             create_table = cursor.fetchall()[0][0]
             first = create_table.find('(')
@@ -92,7 +92,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         fields_sql = ','.join(['"%s" %s' % (f[0], f[1]) for f in new_fields])
         sql = create % (temp_table_name, fields_sql)
         
-        cursor = connection.cursor()
+        cursor = self._get_connection().cursor()
         cursor.execute(sql)
         
         # copy over data
@@ -205,11 +205,14 @@ class DatabaseOperations(generic.DatabaseOperations):
         generic.DatabaseOperations.delete_table(self, table_name, False)
 
     def copy_data(self, src, dst, fields, field_renames={}):
-        qn = connection.ops.quote_name
         q_fields = [field for field in fields]
         for old, new in field_renames.items():
-            q_fields[q_fields.index(new)] = "%s AS %s" % (old, qn(new))
-        sql = "INSERT INTO %s SELECT %s FROM %s;" % (qn(dst), ', '.join(q_fields), qn(src))
+            q_fields[q_fields.index(new)] = "%s AS %s" % (old, self.quote_name(new))
+        sql = "INSERT INTO %s SELECT %s FROM %s;" % (
+            self.quote_name(dst), 
+            ', '.join(q_fields), 
+            self.quote_name(src),
+        )
         self.execute(sql)
 
     def execute_deferred_sql(self):
