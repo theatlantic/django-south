@@ -1,30 +1,21 @@
-"""
-Overridden syncdb command
-"""
-
-import sys
-from optparse import make_option
-
 from django.core.management.base import NoArgsCommand, BaseCommand 
 from django.core.management.color import no_style
 from django.utils.datastructures import SortedDict
+from optparse import make_option
+from south import migration
+from south.db import dbs
 from django.core.management.commands import syncdb
 from django.conf import settings
 from django.db import models
 from django.db.models.loading import cache
 from django.core import management
+import sys
 
-from south import migration
-from south.db import db
-from south.exceptions import NoMigrations
-
-def get_app_label(app):
+def get_app_name(app):
     return '.'.join( app.__name__.split('.')[0:-1] )
 
 class Command(NoArgsCommand):
-    option_list = NoArgsCommand.option_list + (
-        make_option('--noinput', action='store_false', dest='interactive', default=True,
-            help='Tells Django to NOT prompt the user for input of any kind.'),
+    option_list = syncdb.Command.option_list + ( 
         make_option('--migrate', action='store_true', dest='migrate', default=False,
             help='Tells South to also perform migrations after the sync. Default for during testing, and other internal calls.'),
         make_option('--all', action='store_true', dest='migrate_all', default=False,
@@ -43,18 +34,13 @@ class Command(NoArgsCommand):
         apps_needing_sync = []
         apps_migrated = []
         for app in models.get_apps():
-            app_label = get_app_label(app)
-            if migrate_all:
-                apps_needing_sync.append(app_label)
+            app_name = get_app_name(app)
+            migrations = migration.get_app(app)
+            if migrations is None or migrate_all:
+                apps_needing_sync.append(app_name)
             else:
-                try:
-                    migrations = migration.Migrations(app_label)
-                except NoMigrations:
-                    # It needs syncing
-                    apps_needing_sync.append(app_label)
-                else:
-                    # This is a migrated app, leave it
-                    apps_migrated.append(app_label)
+                # This is a migrated app, leave it
+                apps_migrated.append(app_name)
         verbosity = int(options.get('verbosity', 0))
         
         # Run syncdb on only the ones needed
@@ -64,11 +50,12 @@ class Command(NoArgsCommand):
         old_installed, settings.INSTALLED_APPS = settings.INSTALLED_APPS, apps_needing_sync
         old_app_store, cache.app_store = cache.app_store, SortedDict([
             (k, v) for (k, v) in cache.app_store.items()
-            if get_app_label(k) in apps_needing_sync
+            if get_app_name(k) in apps_needing_sync
         ])
         
         # This will allow the setting of the MySQL storage engine, for example.
-        db.connection_init()
+        for db in dbs.values(): 
+            db.connection_init() 
         
         # OK, run the actual syncdb
         syncdb.Command().execute(**options)
