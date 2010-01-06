@@ -6,7 +6,7 @@ import re
 import sys
 
 from django.core.management.color import no_style
-from django.db import connection, transaction, models
+from django.db import transaction, models
 from django.db.backends.util import truncate_name
 from django.db.models.fields import NOT_PROVIDED
 from django.dispatch import dispatcher
@@ -52,13 +52,48 @@ class DatabaseOperations(object):
     drop_primary_key_string = "ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s"
     backend_name = None
 
-    def __init__(self):
+    def __init__(self, db_alias):
         self.debug = False
         self.deferred_sql = []
         self.dry_run = False
         self.pending_transactions = 0
         self.pending_create_signals = []
-    
+        self.db_alias = db_alias
+
+    def _get_connection(self): 
+        """ 
+        Returns a django connection for a given DB Alias 
+        """ 
+        try: 
+            from django.db import connections 
+            return connections[self.db_alias] 
+        except ImportError: 
+            from django.db import connection 
+            return connection 
+
+    def _get_setting(self, setting_name):
+        """
+        Allows code to get a setting (like, for example, STORAGE_ENGINE)
+        """
+        setting_name = setting_name.upper()
+        connection = self._get_connection() 
+        if not hasattr(conn, 'settings_dict'):
+            # Django 1.1 and below
+            return getattr(settings, "DATABASE_%s" % setting_name) 
+        else:
+            # Django 1.2 and above
+            return conn.settings_dict[setting_name] 
+
+    def _has_setting(self, setting_name):
+        """
+        Existence-checking version of _get_setting.
+        """
+        try:
+            self._get_setting(setting_name)
+        except (KeyError, AttributeError):
+            return False
+        else:
+            return True
 
     def connection_init(self):
         """
@@ -67,6 +102,11 @@ class DatabaseOperations(object):
         """
         pass
     
+    def quote_name(self, name):
+        """
+        Uses the database backend to quote the given table/column name.
+        """
+        return self._get_connection().ops.quote_name(name)
 
     def execute(self, sql, params=[]):
         """
@@ -74,12 +114,12 @@ class DatabaseOperations(object):
         If the instance's debug attribute is True, prints out what it executes.
         """
         self.connection_init()
-        cursor = connection.cursor()
+        cursor = self._get_connection().cursor()
         if self.debug:
             print "   = %s" % sql, params
 
         get_logger().debug('south execute "%s" with params "%s"' % (sql, params))
-        
+
         if self.dry_run:
             return []
 
@@ -88,8 +128,8 @@ class DatabaseOperations(object):
             return cursor.fetchall()
         except:
             return []
-    
-    
+
+
     def execute_many(self, sql, regex=r"(?mx) ([^';]* (?:'[^']*'[^';]*)*)", comment_regex=r"(?mx) (?:^\s*$)|(?:--.*$)"):
         """
         Takes a SQL file and executes it as many separate statements.
@@ -103,7 +143,7 @@ class DatabaseOperations(object):
         for st in re.split(regex, sql)[1:][::2]:
             self.execute(st)
 
-    
+
     def add_deferred_sql(self, sql):
         """
         Add a SQL statement to the deferred list, that won't be executed until
@@ -127,8 +167,8 @@ class DatabaseOperations(object):
         Resets the deferred_sql list to empty.
         """
         self.deferred_sql = []
-    
-    
+
+
     def clear_run_data(self, pending_creates = None):
         """
         Resets variables to how they should be before a run. Used for dry runs.
@@ -136,8 +176,8 @@ class DatabaseOperations(object):
         """
         self.clear_deferred_sql()
         self.pending_create_signals = pending_creates or []
-    
-    
+
+
     def get_pending_creates(self):
         return self.pending_create_signals
 
@@ -148,15 +188,7 @@ class DatabaseOperations(object):
         each repsented by a 2-part tuple of field name and a
         django.db.models.fields.Field object
         """
-        qn = connection.ops.quote_name
 
-        # allow fields to be a dictionary
-        # removed for now - philosophical reasons (this is almost certainly not what you want)
-        #try:
-        #    fields = fields.items()
-        #except AttributeError:
-        #    pass
-        
         if len(table_name) > 63:
             print "   ! WARNING: You have a table name longer than 63 characters; this will not fully work on PostgreSQL or MySQL."
 
@@ -165,7 +197,10 @@ class DatabaseOperations(object):
             for field_name, field in fields
         ]
 
-        self.execute('CREATE TABLE %s (%s);' % (qn(table_name), ', '.join([col for col in columns if col])))
+        self.execute('CREATE TABLE %s (%s);' % (
+            self.quote_name(table_name),
+            ', '.join([col for col in columns if col]),
+        ))
 
     add_table = alias('create_table') # Alias for consistency's sake
 
@@ -175,10 +210,9 @@ class DatabaseOperations(object):
         Renames the table 'old_table_name' to 'table_name'.
         """
         if old_table_name == table_name:
-            # No Operation
+            # Short-circuit out.
             return
-        qn = connection.ops.quote_name
-        params = (qn(old_table_name), qn(table_name))
+        params = (self.quote_name(old_table_name), self.quote_name(table_name))
         self.execute('ALTER TABLE %s RENAME TO %s;' % params)
 
 
@@ -186,8 +220,7 @@ class DatabaseOperations(object):
         """
         Deletes the table 'table_name'.
         """
-        qn = connection.ops.quote_name
-        params = (qn(table_name), )
+        params = (self.quote_name(table_name), )
         if cascade:
             self.execute('DROP TABLE %s CASCADE;' % params)
         else:
@@ -200,11 +233,10 @@ class DatabaseOperations(object):
         """
         Deletes all rows from 'table_name'.
         """
-        qn = connection.ops.quote_name
-        params = (qn(table_name), )
+        params = (self.quote_name(table_name), )
         self.execute('DELETE FROM %s;' % params)
 
-    
+
 
     def add_column(self, table_name, name, field, keep_default=True):
         """
@@ -216,11 +248,10 @@ class DatabaseOperations(object):
         @param name: The name of the column to add
         @param field: The field to use
         """
-        qn = connection.ops.quote_name
         sql = self.column_sql(table_name, name, field)
         if sql:
             params = (
-                qn(table_name),
+                self.quote_name(table_name),
                 sql,
             )
             sql = self.add_column_string % params
@@ -230,7 +261,7 @@ class DatabaseOperations(object):
             if not keep_default and field.default is not None:
                 field.default = NOT_PROVIDED
                 self.alter_column(table_name, name, field, explicit_name=False)
-    
+
 
     def _db_type_for_alter_column(self, field):
         """
@@ -240,7 +271,7 @@ class DatabaseOperations(object):
         @param field: The field to generate type for
         """
         return field.db_type()
-    
+
     def alter_column(self, table_name, name, field, explicit_name=True):
         """
         Alters the given column name so it will match the given field.
@@ -257,22 +288,23 @@ class DatabaseOperations(object):
         if hasattr(field, 'south_init'):
             field.south_init()
 
-        qn = connection.ops.quote_name
-        
         # Add _id or whatever if we need to
         field.set_attributes_from_name(name)
         if not explicit_name:
             name = field.column
-        
+
         # Drop all check constraints. TODO: Add the right ones back.
         if self.has_check_constraints:
             check_constraints = self._constraints_affecting_columns(table_name, [name], "CHECK")
             for constraint in check_constraints:
-                self.execute(self.delete_check_sql % {'table': qn(table_name), 'constraint': qn(constraint)})
+                self.execute(self.delete_check_sql % {
+                    'table': self.quote_name(table_name),
+                    'constraint': self.quote_name(constraint),
+                })
 
         # First, change the type
         params = {
-            "column": qn(name),
+            "column": self.quote_name(name),
             "type": self._db_type_for_alter_column(field)            
         }
 
@@ -282,50 +314,50 @@ class DatabaseOperations(object):
         # Next, set any default
         if not field.null and field.has_default():
             default = field.get_default()
-            sqls.append(('ALTER COLUMN %s SET DEFAULT %%s ' % (qn(name),), [default]))
+            sqls.append(('ALTER COLUMN %s SET DEFAULT %%s ' % (self.quote_name(name),), [default]))
         else:
-            sqls.append(('ALTER COLUMN %s DROP DEFAULT' % (qn(name),), []))
+            sqls.append(('ALTER COLUMN %s DROP DEFAULT' % (self.quote_name(name),), []))
 
 
         # Next, nullity
         params = {
-            "column": qn(name),
+            "column": self.quote_name(name),
             "type": field.db_type(),
         }
         if field.null:
             sqls.append((self.alter_string_set_null % params, []))
         else:
             sqls.append((self.alter_string_drop_null % params, []))
-        
+
         # TODO: Unique
 
         if self.allows_combined_alters:
             sqls, values = zip(*sqls)
             self.execute(
-                "ALTER TABLE %s %s;" % (qn(table_name), ", ".join(sqls)),
+                "ALTER TABLE %s %s;" % (self.quote_name(table_name), ", ".join(sqls)),
                 flatten(values),
             )
         else:
             # Databases like e.g. MySQL don't like more than one alter at once.
             for sql, values in sqls:
-                self.execute("ALTER TABLE %s %s;" % (qn(table_name), sql), values)
-    
-    
+                self.execute("ALTER TABLE %s %s;" % (self.quote_name(table_name), sql), values)
+
+
     def _constraints_affecting_columns(self, table_name, columns, type="UNIQUE"):
         """
         Gets the names of the constraints affecting the given columns.
         """
-        
+
         if self.dry_run:
             raise ValueError("Cannot get constraints for columns during a dry run.")
-        
+
         columns = set(columns)
-        
+
         if type == "CHECK":
             ifsc_table = "constraint_column_usage"
         else:
             ifsc_table = "key_column_usage"
-        
+
         # First, load all constraint->col mappings for this table.
         rows = self.execute("""
             SELECT kc.constraint_name, kc.column_name
@@ -348,75 +380,79 @@ class DatabaseOperations(object):
         for constraint, itscols in mapping.items():
             if itscols == columns:
                 yield constraint
-    
-    
+
+
     def create_unique(self, table_name, columns):
         """
         Creates a UNIQUE constraint on the columns on the given table.
         """
-        qn = connection.ops.quote_name
-        
+
         if not isinstance(columns, (list, tuple)):
             columns = [columns]
-        
+
         name = self.create_index_name(table_name, columns, suffix="_uniq")
-        
-        cols = ", ".join(map(qn, columns))
-        self.execute("ALTER TABLE %s ADD CONSTRAINT %s UNIQUE (%s)" % (qn(table_name), qn(name), cols))
+
+        cols = ", ".join(map(self.quote_name, columns))
+        self.execute("ALTER TABLE %s ADD CONSTRAINT %s UNIQUE (%s)" % (
+            self.quote_name(table_name), 
+            self.quote_name(name), 
+            cols,
+        ))
         return name
-    
-    
-    
+
+
+
     def delete_unique(self, table_name, columns):
         """
         Deletes a UNIQUE constraint on precisely the columns on the given table.
         """
-        qn = connection.ops.quote_name
-        
+
         if not isinstance(columns, (list, tuple)):
             columns = [columns]
-        
+
         # Dry runs mean we can't do anything.
         if self.dry_run:
             return
-        
+
         constraints = list(self._constraints_affecting_columns(table_name, columns))
         if not constraints:
             raise ValueError("Cannot find a UNIQUE constraint on table %s, columns %r" % (table_name, columns))
         for constraint in constraints:
-            self.execute(self.delete_unique_sql % (qn(table_name), qn(constraint)))
+            self.execute(self.delete_unique_sql % (
+                self.quote_name(table_name), 
+                self.quote_name(constraint),
+            ))
 
 
     def column_sql(self, table_name, field_name, field, tablespace=''):
         """
         Creates the SQL snippet for a column. Used by add_column and add_table.
         """
-        qn = connection.ops.quote_name
-        
+
         field.set_attributes_from_name(field_name)
-        
+
         # hook for the field to do any resolution prior to it's attributes being queried
         if hasattr(field, 'south_init'):
             field.south_init()
-        
+
         # Possible hook to fiddle with the fields (e.g. defaults & TEXT on MySQL)
         field = self._field_sanity(field)
-        
+
         sql = field.db_type()
         if sql:        
-            field_output = [qn(field.column), sql]
+            field_output = [self.quote_name(field.column), sql]
             field_output.append('%sNULL' % (not field.null and 'NOT ' or ''))
             if field.primary_key:
                 field_output.append('PRIMARY KEY')
             elif field.unique:
                 # Just use UNIQUE (no indexes any more, we have delete_unique)
                 field_output.append('UNIQUE')
-            
+
             tablespace = field.db_tablespace or tablespace
-            if tablespace and connection.features.supports_tablespaces and field.unique:
+            if tablespace and self._get_connection().features.supports_tablespaces and field.unique:
                 # We must specify the index tablespace inline, because we
                 # won't be generating a CREATE INDEX statement for this field.
-                field_output.append(connection.ops.tablespace_sql(tablespace, inline=True))
+                field_output.append(self._get_connection().ops.tablespace_sql(tablespace, inline=True))
             
             sql = ' '.join(field_output)
             sqlparams = ()
@@ -437,7 +473,7 @@ class DatabaseOperations(object):
                     sql += " DEFAULT %s"
                     sqlparams = (default)
             elif (not field.null and field.blank) or ((field.get_default() == '') and (not getattr(field, '_suppress_default', False))):
-                if field.empty_strings_allowed and connection.features.interprets_empty_strings_as_nulls:
+                if field.empty_strings_allowed and self._get_connection().features.interprets_empty_strings_as_nulls:
                     sql += " DEFAULT ''"
                 # Error here would be nice, but doesn't seem to play fair.
                 #else:
@@ -465,61 +501,62 @@ class DatabaseOperations(object):
             return sql % sqlparams
         else:
             return None
-    
-    
+
+
     def _field_sanity(self, field):
         """
         Placeholder for DBMS-specific field alterations (some combos aren't valid,
         e.g. DEFAULT and TEXT on MySQL)
         """
         return field
-    
+
 
     def foreign_key_sql(self, from_table_name, from_column_name, to_table_name, to_column_name):
         """
         Generates a full SQL statement to add a foreign key constraint
         """
-        qn = connection.ops.quote_name
         constraint_name = '%s_refs_%s_%x' % (from_column_name, to_column_name, abs(hash((from_table_name, to_table_name))))
         return 'ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)%s;' % (
-            qn(from_table_name),
-            qn(truncate_name(constraint_name, connection.ops.max_name_length())),
-            qn(from_column_name),
-            qn(to_table_name),
-            qn(to_column_name),
-            connection.ops.deferrable_sql() # Django knows this
+            self.quote_name(from_table_name),
+            self.quote_name(truncate_name(constraint_name, self._get_connection().ops.max_name_length())),
+            self.quote_name(from_column_name),
+            self.quote_name(to_table_name),
+            self.quote_name(to_column_name),
+            self._get_connection().ops.deferrable_sql() # Django knows this
         )
 
 
     def delete_foreign_key(self, table_name, column):
         "Drop a foreign key constraint"
-        qn = connection.ops.quote_name
         if self.dry_run:
             return # We can't look at the DB to get the constraints
         constraints = list(self._constraints_affecting_columns(table_name, [column], "FOREIGN KEY"))
         if not constraints:
             raise ValueError("Cannot find a FOREIGN KEY constraint on table %s, column %s" % (table_name, column))
         for constraint_name in constraints:
-            self.execute(self.delete_foreign_key_sql % (qn(table_name), qn(constraint_name)))
-    
+            self.execute(self.delete_foreign_key_sql % (
+                self.quote_name(table_name),
+                self.quote_name(constraint_name),
+            ))
+
     drop_foreign_key = alias('delete_foreign_key')
 
-    
+
     def create_index_name(self, table_name, column_names, suffix=""):
         """
         Generate a unique name for the index
         """
         index_unique_name = ''
-        
+
         if len(column_names) > 1:
             index_unique_name = '_%x' % abs(hash((table_name, ','.join(column_names))))
-        
+
         # If the index name is too long, truncate it
         index_name = ('%s_%s%s%s' % (table_name, column_names[0], index_unique_name, suffix))
         if len(index_name) > self.max_index_name_length:
             part = ('_%s%s%s' % (column_names[0], index_unique_name, suffix))
             index_name = '%s%s' % (table_name[:(self.max_index_name_length-len(part))], part)
-        
+
         return index_name
 
 
@@ -527,23 +564,22 @@ class DatabaseOperations(object):
         """
         Generates a create index statement on 'table_name' for a list of 'column_names'
         """
-        qn = connection.ops.quote_name
         if not column_names:
             print "No column names supplied on which to create an index"
             return ''
 
-        if db_tablespace and connection.features.supports_tablespaces:
-            tablespace_sql = ' ' + connection.ops.tablespace_sql(db_tablespace)
+        connection = self._get_connection()
+        if db_tablespace and self._get_connection().features.supports_tablespaces:
+            tablespace_sql = ' ' + self._get_connection().ops.tablespace_sql(db_tablespace)
         else:
             tablespace_sql = ''
 
         index_name = self.create_index_name(table_name, column_names)
-        qn = connection.ops.quote_name
         return 'CREATE %sINDEX %s ON %s (%s)%s;' % (
             unique and 'UNIQUE ' or '',
-            qn(index_name),
-            qn(table_name),
-            ','.join([qn(field) for field in column_names]),
+            self.quote_name(index_name),
+            self.quote_name(table_name),
+            ','.join([self.quote_name(field) for field in column_names]),
             tablespace_sql
         )
 
@@ -562,19 +598,20 @@ class DatabaseOperations(object):
         if isinstance(column_names, (str, unicode)):
             column_names = [column_names]
         name = self.create_index_name(table_name, column_names)
-        qn = connection.ops.quote_name
-        sql = self.drop_index_string % {"index_name": qn(name), "table_name": qn(table_name)}
+        sql = self.drop_index_string % {
+            "index_name": self.quote_name(name),
+            "table_name": self.quote_name(table_name),
+        }
         self.execute(sql)
 
     drop_index = alias('delete_index')
-    
+
 
     def delete_column(self, table_name, name):
         """
         Deletes the column 'column_name' from the table 'table_name'.
         """
-        qn = connection.ops.quote_name
-        params = (qn(table_name), qn(name))
+        params = (self.quote_name(table_name), self.quote_name(name))
         self.execute(self.delete_column_string % params, [])
 
     drop_column = alias('delete_column')
@@ -586,34 +623,32 @@ class DatabaseOperations(object):
         """
         raise NotImplementedError("rename_column has no generic SQL syntax")
 
-    
+
     def drop_primary_key(self, table_name):
         """
         Drops the old primary key.
         """
-        qn = connection.ops.quote_name
         self.execute(self.drop_primary_key_string % {
-            "table": qn(table_name),
-            "constraint": qn(table_name+"_pkey"),
+            "table": self.quote_name(table_name),
+            "constraint": self.quote_name(table_name+"_pkey"),
         })
 
     delete_primary_key = alias('drop_primary_key')
 
-    
+
     def create_primary_key(self, table_name, columns):
         """
         Creates a new primary key on the specified columns.
         """
         if not isinstance(columns, (list, tuple)):
             columns = [columns]
-        qn = connection.ops.quote_name
         self.execute(self.create_primary_key_string % {
-            "table": qn(table_name),
-            "constraint": qn(table_name+"_pkey"),
-            "columns": ", ".join(map(qn, columns)),
+            "table": self.quote_name(table_name),
+            "constraint": self.quote_name(table_name+"_pkey"),
+            "columns": ", ".join(map(self.quote_name, columns)),
         })
-    
-    
+
+
     def start_transaction(self):
         """
         Makes sure the following commands are inside a transaction.
@@ -719,7 +754,7 @@ class DatabaseOperations(object):
                                                 app=app, created_models=created_models,
                                                 verbosity=verbosity, interactive=interactive)
 
-    
+
     def mock_model(self, model_name, db_table, db_tablespace='', 
                    pk_field_name='id', pk_field_type=models.AutoField,
                    pk_field_args=[], pk_field_kwargs={}):
@@ -730,7 +765,7 @@ class DatabaseOperations(object):
         Migrations should prefer to use these rather than actual models
         as models could get deleted over time, but these can remain in
         migration files forever.
-        
+
         Depreciated.
         """
         class MockOptions(object):

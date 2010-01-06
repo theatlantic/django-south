@@ -8,6 +8,7 @@ from optparse import make_option
 from django.core.management.base import NoArgsCommand, BaseCommand 
 from django.core.management.color import no_style
 from django.utils.datastructures import SortedDict
+from south.db import dbs
 from django.core.management.commands import syncdb
 from django.conf import settings
 from django.db import models
@@ -22,9 +23,7 @@ def get_app_label(app):
     return '.'.join( app.__name__.split('.')[0:-1] )
 
 class Command(NoArgsCommand):
-    option_list = NoArgsCommand.option_list + (
-        make_option('--noinput', action='store_false', dest='interactive', default=True,
-            help='Tells Django to NOT prompt the user for input of any kind.'),
+    option_list = syncdb.Command.option_list + ( 
         make_option('--migrate', action='store_true', dest='migrate', default=False,
             help='Tells South to also perform migrations after the sync. Default for during testing, and other internal calls.'),
         make_option('--all', action='store_true', dest='migrate_all', default=False,
@@ -68,7 +67,8 @@ class Command(NoArgsCommand):
         ])
         
         # This will allow the setting of the MySQL storage engine, for example.
-        db.connection_init()
+        for db in dbs.values(): 
+            db.connection_init() 
         
         # OK, run the actual syncdb
         syncdb.Command().execute(**options)
