@@ -12,10 +12,13 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     def rename_column(self, table_name, old, new):
         if old == new:
+            # Short-circuit out
             return []
-        qn = connection.ops.quote_name
-        params = (qn(table_name), qn(old), qn(new))
-        self.execute('ALTER TABLE %s RENAME COLUMN %s TO %s;' % params)
+        self.execute('ALTER TABLE %s RENAME COLUMN %s TO %s;' % (
+            self.quote_name(table_name),
+            self.quote_name(old),
+            self.quote_name(new),
+        ))
     
     def rename_table(self, old_table_name, table_name):
         "will rename the table and an associated ID sequence and primary key index"
