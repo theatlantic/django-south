@@ -20,7 +20,8 @@ class DatabaseOperations(generic.DatabaseOperations):
 
 
     def delete_column(self, table_name, name):
-        q_table_name, q_name = (self.quote_name(table_name), self.quote_name(name))
+        qn = connection.ops.quote_name
+        q_table_name, q_name = (qn(table_name), qn(name))
 
         # Zap the indexes
         for ind in self._find_indexes_for_column(table_name,name):
@@ -39,7 +40,8 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     def _find_indexes_for_column(self, table_name, name):
         "Find the indexes that apply to a column, needed when deleting"
-        q_table_name, q_name = (self.quote_name(table_name), self.quote_name(name))
+        qn = connection.ops.quote_name
+        q_table_name, q_name = (qn(table_name), qn(name))
 
         sql = """
         SELECT si.name, si.id, sik.colid, sc.name
@@ -59,7 +61,8 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     def _find_constraints_for_column(self, table_name, name):
         "Find the constraints that apply to a column, needed when deleting"
-        q_table_name, q_name = (self.quote_name(table_name), self.quote_name(name))
+        qn = connection.ops.quote_name
+        q_table_name, q_name = (qn(table_name), qn(name))
 
         sql = """
         SELECT  
@@ -128,7 +131,8 @@ class DatabaseOperations(generic.DatabaseOperations):
             # No Operation
             return
         # Examples on the MS site show the table name not being quoted...
-        params = (table_name, self.quote_name(old), self.quote_name(new))
+        qn = connection.ops.quote_name
+        params = (table_name,qn(old), qn(new))
         self.execute("EXEC sp_rename '%s.%s', %s, 'COLUMN'" % params)
 
     def rename_table(self, old_table_name, table_name):
@@ -139,5 +143,6 @@ class DatabaseOperations(generic.DatabaseOperations):
         if old_table_name == table_name:
             # No Operation
             return
-        params = (self.quote_name(old_table_name), self.quote_name(table_name))
+        qn = connection.ops.quote_name
+        params = (qn(old_table_name), qn(table_name))
         self.execute('EXEC sp_rename %s, %s' % params)

@@ -14,7 +14,11 @@ def _ask_for_it_by_name(name):
         modulename=bits[0]
         
     module = __import__(modulename, {}, {}, bits[-1])
-    return getattr(module, bits[-1])
+    
+    if len(bits) == 1:
+        return module
+    else:
+        return getattr(module, bits[-1])
 
 
 def ask_for_it_by_name(name): 
@@ -34,6 +38,14 @@ def get_attribute(item, attribute):
         value = getattr(value, part)
     return value
 
-
-fst = lambda (x, y): x
-snd = lambda (x, y): y
+def memoize(function):
+    name = function.__name__
+    _name = '_' + name
+    def method(self):
+        if not hasattr(self, _name):
+            value = function(self)
+            setattr(self, _name, value)
+        return getattr(self, _name)
+    method.__name__ = function.__name__
+    method.__doc__ = function.__doc__
+    return method
