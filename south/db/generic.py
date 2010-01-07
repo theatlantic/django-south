@@ -77,12 +77,12 @@ class DatabaseOperations(object):
         """
         setting_name = setting_name.upper()
         connection = self._get_connection() 
-        if not hasattr(conn, 'settings_dict'):
+        if not hasattr(connection, 'settings_dict'):
             # Django 1.1 and below
             return getattr(settings, "DATABASE_%s" % setting_name) 
         else:
             # Django 1.2 and above
-            return conn.settings_dict[setting_name] 
+            return connection.settings_dict[setting_name] 
 
     def _has_setting(self, setting_name):
         """
