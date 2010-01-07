@@ -1,13 +1,10 @@
 import inspect
 import re
 
-from django.db import connection
 from django.db.models import ForeignKey
 
 from south.db import generic
 from django.core.management.commands import inspectdb
-
-qn = connection.ops.quote_name
     
 class DatabaseOperations(generic.DatabaseOperations):
 
@@ -49,8 +46,8 @@ class DatabaseOperations(generic.DatabaseOperations):
         
         # Work out the (possibly new) definitions of each column
         definitions = {}
-        cursor = connection.cursor()
-        for column_info in connection.introspection.get_table_description(cursor, table_name):
+        cursor = self._get_connection().cursor()
+        for column_info in self._get_connection().introspection.get_table_description(cursor, table_name):
             name = column_info[0]
             type = column_info[1]
             # Deal with a rename
@@ -60,8 +57,8 @@ class DatabaseOperations(generic.DatabaseOperations):
             definitions[name] = type
         # Alright, Make the table
         self.execute("CREATE TABLE %s (%s)" % (
-            qn(temp_name),
-            ", ".join(["%s %s" % (qn(cname), ctype) for cname, ctype in definitions.items()]),
+            self.quote_name(temp_name),
+            ", ".join(["%s %s" % (self.quote_name(cname), ctype) for cname, ctype in definitions.items()]),
         ))
         # Copy over the data
         self._copy_data(table_name, temp_name, renames)
@@ -72,16 +69,16 @@ class DatabaseOperations(generic.DatabaseOperations):
     def _copy_data(self, src, dst, field_renames={}):
         "Used to copy data into a new table"
         # Make a list of all the fields to select
-        cursor = connection.cursor()
-        q_fields = [column_info[0] for column_info in connection.introspection.get_table_description(cursor, table_name)]
+        cursor = self._get_connection().cursor()
+        q_fields = [column_info[0] for column_info in self._get_connection().introspection.get_table_description(cursor, table_name)]
         # Make sure renames are done correctly
         for old, new in field_renames.items():
-            q_fields[q_fields.index(new)] = "%s AS %s" % (old, qn(new))
+            q_fields[q_fields.index(new)] = "%s AS %s" % (old, self.quote_name(new))
         # Copy over the data
         self.execute("INSERT INTO %s SELECT %s FROM %s;" % (
-            qn(dst),
+            self.quote_name(dst),
             ', '.join(q_fields),
-            qn(src),
+            self.quote_name(src),
         ))
     
     def alter_column(self, table_name, name, field, explicit_name=True):
