@@ -8,15 +8,13 @@ from optparse import make_option
 from django.core.management.base import NoArgsCommand, BaseCommand 
 from django.core.management.color import no_style
 from django.utils.datastructures import SortedDict
-from south.db import dbs
 from django.core.management.commands import syncdb
 from django.conf import settings
 from django.db import models
 from django.db.models.loading import cache
 from django.core import management
 
-from south import migration
-from south.db import db
+from south.db import dbs
 from south.exceptions import NoMigrations
 
 def get_app_label(app):
