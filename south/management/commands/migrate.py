@@ -36,7 +36,8 @@ class Command(BaseCommand):
             help='Verbosity level; 0=minimal output, 1=normal output, 2=all output'),
         )
     help = "Runs migrations for all apps."
-    args = "[appname] [migrationname|zero] [--all] [--list] [--skip] [--merge] [--no-initial-data] [--fake] [--db-dry-run]"
+    args = "[appname] [migrationname]"
+    usage_str = "Usage: ./manage.py migrate [--all] [--list] [--skip] [--merge] [--no-initial-data] [--fake] [--db-dry-run] " + args
 
     def handle(self, app=None, target=None, skip=False, merge=False, backwards=False, fake=False, db_dry_run=False, list=False, **options):
 
@@ -67,7 +68,7 @@ class Command(BaseCommand):
             apps = [migration.get_app(app.split(".")[-1])]
             if apps == [None]:
                 print "The app '%s' does not appear to use migrations." % app
-                print "./manage.py migrate " + self.args
+                print self.usage_str
                 return
         else:
             apps = migration.get_migrated_apps()

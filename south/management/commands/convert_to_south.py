@@ -18,8 +18,8 @@ class Command(BaseCommand):
             type='choice', choices=['0', '1', '2'],
             help='Verbosity level; 0=minimal output, 1=normal output, 2=all output'),
         )
-
     help = "Quickly converts the named application to use South if it is currently using syncdb."
+    args = "appname"
 
     def handle(self, app=None, *args, **options):
         
