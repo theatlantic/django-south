@@ -261,7 +261,7 @@ class InitialChanges(BaseChanges):
             
             # Then, add any uniqueness that's around
             if meta:
-                unique_together = eval(meta.get("unique_together", []))
+                unique_together = eval(meta.get("unique_together", "[]"))
                 if unique_together:
                     # If it's only a single tuple, make it into the longer one
                     if isinstance(unique_together[0], basestring):

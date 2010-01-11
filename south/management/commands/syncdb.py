@@ -15,7 +15,6 @@ from django.db.models.loading import cache
 from django.core import management
 
 from south.db import dbs
-from south import migration
 from south.exceptions import NoMigrations
 
 def get_app_label(app):
