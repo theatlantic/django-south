@@ -77,7 +77,9 @@ class DatabaseOperations(object):
         """
         setting_name = setting_name.upper()
         connection = self._get_connection() 
-        if not hasattr(connection, 'settings_dict'):
+        try:                                                 
+            from django.db import connections                
+        except ImportError:
             # Django 1.1 and below
             return getattr(settings, "DATABASE_%s" % setting_name) 
         else:
