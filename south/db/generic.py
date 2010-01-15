@@ -77,7 +77,9 @@ class DatabaseOperations(object):
         """
         setting_name = setting_name.upper()
         connection = self._get_connection() 
-        if not hasattr(connection, 'settings_dict'):
+        try: 
+            from django.db import connections 
+        except ImportError:
             # Django 1.1 and below
             return getattr(settings, "DATABASE_%s" % setting_name) 
         else:
@@ -726,10 +728,8 @@ class DatabaseOperations(object):
         over all models within the app sending the signal.  This is a
         patch we should push Django to make  For now, this should work.
         """
-        
         if self.debug:
             print " - Sending post_syncdb signal for %s: %s" % (app_label, model_names)
-        
         app = models.get_app(app_label)
         if not app:
             return
