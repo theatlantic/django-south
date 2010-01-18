@@ -45,7 +45,8 @@ class Command(BaseCommand):
             help='Print the migration to stdout instead of writing it to a file.'),
     )
     help = "Creates a new template migration for the given app"
-    usage_str = "Usage: ./manage.py startmigration appname migrationname [--initial] [--auto] [--model ModelName] [--add-field ModelName.field_name] [--freeze] [--stdout]"
+    args = "appname migrationname"
+    usage_str = "Usage: ./manage.py startmigration [--model modelname] [--add-field modelname.fieldname] [--add-index modelname.fieldname] [--initial] [--auto] [--freeze appname|appname.modelname] [--stdout] " + args
     
     def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, freeze_list=None, auto=False, stdout=False, added_index_list=None, **options):
         
@@ -136,9 +137,8 @@ class Command(BaseCommand):
                 pass
         
         # Make the new filename
-        new_filename = "%04i%s_%s.py" % (
+        new_filename = "%04i_%s.py" % (
             highest_number + 1,
-            "".join([random.choice(string.letters.lower()) for i in range(0)]), # Possible random stuff insertion
             name,
         )
         
