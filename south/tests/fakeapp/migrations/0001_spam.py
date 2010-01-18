@@ -4,6 +4,7 @@ from django.db import models
 class Migration:
     
     def forwards(self):
+        
         # Model 'Spam'
         db.create_table("southtest_spam", (
             ('id', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)),
@@ -13,5 +14,6 @@ class Migration:
         ))
     
     def backwards(self):
+        
         db.delete_table("southtest_spam")
 

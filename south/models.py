@@ -3,23 +3,17 @@ from django.db import models
 class MigrationHistory(models.Model):
     app_name = models.CharField(max_length=255)
     migration = models.CharField(max_length=255)
-    applied = models.DateTimeField(blank=True)
-
-    class Meta:
-        unique_together = (('app_name', 'migration'),)
+    applied = models.DateTimeField(blank=True, null=True)
 
     @classmethod
-    def for_migration(cls, migration):
+    def for_migration(cls, app_name, migration):
         try:
-            return cls.objects.get(app_name=migration.app_label(),
-                                   migration=migration.name())
+            return cls.objects.get(
+                app_name = app_name,
+                migration = migration,
+            )
         except cls.DoesNotExist:
-            return cls(app_name=migration.app_label(),
-                       migration=migration.name())
-
-    def get_migrations(self):
-        from south.migration.base import Migrations
-        return Migrations(self.app_name)
-
-    def get_migration(self):
-        return self.get_migrations().migration(self.migration)
+            return cls(
+                app_name = app_name,
+                migration = migration,
+            )
