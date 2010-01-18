@@ -133,6 +133,9 @@ class DatabaseOperations(generic.DatabaseOperations):
         # If it _was_ unique, make an index on it.
         if unique:
             self.create_index(table_name, [field.column], unique=True)
+			
+		#Reload structure for this table
+		self._populate_current_structure(table_name, force=True)
     
     def _alter_sqlite_table(self, table_name, field_renames={}):
         
