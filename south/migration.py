@@ -65,17 +65,27 @@ def get_migration_names(app):
     Returns a list of migration file names for the given app.
     """
     if getattr(settings, "SOUTH_USE_PYC", False):
-        allowed_extensions = (".pyc", ".py")
+        allowed_extensions = (".pyc", ".py", "")
         ignored_files = ("__init__.pyc", "__init__.py")
     else:
-        allowed_extensions = (".py",)
+        allowed_extensions = (".py", "")
         ignored_files = ("__init__.py",)
-    
-    return sorted(set([
-        os.path.splitext(filename)[0]
-        for filename in os.listdir(os.path.dirname(app.__file__))
-        if os.path.splitext(filename)[1] in allowed_extensions and filename not in ignored_files and not filename.startswith(".")
-    ]))
+
+
+    filenames = set()
+    for filename in os.listdir(os.path.dirname(app.__file__)):
+        if os.path.splitext(filename)[1] in allowed_extensions \
+           and filename not in ignored_files \
+           and not filename.startswith("."):
+
+            # if its a folder, and doesn't have an __init__.py file
+            if os.path.splitext(filename)[1] is "" \
+                and os.path.isdir(filename) \
+                and "__init__.py" not in os.listdir(os.path.join(os.path.dirname(app.__file__), filename)):
+                continue
+
+            filenames.add(os.path.splitext(filename)[0])
+    return sorted(filenames)
 
 
 def get_migration_classes(app):
