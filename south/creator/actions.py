@@ -88,7 +88,7 @@ class AddModel(Action):
 
     def forwards_code(self):
         
-        field_defs = "\n            ".join([
+        field_defs = ",\n            ".join([
             "(%r, %s)" % (name, defn) for name, defn
             in self.triples_to_defs(self.model_def).items()
         ])
