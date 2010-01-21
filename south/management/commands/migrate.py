@@ -94,7 +94,7 @@ class Command(BaseCommand):
                     skip = skip,
                 )
                 if result is False:
-                    return
+                    sys.exit(1) # Migration failed, so the command fails.
 
 
 def list_migrations(apps):
