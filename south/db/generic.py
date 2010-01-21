@@ -59,15 +59,23 @@ class DatabaseOperations(object):
         self.pending_transactions = 0
         self.pending_create_signals = []
         self.db_alias = db_alias
+    
+    def _is_multidb(self):
+        try: 
+            from django.db import connections
+        except ImportError:
+            return False
+        else:
+            return True
 
     def _get_connection(self): 
         """ 
         Returns a django connection for a given DB Alias 
-        """ 
-        try: 
+        """
+        if self._is_multidb():
             from django.db import connections 
             return connections[self.db_alias] 
-        except ImportError: 
+        else:
             from django.db import connection 
             return connection 
 
@@ -77,14 +85,12 @@ class DatabaseOperations(object):
         """
         setting_name = setting_name.upper()
         connection = self._get_connection() 
-        try:                                                 
-            from django.db import connections                
-        except ImportError:
-            # Django 1.1 and below
-            return getattr(settings, "DATABASE_%s" % setting_name) 
-        else:
+        if self._is_multidb():
             # Django 1.2 and above
             return connection.settings_dict[setting_name] 
+        else:
+            # Django 1.1 and below
+            return getattr(settings, "DATABASE_%s" % setting_name)
 
     def _has_setting(self, setting_name):
         """
@@ -748,13 +754,30 @@ class DatabaseOperations(object):
             interactive = True
 
             if hasattr(dispatcher, "send"):
+                # Older djangos
                 dispatcher.send(signal=models.signals.post_syncdb, sender=app,
                                 app=app, created_models=created_models,
                                 verbosity=verbosity, interactive=interactive)
             else:
-                models.signals.post_syncdb.send(sender=app,
-                                                app=app, created_models=created_models,
-                                                verbosity=verbosity, interactive=interactive)
+                if self._is_multidb():
+                    # Django 1.2+
+                    models.signals.post_syncdb.send(
+                        sender=app,
+                        app=app,
+                        created_models=created_models,
+                        verbosity=verbosity,
+                        interactive=interactive,
+                        db=self.db_alias,
+                    )
+                else:
+                    # Django 1.1 - 1.0
+                    models.signals.post_syncdb.send(
+                        sender=app,
+                        app=app,
+                        created_models=created_models,
+                        verbosity=verbosity,
+                        interactive=interactive,
+                    )
 
 
     def mock_model(self, model_name, db_table, db_tablespace='', 
