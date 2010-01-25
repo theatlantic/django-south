@@ -14,6 +14,9 @@ from optparse import make_option
 from django.core.management.base import BaseCommand
 from django.core.management.color import no_style
 from django.db import models
+from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
+from django.contrib.contenttypes.generic import GenericRelation
+from django.db.models.fields import FieldDoesNotExist
 from django.conf import settings
 
 try:
@@ -42,7 +45,8 @@ class Command(BaseCommand):
             help='Print the migration to stdout instead of writing it to a file.'),
     )
     help = "Creates a new template migration for the given app"
-    usage_str = "Usage: ./manage.py startmigration appname migrationname [--initial] [--auto] [--model ModelName] [--add-field ModelName.field_name] [--freeze] [--stdout]"
+    args = "appname migrationname"
+    usage_str = "Usage: ./manage.py startmigration [--model modelname] [--add-field modelname.fieldname] [--add-index modelname.fieldname] [--initial] [--auto] [--freeze appname|appname.modelname] [--stdout] " + args
     
     def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, freeze_list=None, auto=False, stdout=False, added_index_list=None, **options):
         
@@ -199,8 +203,8 @@ class Command(BaseCommand):
             for item in freeze_list:
                 if "." in item:
                     # It's a specific model
-                    app_label, model_name = item.split(".", 1)
-                    model = models.get_model(app_label, model_name)
+                    app_name, model_name = item.split(".", 1)
+                    model = models.get_model(app_name, model_name)
                     if model is None:
                         print "Cannot find the model '%s' to freeze it." % item
                         print self.usage_str
@@ -219,7 +223,7 @@ class Command(BaseCommand):
         if auto:
             # Get the last migration for this app
             last_models = None
-            app_module = migration.Migrations.from_name(app)
+            app_module = migration.get_app(app)
             if app_module is None:
                 print "You cannot use automatic detection on the first migration of an app. Try --initial instead."
             else:
@@ -780,7 +784,7 @@ def pprint_fields(fields):
 ### Output sanitisers
 
 
-USELESS_KEYWORDS = ["choices", "help_text", "upload_to", "verbose_name"]
+USELESS_KEYWORDS = ["choices", "help_text", "upload_to", "verbose_name", "storage"]
 USELESS_DB_KEYWORDS = ["related_name", "default"] # Important for ORM, not for DB.
 
 def remove_useless_attributes(field, db=False):
@@ -945,7 +949,7 @@ def different_attributes(old, new):
     """
     Backwards-compat comparison that ignores orm. on the RHS and not the left
     and which knows django.db.models.fields.CharField = models.CharField.
-    Has a whole load of tests in tests/autodetection.py.
+    Has a whole load of tests in tests/autodetectoion.py.
     """
     
     # If they're not triples, just do normal comparison
