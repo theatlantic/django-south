@@ -59,48 +59,48 @@ class DatabaseOperations(object):
         self.pending_transactions = 0
         self.pending_create_signals = []
         self.db_alias = db_alias
-
+    
     def _is_multidb(self):
-        try:                            
+        try: 
             from django.db import connections
-        except ImportError:                  
-            return False                     
-        else:                                
-            return True                      
+        except ImportError:
+            return False
+        else:
+            return True
 
     def _get_connection(self): 
-        """                    
+        """ 
         Returns a django connection for a given DB Alias 
-        """                                              
-        if self._is_multidb():                           
-            from django.db import connections            
-            return connections[self.db_alias]            
-        else:                                            
-            from django.db import connection             
-            return connection                            
+        """
+        if self._is_multidb():
+            from django.db import connections 
+            return connections[self.db_alias] 
+        else:
+            from django.db import connection 
+            return connection 
 
     def _get_setting(self, setting_name):
-        """                              
+        """
         Allows code to get a setting (like, for example, STORAGE_ENGINE)
-        """                                                             
-        setting_name = setting_name.upper()                             
-        connection = self._get_connection()                             
-        if self._is_multidb():                                          
-            # Django 1.2 and above                                      
-            return connection.settings_dict[setting_name]               
-        else:                                                           
-            # Django 1.1 and below                                      
-            return getattr(settings, "DATABASE_%s" % setting_name)      
+        """
+        setting_name = setting_name.upper()
+        connection = self._get_connection() 
+        if self._is_multidb():
+            # Django 1.2 and above
+            return connection.settings_dict[setting_name] 
+        else:
+            # Django 1.1 and below
+            return getattr(settings, "DATABASE_%s" % setting_name)
 
     def _has_setting(self, setting_name):
-        """                              
+        """
         Existence-checking version of _get_setting.
-        """                                        
-        try:                                       
-            self._get_setting(setting_name)        
-        except (KeyError, AttributeError):         
-            return False                           
-        else:                                      
+        """
+        try:
+            self._get_setting(setting_name)
+        except (KeyError, AttributeError):
+            return False
+        else:
             return True
 
     def connection_init(self):
@@ -734,8 +734,10 @@ class DatabaseOperations(object):
         over all models within the app sending the signal.  This is a
         patch we should push Django to make  For now, this should work.
         """
+        
         if self.debug:
             print " - Sending post_syncdb signal for %s: %s" % (app_label, model_names)
+        
         app = models.get_app(app_label)
         if not app:
             return
