@@ -238,11 +238,16 @@ class TestOperations(unittest.TestCase):
         Tests that going from a PostiveIntegerField to an IntegerField drops
         the constraint on the database.
         """
+        # Only applies to databases that support CHECK constraints
+        if not db.has_check_constraints:
+            return
+        
         db.create_table("test_alterc", [
             ('num', models.PositiveIntegerField()),
         ])
         # Add in some test values
-        db.execute("INSERT INTO test_alterc (num) VALUES (1), (2)")
+        db.execute("INSERT INTO test_alterc (num) VALUES (1)")
+        db.execute("INSERT INTO test_alterc (num) VALUES (2)")
         # Ensure that adding a negative number is bad
         db.start_transaction()
         try:
@@ -279,8 +284,10 @@ class TestOperations(unittest.TestCase):
         db.create_unique("test_unique", ["spam"])
         db.start_transaction()
         # Test it works
-        db.execute("INSERT INTO test_unique2 (id) VALUES (1), (2)")
-        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1), (false, 1, 2)")
+        db.execute("INSERT INTO test_unique2 (id) VALUES (1)")
+        db.execute("INSERT INTO test_unique2 (id) VALUES (2)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (false, 1, 2)")
         try:
             db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 2, 1)")
         except:
@@ -293,7 +300,8 @@ class TestOperations(unittest.TestCase):
         db.create_unique("test_unique", ["eggs"])
         db.start_transaction()
         # Test similarly
-        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1), (false, 1, 2)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (false, 1, 2)")
         try:
             db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 1, 1)")
         except:
@@ -306,7 +314,8 @@ class TestOperations(unittest.TestCase):
         db.create_unique("test_unique", ["spam", "eggs", "ham_id"])
         db.start_transaction()
         # Test similarly
-        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1), (false, 1, 1)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (false, 1, 1)")
         try:
             db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1)")
         except:
