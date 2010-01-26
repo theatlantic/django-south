@@ -14,8 +14,9 @@ class DatabaseOperations(generic.DatabaseOperations):
     
     backend_name = "sqlite3"
 
-    # SQLite ignores foreign key constraints. I wish I could.
+    # SQLite ignores several constraints. I wish I could.
     supports_foreign_keys = False
+    has_check_constraints = False
 
     # You can't add UNIQUE columns with an ALTER TABLE.
     def add_column(self, table_name, name, field, *args, **kwds):
@@ -38,9 +39,11 @@ class DatabaseOperations(generic.DatabaseOperations):
         Given a table and three sets of changes (renames, deletes, alters),
         recreates it with the modified schema.
         """
+        # Dry runs get skipped completely
+        if self.dry_run:
+            return
         # Temporary table's name
         temp_name = "_south_new_" + table_name
-        
         # Work out the (possibly new) definitions of each column
         definitions = {}
         cursor = self._get_connection().cursor()
@@ -61,13 +64,13 @@ class DatabaseOperations(generic.DatabaseOperations):
         self._copy_data(table_name, temp_name, renames)
         # Delete the old table, move our new one over it
         self.delete_table(table_name)
-        self.rename_table(temp_name)
+        self.rename_table(temp_name, table_name)
     
     def _copy_data(self, src, dst, field_renames={}):
         "Used to copy data into a new table"
         # Make a list of all the fields to select
         cursor = self._get_connection().cursor()
-        q_fields = [column_info[0] for column_info in self._get_connection().introspection.get_table_description(cursor, table_name)]
+        q_fields = [column_info[0] for column_info in self._get_connection().introspection.get_table_description(cursor, dst)]
         # Make sure renames are done correctly
         for old, new in field_renames.items():
             q_fields[q_fields.index(new)] = "%s AS %s" % (old, self.quote_name(new))
@@ -82,7 +85,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         raise NotImplementedError
 
     def delete_column(self, table_name, column_name):
-        raise NotImplementedError
+        self._remake_table(table_name, deleted=[column_name])
     
     def rename_column(self, table_name, old, new):
         """
@@ -107,5 +110,3 @@ class DatabaseOperations(generic.DatabaseOperations):
     # No cascades on deletes
     def delete_table(self, table_name, cascade=True):
         generic.DatabaseOperations.delete_table(self, table_name, False)
-
-    
