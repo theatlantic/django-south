@@ -51,13 +51,13 @@ class MigrationsMetaclass(type):
         super(MigrationsMetaclass, self).__init__(name, bases, dict)
         self.instances = {}
     
-    def __call__(self, application):
+    def __call__(self, application, **kwds):
         
         app_label = application_to_app_label(application)
         
         # If we don't already have an instance, make one
         if app_label not in self.instances:
-            self.instances[app_label] = super(MigrationsMetaclass, self).__call__(app_label_to_app_module(app_label))
+            self.instances[app_label] = super(MigrationsMetaclass, self).__call__(app_label_to_app_module(app_label), **kwds)
         
         return self.instances[app_label]
 
@@ -78,16 +78,13 @@ class Migrations(list):
                                         r'[^.]*'        # Don't match dotfiles
                                         r'(\.py)?$')       # Match only .py files, or module dirs
 
-    def __init__(self, application):
+    def __init__(self, application, force_creation=False, verbose_creation=True):
         "Constructor. Takes the module of the app, NOT its models (like get_app returns)"
-        if hasattr(application, '__name__'):
-            self._cache = {}
-            self.application = application
+        self._cache = {}
+        self.set_application(application, force_creation, verbose_creation)
     
-    @classmethod
-    def create_migrations_directory(self, application, verbose=True):
+    def create_migrations_directory(self, verbose=True):
         "Given an application, ensures that the migrations directory is ready."
-        app_module = app_label_to_app_module(application_to_app_label(application))
         migrations_dir = self.migrations_dir()
         # Make the directory if it's not already there
         if not os.path.isdir(migrations_dir):
@@ -118,7 +115,7 @@ class Migrations(list):
             except ImportError:
                 # The parent doesn't even exist, that's an issue.
                 raise exceptions.InvalidMigrationModule(
-                    app = self.application.__name__,
+                    application = self.application.__name__,
                     module = module_path,
                 )
             else:
@@ -139,14 +136,23 @@ class Migrations(list):
     def get_application(self):
         return self._application
 
-    def set_application(self, application):
+    def set_application(self, application, force_creation=False, verbose_creation=True):
+        """
+        Called when the application for this Migrations is set.
+        Imports the migrations module object, and throws a paddy if it can't.
+        """
         self._application = application
         if not hasattr(application, 'migrations'):
             try:
-                module = __import__(self.migrations_module(), {}, {}, '')
-                self._migrations = application.migrations = module.migrations
+                module = __import__(self.migrations_module(), {}, {}, [''])
+                self._migrations = application.migrations = module
             except ImportError:
-                raise exceptions.NoMigrations(application)
+                if force_creation:
+                    self.create_migrations_directory(verbose_creation)
+                    module = __import__(self.migrations_module(), {}, {}, [''])
+                    self._migrations = application.migrations = module
+                else:
+                    raise exceptions.NoMigrations(application)
         self._load_migrations_module(application.migrations)
 
     application = property(get_application, set_application)
@@ -154,7 +160,7 @@ class Migrations(list):
     def _load_migrations_module(self, module):
         self._migrations = module
         filenames = []
-        dirname = os.path.dirname(self._migrations.__file__)
+        dirname = self.migrations_dir()
         for f in os.listdir(dirname):
             if self.MIGRATION_FILENAME.match(os.path.basename(f)):
                 full_path = os.path.join(dirname, f)
