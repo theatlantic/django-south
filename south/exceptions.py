@@ -22,6 +22,11 @@ class UnknownMigration(BrokenMigration):
                 '%(traceback)s' % self.__dict__)
 
 
+class InvalidMigrationModule(BrokenMigration):
+    def __str__(self):
+        return ('The migration module specified for %(app)s, %(module)r, does not exist.' % self.__dict__)
+
+
 class NoMigrations(SouthError):
     def __init__(self, application):
         self.application = application

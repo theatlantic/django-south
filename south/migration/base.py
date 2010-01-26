@@ -88,10 +88,7 @@ class Migrations(list):
     def create_migrations_directory(self, application, verbose=True):
         "Given an application, ensures that the migrations directory is ready."
         app_module = app_label_to_app_module(application_to_app_label(application))
-        migrations_dir = os.path.join(
-            os.path.dirname(app_module.__file__),
-            "migrations",
-        )
+        migrations_dir = self.migrations_dir()
         # Make the directory if it's not already there
         if not os.path.isdir(migrations_dir):
             if verbose:
@@ -106,11 +103,37 @@ class Migrations(list):
             open(init_path, "w").close()
     
     def migrations_dir(self):
-        "Returns the full path of the migrations directory"
-        return os.path.dirname(self._migrations.__file__)
+        """
+        Returns the full path of the migrations directory.
+        If it doesn't exist yet, returns where it would exist, based on the
+        app's migrations module (defaults to app.migrations)
+        """
+        module_path = self.migrations_module()
+        try:
+            module = __import__(module_path, {}, {}, [''])
+        except ImportError:
+            # There's no migrations module made yet; guess!
+            try:
+                parent = __import__(".".join(module_path.split(".")[:-1]), {}, {}, [''])
+            except ImportError:
+                # The parent doesn't even exist, that's an issue.
+                raise exceptions.InvalidMigrationModule(
+                    app = self.application.__name__,
+                    module = module_path,
+                )
+            else:
+                # Good guess.
+                return os.path.join(os.path.dirname(parent.__file__), module_path.split(".")[-1])
+        else:
+            # Get directory directly
+            return os.path.dirname(module.__file__)
     
     def migrations_module(self):
         "Returns the module name of the migrations module for this"
+        if hasattr(settings, "SOUTH_MIGRATION_MODULES"):
+            if self.application.__name__ in settings.SOUTH_MIGRATION_MODULES:
+                # There's an override.
+                return settings.SOUTH_MIGRATION_MODULES[self.application.__name__]
         return self._application.__name__ + '.migrations'
 
     def get_application(self):
