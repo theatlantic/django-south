@@ -74,11 +74,7 @@ class Command(DataCommand):
             self.error("You must provide an app to create a migration for.\n" + self.usage_str)
         
         # Get the Migrations for this app (creating the migrations dir if needed)
-        try:
-            migrations = Migrations(app)
-        except NoMigrations:
-            Migrations.create_migrations_directory(app, verbose=verbosity > 0)
-            migrations = Migrations(app)
+        migrations = Migrations(app, force_creation=True, verbose_creation=verbosity > 0)
         
         # See what filename is next in line. We assume they use numbers.
         new_filename = migrations.next_filename(name)
