@@ -16,9 +16,6 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     # SQLite ignores foreign key constraints. I wish I could.
     supports_foreign_keys = False
-    
-    def __init__(self):
-        super(DatabaseOperations, self).__init__()
 
     # You can't add UNIQUE columns with an ALTER TABLE.
     def add_column(self, table_name, name, field, *args, **kwds):
