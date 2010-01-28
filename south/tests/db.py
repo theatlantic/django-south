@@ -143,6 +143,17 @@ class TestOperations(unittest.TestCase):
         db.rollback_transaction()
         db.delete_table("testtr2")
     
+    def test_percents_in_defaults(self):
+        """
+        Test that % in a default gets escaped to %%.
+        """
+        cursor = connection.cursor()
+        try:
+            db.create_table("testpind", [('cf', models.CharField(max_length=255, default="It should be 2%!"))])
+        except IndexError:
+            self.fail("% was not properly escaped in column SQL.")
+        db.delete_table("testpind")
+    
     def test_index(self):
         """
         Test the index operations

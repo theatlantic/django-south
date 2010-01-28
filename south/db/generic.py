@@ -478,6 +478,10 @@ class DatabaseOperations(object):
                         default = "'%s'" % default.replace("'", "''")
                     elif isinstance(default, (datetime.date, datetime.time, datetime.datetime)):
                         default = "'%s'" % default
+                    # Escape any % signs in the output (bug #317)
+                    if isinstance(default, basestring):
+                        default = default.replace("%", "%%")
+                    # Add it in
                     sql += " DEFAULT %s"
                     sqlparams = (default)
             elif (not field.null and field.blank) or ((field.get_default() == '') and (not getattr(field, '_suppress_default', False))):
