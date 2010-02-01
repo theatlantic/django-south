@@ -16,7 +16,7 @@ from django.utils.functional import Promise
 from django.contrib.contenttypes import generic
 from django.utils.datastructures import SortedDict
 
-NOISY = True
+NOISY = False
 
 # Gives information about how to introspect certain fields.
 # This is a list of triples; the first item is a list of fields it applies to,
@@ -274,8 +274,6 @@ def get_model_fields(model, m2m=False):
             field_defs[field.name] = field.south_field_triple()
         # Can we introspect it?
         elif can_introspect(field):
-            #if NOISY:
-            #    print "Introspecting field: %s" % field.name
             # Get the full field class path.
             field_class = field.__class__.__module__ + "." + field.__class__.__name__
             # Run this field through the introspector

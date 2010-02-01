@@ -45,18 +45,10 @@ class Action(object):
     @classmethod
     def triple_to_def(cls, triple):
         "Turns a single triple into a definition."
-        triple = remove_useless_attributes(triple, db=True)
-        if triple is None:
-            print "WARNING: Cannot get definition for '%s' on '%s'. Please edit the migration manually." % (
-                field,
-                model_key(model),
-            )
-            return "<<??>>"
-        else:
-            return "self.gf(%r)(%s)" % (
-                triple[0], # Field full path
-                ", ".join(triple[1] + ["%s=%s" % (kwd, val) for kwd, val in triple[2].items()]), # args and kwds
-            )
+        return "self.gf(%r)(%s)" % (
+            triple[0], # Field full path
+            ", ".join(triple[1] + ["%s=%s" % (kwd, val) for kwd, val in triple[2].items()]), # args and kwds
+        )
     
     
 class AddModel(Action):
@@ -87,7 +79,7 @@ class AddModel(Action):
         )
 
     def forwards_code(self):
-        
+        "Produces the code snippet that gets put into forwards()"
         field_defs = ",\n            ".join([
             "(%r, %s)" % (name, defn) for name, defn
             in self.triples_to_defs(self.model_def).items()
@@ -101,6 +93,7 @@ class AddModel(Action):
         }
 
     def backwards_code(self):
+        "Produces the code snippet that gets put into backwards()"
         return self.BACKWARDS_TEMPLATE % {
             "model_name": self.model._meta.object_name,
             "table_name": self.model._meta.db_table,
