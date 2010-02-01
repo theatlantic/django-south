@@ -44,7 +44,7 @@ class Command(BaseCommand):
             return
         
         # Ask South if it thinks it's already got migrations
-        if Migrations.from_name(app_module):
+        if Migrations(app):
             print "This application is already managed by South."
             return
         
