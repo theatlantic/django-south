@@ -2,6 +2,8 @@
 Handles freezing of models into FakeORMs.
 """
 
+import sys
+
 from django.db import models
 from django.contrib.contenttypes.generic import GenericRelation
 
@@ -26,6 +28,21 @@ def freeze_apps(apps):
     model_defs = {}
     for model in frozen_models:
         model_defs[model_key(model)] = prep_for_freeze(model)
+    # Check for any custom fields that failed to freeze.
+    missing_fields = False
+    for key, fields in model_defs.items():
+        for field_name, value in fields.items():
+            if value is None:
+                missing_fields = True
+                print " ! Cannot freeze field '%s.%s'" % (key, field_name)
+    if missing_fields:
+        print ""
+        print " ! South cannot introspect some fields; this is probably because they are custom"
+        print " ! fields. If they worked in 0.6 or below, this is because we have removed the"
+        print " ! models parser (it often broke things)."
+        print " ! To fix this, read http://south.aeracode.org/wiki/MyFieldsDontWork"
+        sys.exit(1)
+    
     return model_defs
     
 def freeze_apps_to_string(apps):
