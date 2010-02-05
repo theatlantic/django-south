@@ -49,7 +49,7 @@ class DatabaseOperations(object):
     drop_index_string = 'DROP INDEX %(index_name)s'
     delete_column_string = 'ALTER TABLE %s DROP COLUMN %s CASCADE;'
     create_primary_key_string = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s PRIMARY KEY (%(columns)s)"
-    drop_primary_key_string = "ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s"
+    delete_primary_key_sql = "ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s"
     backend_name = None
 
     def __init__(self, db_alias):
@@ -354,12 +354,14 @@ class DatabaseOperations(object):
     def _constraints_affecting_columns(self, table_name, columns, type="UNIQUE"):
         """
         Gets the names of the constraints affecting the given columns.
+        If columns is None, returns all constraints of the type on the table.
         """
 
         if self.dry_run:
             raise ValueError("Cannot get constraints for columns during a dry run.")
 
-        columns = set(columns)
+        if columns is not None:
+            columns = set(columns)
 
         if type == "CHECK":
             ifsc_table = "constraint_column_usage"
@@ -379,14 +381,17 @@ class DatabaseOperations(object):
                 kc.table_name = %%s AND
                 c.constraint_type = %%s
         """ % ifsc_table, ['public', table_name, type])
+        
         # Load into a dict
         mapping = {}
         for constraint, column in rows:
             mapping.setdefault(constraint, set())
             mapping[constraint].add(column)
+        
         # Find ones affecting these columns
         for constraint, itscols in mapping.items():
-            if itscols == columns:
+            # If columns is None we definitely want this field! (see docstring)
+            if itscols == columns or columns is None:
                 yield constraint
 
 
@@ -636,16 +641,25 @@ class DatabaseOperations(object):
         raise NotImplementedError("rename_column has no generic SQL syntax")
 
 
-    def drop_primary_key(self, table_name):
+    def delete_primary_key(self, table_name):
         """
         Drops the old primary key.
         """
-        self.execute(self.drop_primary_key_string % {
-            "table": self.quote_name(table_name),
-            "constraint": self.quote_name(table_name+"_pkey"),
-        })
-
-    delete_primary_key = alias('drop_primary_key')
+        # Dry runs mean we can't do anything.
+        if self.dry_run:
+            return
+        
+        constraints = list(self._constraints_affecting_columns(table_name, None, type="PRIMARY KEY"))
+        if not constraints:
+            raise ValueError("Cannot find a PRIMARY KEY constraint on table %s" % (table_name,))
+        
+        for constraint in constraints:
+            self.execute(self.delete_primary_key_sql % {
+                "table": self.quote_name(table_name),
+                "constraint": self.quote_name(constraint),
+            })
+    
+    drop_primary_key = alias('delete_primary_key')
 
 
     def create_primary_key(self, table_name, columns):
