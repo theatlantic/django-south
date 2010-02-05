@@ -11,15 +11,12 @@ from django.conf import settings
 from django.db import models
 
 from south import migration
-from south.migration import Migration, Migrations
-from south.migration.utils import get_app_label
-from south.exceptions import NoMigrations
 
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
         make_option('--all', action='store_true', dest='all_apps', default=False,
             help='Run the specified migration for all apps.'),
-        make_option('--list', action='store_true', dest='show_list', default=False,
+        make_option('--list', action='store_true', dest='list', default=False,
             help='List migrations noting those that have been applied'),
         make_option('--skip', action='store_true', dest='skip', default=False,
             help='Will skip over out-of-order missing migrations'),
@@ -39,9 +36,10 @@ class Command(BaseCommand):
             help='Verbosity level; 0=minimal output, 1=normal output, 2=all output'),
         )
     help = "Runs migrations for all apps."
-    args = "[appname] [migrationname|zero] [--all] [--list] [--skip] [--merge] [--no-initial-data] [--fake] [--db-dry-run]"
+    args = "[appname] [migrationname]"
+    usage_str = "Usage: ./manage.py migrate [--all] [--list] [--skip] [--merge] [--no-initial-data] [--fake] [--db-dry-run] " + args
 
-    def handle(self, app=None, target=None, skip=False, merge=False, backwards=False, fake=False, db_dry_run=False, show_list=False, **options):
+    def handle(self, app=None, target=None, skip=False, merge=False, backwards=False, fake=False, db_dry_run=False, list=False, **options):
 
         # Work out what the resolve mode is
         resolve_mode = merge and "merge" or (skip and "skip" or None)
@@ -67,58 +65,57 @@ class Command(BaseCommand):
 
         # Migrate each app
         if app:
-            try:
-                apps = [Migrations(app)]
-            except NoMigrations:
+            apps = [migration.get_app(app.split(".")[-1])]
+            if apps == [None]:
                 print "The app '%s' does not appear to use migrations." % app
-                print "./manage.py migrate " + self.args
+                print self.usage_str
                 return
         else:
-            apps = list(migration.all_migrations())
+            apps = migration.get_migrated_apps()
         
-        # Do we need to show the list of migrations?
-        if show_list and apps:
+        if list and apps:
             list_migrations(apps)
         
-        if not show_list:
+        if not list:
+            tree = migration.dependency_tree()
             
             for app in apps:
                 result = migration.migrate_app(
                     app,
-                    #resolve_mode = resolve_mode,
+                    tree,
+                    resolve_mode = resolve_mode,
                     target_name = target,
                     fake = fake,
                     db_dry_run = db_dry_run,
                     verbosity = int(options.get('verbosity', 0)),
-                    load_initial_data = not options.get('no_initial_data', False),
+                    load_inital_data = not options.get('no_initial_data', False),
                     skip = skip,
                 )
                 if result is False:
-                    sys.exit(1) # Migration failed, so the command fails.
+                    return
 
 
 def list_migrations(apps):
-    """
-    Prints a list of all available migrations, and which ones are currently applied.
-    Accepts a list of Migrations instances.
-    """
     from south.models import MigrationHistory
-    applied_migrations = MigrationHistory.objects.filter(app_name__in=[app.app_label() for app in apps])
+    apps = list(apps)
+    names = [migration.get_app_name(app) for app in apps]
+    applied_migrations = MigrationHistory.objects.filter(app_name__in=names)
     applied_migrations = ['%s.%s' % (mi.app_name,mi.migration) for mi in applied_migrations]
 
     print
     for app in apps:
-        print " " + app.app_label()
-        # Get the migrations object
-        for migration in app:
-            if migration.app_label() + "." + migration.name() in applied_migrations:
-                print format_migration_list_item(migration.name())
+        print migration.get_app_name(app)
+        all_migrations = migration.get_migration_names(app)
+        for migration_name in all_migrations:
+            long_form = '%s.%s' % (migration.get_app_name(app),migration_name)
+            if long_form in applied_migrations:
+                print format_migration_list_item(migration_name)
             else:
-                print format_migration_list_item(migration.name(), applied=False)
+                print format_migration_list_item(migration_name, applied=False)
         print
 
 
 def format_migration_list_item(name, applied=True):
     if applied:
-        return '  (*) %s' % name
-    return '  ( ) %s' % name
+        return '   * %s' % name
+    return '     %s' % name

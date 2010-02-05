@@ -5,7 +5,7 @@ from django.db import models
 from django.core import management
 from optparse import make_option
 from django.core.exceptions import ImproperlyConfigured
-from south.migration import Migrations
+from south.migration import get_app
 from south.hacks import hacks
 import sys
 
@@ -18,8 +18,8 @@ class Command(BaseCommand):
             type='choice', choices=['0', '1', '2'],
             help='Verbosity level; 0=minimal output, 1=normal output, 2=all output'),
         )
-
     help = "Quickly converts the named application to use South if it is currently using syncdb."
+    args = "appname"
 
     def handle(self, app=None, *args, **options):
         
@@ -44,7 +44,7 @@ class Command(BaseCommand):
             return
         
         # Ask South if it thinks it's already got migrations
-        if Migrations(app):
+        if get_app(app_module):
             print "This application is already managed by South."
             return
         
