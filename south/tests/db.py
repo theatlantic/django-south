@@ -187,6 +187,11 @@ class TestOperations(unittest.TestCase):
         """
         Test the primary key operations
         """
+        
+        # SQLite backend doesn't support this yet.
+        if db.backend_name == "sqlite3":
+            return
+        
         db.create_table("test_pk", [
             ('id', models.IntegerField(primary_key=True)),
             ('new_pkey', models.IntegerField()),
@@ -292,6 +297,11 @@ class TestOperations(unittest.TestCase):
         """
         Tests creating/deleting unique constraints.
         """
+        
+        # SQLite backend doesn't support this yet.
+        if db.backend_name == "sqlite3":
+            return
+        
         db.create_table("test_unique2", [
             ('id', models.AutoField(primary_key=True)),
         ])
