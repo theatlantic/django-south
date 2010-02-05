@@ -22,7 +22,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     alter_string_set_null = 'MODIFY %(column)s %(type)s NULL;'
     alter_string_drop_null = 'MODIFY %(column)s %(type)s NOT NULL;'
     drop_index_string = 'DROP INDEX %(index_name)s ON %(table_name)s'
-    drop_primary_key_string = "ALTER TABLE %(table)s DROP PRIMARY KEY"
+    delete_primary_key_sql = "ALTER TABLE %(table)s DROP PRIMARY KEY"
     allows_combined_alters = False
     has_ddl_transactions = False
     has_check_constraints = False
@@ -109,13 +109,17 @@ class DatabaseOperations(generic.DatabaseOperations):
     def _constraints_affecting_columns(self, table_name, columns, type="UNIQUE"):
         """
         Gets the names of the constraints affecting the given columns.
+        If columns is None, returns all constraints of the type on the table.
         """
         
         if self.dry_run:
             raise ValueError("Cannot get constraints for columns during a dry run.")
         
-        columns = set(columns)
+        if columns is not None:
+            columns = set(columns)
+        
         db_name = self._get_setting('NAME')
+        
         # First, load all constraint->col mappings for this table.
         rows = self.execute("""
             SELECT kc.constraint_name, kc.column_name
@@ -130,14 +134,16 @@ class DatabaseOperations(generic.DatabaseOperations):
                 kc.table_name = %s AND
                 c.constraint_type = %s
         """, [db_name, table_name, type])
+        
         # Load into a dict
         mapping = {}
         for constraint, column in rows:
             mapping.setdefault(constraint, set())
             mapping[constraint].add(column)
+        
         # Find ones affecting these columns
         for constraint, itscols in mapping.items():
-            if itscols == columns:
+            if itscols == columns or columns is None:
                 yield constraint
     
     
