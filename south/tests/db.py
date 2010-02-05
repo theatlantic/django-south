@@ -94,12 +94,16 @@ class TestOperations(unittest.TestCase):
         # Rename it
         db.rename_column("test_rn", "spam", "eggs")
         cursor.execute("SELECT eggs FROM test_rn")
+        db.commit_transaction()
+        db.start_transaction()
         try:
             cursor.execute("SELECT spam FROM test_rn")
             self.fail("Just-renamed column could be selected!")
         except:
             pass
+        db.rollback_transaction()
         db.delete_table("test_rn")
+        db.start_transaction()
     
     def test_dry_rename(self):
         """
@@ -115,12 +119,16 @@ class TestOperations(unittest.TestCase):
         db.rename_column("test_drn", "spam", "eggs")
         db.dry_run = False
         cursor.execute("SELECT spam FROM test_drn")
+        db.commit_transaction()
+        db.start_transaction()
         try:
             cursor.execute("SELECT eggs FROM test_drn")
             self.fail("Dry-renamed new column could be selected!")
         except:
             pass
+        db.rollback_transaction()
         db.delete_table("test_drn")
+        db.start_transaction()
     
     def test_table_rename(self):
         """
@@ -133,12 +141,27 @@ class TestOperations(unittest.TestCase):
         # Rename it
         db.rename_table("testtr", "testtr2")
         cursor.execute("SELECT spam FROM testtr2")
+        db.commit_transaction()
+        db.start_transaction()
         try:
             cursor.execute("SELECT spam FROM testtr")
             self.fail("Just-renamed column could be selected!")
         except:
             pass
+        db.rollback_transaction()
         db.delete_table("testtr2")
+        db.start_transaction()
+    
+    def test_percents_in_defaults(self):
+        """
+        Test that % in a default gets escaped to %%.
+        """
+        cursor = connection.cursor()
+        try:
+            db.create_table("testpind", [('cf', models.CharField(max_length=255, default="It should be 2%!"))])
+        except IndexError:
+            self.fail("% was not properly escaped in column SQL.")
+        db.delete_table("testpind")
     
     def test_index(self):
         """
@@ -171,27 +194,28 @@ class TestOperations(unittest.TestCase):
         ])
         db.execute_deferred_sql()
         # Remove the default primary key, and make eggs it
-        db.delete_primary_key("test_pk")
+        db.drop_primary_key("test_pk")
         db.create_primary_key("test_pk", "new_pkey")
         # Try inserting a now-valid row pair
-        db.execute("INSERT INTO test_pk (id, new_pkey, eggs) VALUES (1, 2, 3), (1, 3, 4)")
+        db.execute("INSERT INTO test_pk (id, new_pkey, eggs) VALUES (1, 2, 3)")
+        db.execute("INSERT INTO test_pk (id, new_pkey, eggs) VALUES (1, 3, 4)")
         db.delete_table("test_pk")
     
     def test_alter(self):
         """
         Test altering columns/tables
         """
-        db.create_table("test_alterc", [
+        db.create_table("test4", [
             ('spam', models.BooleanField(default=False)),
             ('eggs', models.IntegerField()),
         ])
         # Add a column
-        db.add_column("test_alterc", "add1", models.IntegerField(default=3), keep_default=False)
+        db.add_column("test4", "add1", models.IntegerField(default=3), keep_default=False)
         # Add a FK with keep_default=False (#69)
         User = db.mock_model(model_name='User', db_table='auth_user', db_tablespace='', pk_field_name='id', pk_field_type=models.AutoField, pk_field_args=[], pk_field_kwargs={})
-        db.add_column("test_alterc", "user", models.ForeignKey(User, null=True), keep_default=False)
-        db.delete_column("test_alterc", "add1")
-        db.delete_table("test_alterc")
+        db.add_column("test4", "user", models.ForeignKey(User, null=True), keep_default=False)
+        db.delete_column("test4", "add1")
+        db.delete_table("test4")
         
     def test_alter_column_postgres_multiword(self):
         """
@@ -225,16 +249,23 @@ class TestOperations(unittest.TestCase):
         Tests that going from a PostiveIntegerField to an IntegerField drops
         the constraint on the database.
         """
+        # Only applies to databases that support CHECK constraints
+        if not db.has_check_constraints:
+            return
+        # Make the test table
         db.create_table("test_alterc", [
             ('num', models.PositiveIntegerField()),
         ])
         # Add in some test values
-        db.execute("INSERT INTO test_alterc (num) VALUES (1), (2)")
+        db.execute("INSERT INTO test_alterc (num) VALUES (1)")
+        db.execute("INSERT INTO test_alterc (num) VALUES (2)")
         # Ensure that adding a negative number is bad
+        db.commit_transaction()
+        db.start_transaction()
         try:
             db.execute("INSERT INTO test_alterc (num) VALUES (-3)")
         except:
-            pass
+            db.rollback_transaction()
         else:
             self.fail("Could insert a negative integer into a PositiveIntegerField.")
         # Alter it to a normal IntegerField
@@ -242,6 +273,8 @@ class TestOperations(unittest.TestCase):
         # It should now work
         db.execute("INSERT INTO test_alterc (num) VALUES (-3)")
         db.delete_table("test_alterc")
+        # We need to match up for tearDown
+        db.start_transaction()
     
     def test_unique(self):
         """
@@ -263,40 +296,53 @@ class TestOperations(unittest.TestCase):
         db.dry_run = False
         db.delete_unique("test_unique", ["spam"])
         db.create_unique("test_unique", ["spam"])
+        db.commit_transaction()
+        db.start_transaction()
+        
         # Test it works
-        db.execute("INSERT INTO test_unique2 (id) VALUES (1), (2)")
-        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1), (false, 1, 2)")
+        db.execute("INSERT INTO test_unique2 (id) VALUES (1)")
+        db.execute("INSERT INTO test_unique2 (id) VALUES (2)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (false, 1, 2)")
         try:
             db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 2, 1)")
         except:
-            pass
+            db.rollback_transaction()
         else:
             self.fail("Could insert non-unique item.")
+        
         # Drop that, add one only on eggs
         db.delete_unique("test_unique", ["spam"])
         db.execute("DELETE FROM test_unique")
         db.create_unique("test_unique", ["eggs"])
+        db.start_transaction()
+        
         # Test similarly
-        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1), (false, 1, 2)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (false, 1, 2)")
         try:
             db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 1, 1)")
         except:
-            pass
+            db.rollback_transaction()
         else:
             self.fail("Could insert non-unique item.")
+        
         # Drop those, test combined constraints
         db.delete_unique("test_unique", ["eggs"])
         db.execute("DELETE FROM test_unique")
         db.create_unique("test_unique", ["spam", "eggs", "ham_id"])
+        db.start_transaction()
         # Test similarly
-        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1), (false, 1, 1)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (false, 1, 1)")
         try:
             db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1)")
         except:
-            pass
+            db.rollback_transaction()
         else:
             self.fail("Could insert non-unique pair.")
         db.delete_unique("test_unique", ["spam", "eggs", "ham_id"])
+        db.start_transaction()
     
     def test_capitalised_constraints(self):
         """

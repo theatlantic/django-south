@@ -105,14 +105,6 @@ class DatabaseOperations(generic.DatabaseOperations):
         params = (self.quote_name(old_table_name), self.quote_name(table_name))
         self.execute('RENAME TABLE %s TO %s;' % params)
     
-    #def drop_primary_key(self, table_name):
-    #    """
-    #    Drops the old primary key.
-    #    """
-    #    self.execute(self.drop_primary_key_string % {
-    #        "table": self.quote_name(table_name),
-    #    })
-    
     
     def _constraints_affecting_columns(self, table_name, columns, type="UNIQUE"):
         """
