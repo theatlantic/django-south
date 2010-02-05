@@ -121,6 +121,10 @@ class DatabaseOperations(generic.DatabaseOperations):
         Not supported under SQLite.
         """
         print "   ! WARNING: SQLite does not support removing unique constraints. Ignored."
+
+    # Not implemented this yet.
+    def delete_primary_key(self, table_name):
+        raise NotImplementedError()
     
     # No cascades on deletes
     def delete_table(self, table_name, cascade=True):
