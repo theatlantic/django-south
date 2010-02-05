@@ -12,6 +12,7 @@ from south.migration.base import all_migrations, Migration, Migrations
 from south.migration.utils import depends, dfs, flatten, get_app_label
 from south.models import MigrationHistory
 from south.tests import Monkeypatcher
+from south.db import db
 
 class TestMigration(Monkeypatcher):
     installed_apps = ["fakeapp", "otherfakeapp", "brokenapp"]
@@ -514,12 +515,20 @@ class TestMigrationLogic(Monkeypatcher):
         self.assertEqual(list(MigrationHistory.objects.all()), [])
     
     def test_alter_column_null(self):
+        
         def null_ok():
             from django.db import connection, transaction
             # the DBAPI introspection module fails on postgres NULLs.
             cursor = connection.cursor()
+        
+            # SQLite has weird now()
+            if db.backend_name == "sqlite3":
+                now_func = "DATETIME('NOW')"
+            else:
+                now_func = "NOW()"
+            
             try:
-                cursor.execute("INSERT INTO southtest_spam (id, weight, expires, name) VALUES (100, 10.1, now(), NULL);")
+                cursor.execute("INSERT INTO southtest_spam (id, weight, expires, name) VALUES (100, 10.1, %s, NULL);" % now_func)
             except:
                 transaction.rollback()
                 return False
