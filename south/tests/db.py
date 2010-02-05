@@ -201,21 +201,33 @@ class TestOperations(unittest.TestCase):
         db.execute("INSERT INTO test_pk (id, new_pkey, eggs) VALUES (1, 3, 4)")
         db.delete_table("test_pk")
     
-    def test_alter(self):
+    def test_add_columns(self):
         """
-        Test altering columns/tables
+        Test adding columns
         """
-        db.create_table("test4", [
+        db.create_table("test_addc", [
             ('spam', models.BooleanField(default=False)),
             ('eggs', models.IntegerField()),
         ])
         # Add a column
-        db.add_column("test4", "add1", models.IntegerField(default=3), keep_default=False)
+        db.add_column("test_addc", "add1", models.IntegerField(default=3), keep_default=False)
         # Add a FK with keep_default=False (#69)
         User = db.mock_model(model_name='User', db_table='auth_user', db_tablespace='', pk_field_name='id', pk_field_type=models.AutoField, pk_field_args=[], pk_field_kwargs={})
-        db.add_column("test4", "user", models.ForeignKey(User, null=True), keep_default=False)
-        db.delete_column("test4", "add1")
-        db.delete_table("test4")
+        db.add_column("test_addc", "user", models.ForeignKey(User, null=True), keep_default=False)
+        db.delete_column("test_addc", "add1")
+        db.delete_table("test_addc")
+    
+    def test_alter_columns(self):
+        """
+        Test altering columns
+        """
+        db.create_table("test_alterc", [
+            ('spam', models.BooleanField(default=False)),
+            ('eggs', models.IntegerField()),
+        ])
+        # Change eggs to be a FloatField
+        db.alter_column("test_alterc", "eggs", models.FloatField())
+        db.delete_table("test_alterc")
         
     def test_alter_column_postgres_multiword(self):
         """
