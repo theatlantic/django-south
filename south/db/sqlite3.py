@@ -50,6 +50,9 @@ class DatabaseOperations(generic.DatabaseOperations):
         for column_info in self._get_connection().introspection.get_table_description(cursor, table_name):
             name = column_info[0]
             type = column_info[1]
+            # Deal with an alter (these happen before renames)
+            if name in altered:
+                type = altered[name]
             # Deal with a rename
             if name in renames:
                 name = renames[name]
@@ -82,9 +85,21 @@ class DatabaseOperations(generic.DatabaseOperations):
         ))
     
     def alter_column(self, table_name, name, field, explicit_name=True):
-        raise NotImplementedError
+        """
+        Changes a column's SQL definition
+        """
+        # Get the column's SQL
+        field.set_attributes_from_name(name)
+        if not explicit_name:
+            name = field.column
+        sql = self.column_sql(table_name, name, field)
+        # Remake the table correctly
+        self._remake_table(table_name, altered={name: sql})
 
     def delete_column(self, table_name, column_name):
+        """
+        Deletes a column.
+        """
         self._remake_table(table_name, deleted=[column_name])
     
     def rename_column(self, table_name, old, new):
