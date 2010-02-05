@@ -229,7 +229,7 @@ class AddUnique(Action):
     
     FORWARDS_TEMPLATE = '''
         # Adding unique constraint on '%(model_name)s', fields %(fields)s
-        db.add_unique(%(table_name)r, %(fields)r)'''
+        db.create_unique(%(table_name)r, %(fields)r)'''
     
     BACKWARDS_TEMPLATE = '''
         # Removing unique constraint on '%(model_name)s', fields %(fields)s
