@@ -5,7 +5,6 @@ Hacks for the Django 1.0/1.0.2 releases.
 from django.conf import settings
 from django.db import models
 from django.db.models.loading import AppCache, cache
-from django.utils.datastructures import SortedDict
 
 class Hacks:
     
@@ -17,11 +16,12 @@ class Hacks:
         # Make sure it's a list.
         apps = list(apps)
         
-        # Make sure it contains strings
-        if apps:
-            assert isinstance(apps[0], basestring), "The argument to set_installed_apps must be a list of strings."
+        # This function will be monkeypatched into place.
+        def new_get_apps():
+            return apps
         
         # Monkeypatch in!
+        models.get_apps_old, models.get_apps = models.get_apps, new_get_apps
         settings.INSTALLED_APPS, settings.OLD_INSTALLED_APPS = (
             apps,
             settings.INSTALLED_APPS,
@@ -33,6 +33,7 @@ class Hacks:
         """
         Undoes the effect of set_installed_apps.
         """
+        models.get_apps = models.get_apps_old
         settings.INSTALLED_APPS = settings.OLD_INSTALLED_APPS
         self._redo_app_cache()
     
@@ -43,11 +44,6 @@ class Hacks:
         """
         a = AppCache()
         a.loaded = False
-        a.handled = {}
-        a.postponed = []
-        a.app_store = SortedDict()
-        a.app_models = SortedDict()
-        a.app_errors = {}
         a._populate()
     
     
