@@ -413,7 +413,7 @@ class DatabaseOperations(object):
         ))
         return name
 
-
+    add_unique = alias('create_unique')
 
     def delete_unique(self, table_name, columns):
         """
