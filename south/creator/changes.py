@@ -46,6 +46,10 @@ class AutoChanges(BaseChanges):
         app_label, model_name = key.split(".")
         return models.get_model(app_label, model_name)
     
+    def current_field_from_key(self, key, fieldname):
+        app_label, model_name = key.split(".")
+        return models.get_model(app_label, model_name)._meta.get_field_by_name(fieldname)[0]
+    
     def get_changes(self):
         """
         Returns the difference between the old and new sets of models as a 5-tuple:
@@ -118,23 +122,23 @@ class AutoChanges(BaseChanges):
                                 if old_triple[2]['unique'] == "False":
                                     yield ("AddUnique", {
                                         "model": self.current_model_from_key(key),
-                                        "fields": [fieldname],
+                                        "fields": [self.current_field_from_key(key, fieldname)],
                                     })
                                 else:
                                     yield ("DeleteUnique", {
                                         "model": self.old_orm[key],
-                                        "fields": [fieldname],
+                                        "fields": [self.old_orm[key + ":" + fieldname]],
                                     })
                             else:
                                 if new_triple[2]['unique'] == "False":
                                     yield ("DeleteUnique", {
                                         "model": self.old_orm[key],
-                                        "fields": [fieldname],
+                                        "fields": [self.old_orm[key + ":" + fieldname]],
                                     })
                                 else:
                                     yield ("AddUnique", {
                                         "model": self.current_model_from_key(key),
-                                        "fields": [fieldname],
+                                        "fields": [self.current_field_from_key(key, fieldname)],
                                     })
                 
                 ## See if the unique_togethers have changed
@@ -152,13 +156,13 @@ class AutoChanges(BaseChanges):
                     if item not in new_unique_together:
                         yield ("DeleteUnique", {
                             "model": self.old_orm[key],
-                            "fields": list(item),
+                            "fields": [self.old_orm[key + ":" + x] for x in item],
                         })
                 for item in new_unique_together:
                     if item not in old_unique_together:
                         yield ("AddUnique", {
                             "model": self.current_model_from_key(key),
-                            "fields": list(item),
+                            "fields": [self.current_field_from_key(key, x) for x in item],
                         })
 
     @classmethod

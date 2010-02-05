@@ -126,11 +126,11 @@ class AddField(Action):
     
     FORWARDS_TEMPLATE = '''
         # Adding field '%(model_name)s.%(field_name)s'
-        db.add_field(%(table_name)r, %(field_name)r, %(field_def)s)'''
+        db.add_column(%(table_name)r, %(field_name)r, %(field_def)s)'''
     
     BACKWARDS_TEMPLATE = '''
         # Deleting field '%(model_name)s.%(field_name)s'
-        db.delete_field(%(table_name)r, %(field_name)r)'''
+        db.delete_column(%(table_name)r, %(field_name)r)'''
     
     def __init__(self, model, field, field_def):
         self.model = model
@@ -228,11 +228,11 @@ class AddUnique(Action):
     """
     
     FORWARDS_TEMPLATE = '''
-        # Adding unique constraint on '%(model_name)s', fields %(fields)s
+        # Adding unique constraint on '%(model_name)s', fields %(field_names)s
         db.create_unique(%(table_name)r, %(fields)r)'''
     
     BACKWARDS_TEMPLATE = '''
-        # Removing unique constraint on '%(model_name)s', fields %(fields)s
+        # Removing unique constraint on '%(model_name)s', fields %(field_names)s
         db.delete_unique(%(table_name)r, %(fields)r)'''
     
     def __init__(self, model, fields):
@@ -252,14 +252,16 @@ class AddUnique(Action):
         return self.FORWARDS_TEMPLATE % {
             "model_name": self.model._meta.object_name,
             "table_name": self.model._meta.db_table,
-            "fields": self.fields,
+            "fields":  [field.column for field in self.fields],
+            "field_names":  [field.name for field in self.fields],
         }
 
     def backwards_code(self):
         return self.BACKWARDS_TEMPLATE % {
             "model_name": self.model._meta.object_name,
             "table_name": self.model._meta.db_table,
-            "fields": self.fields,
+            "fields": [field.column for field in self.fields],
+            "field_names":  [field.name for field in self.fields],
         }
 
 
