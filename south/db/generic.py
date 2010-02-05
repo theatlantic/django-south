@@ -394,7 +394,6 @@ class DatabaseOperations(object):
             if itscols == columns or columns is None:
                 yield constraint
 
-
     def create_unique(self, table_name, columns):
         """
         Creates a UNIQUE constraint on the columns on the given table.
@@ -412,8 +411,6 @@ class DatabaseOperations(object):
             cols,
         ))
         return name
-
-    add_unique = alias('create_unique')
 
     def delete_unique(self, table_name, columns):
         """
