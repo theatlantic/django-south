@@ -8,7 +8,7 @@ import sys
 import datetime
 
 from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
-from django.db.models.fields import FieldDoesNotExist
+from django.db.models.fields import FieldDoesNotExist, NOT_PROVIDED
 
 from south import modelsinspector
 from south.creator.freezer import remove_useless_attributes, model_key
@@ -130,21 +130,22 @@ class AddField(Action):
     
     BACKWARDS_TEMPLATE = '''
         # Deleting field '%(model_name)s.%(field_name)s'
-        db.delete_column(%(table_name)r, %(field_name)r)'''
+        db.delete_column(%(table_name)r, %(field_column)r)'''
     
     def __init__(self, model, field, field_def):
         self.model = model
-        self.field_name = field
+        self.field = field
         self.field_def = field_def
         
         # See if they've made a NOT NULL column but also have no default (far too common)
-        is_null = self.field_def[2].get("null", False)
-        default = self.field_def[2].get("default", None)
+        is_null = self.field.null
+        default = bool(self.field.default) and (self.field.default is not NOT_PROVIDED)
+        
         if not is_null and not default:
             # Oh dear. Ask them what to do.
             print " ? The field '%s.%s' does not have a default specified, yet is NOT NULL." % (
                 self.model._meta.object_name,
-                self.field_name,
+                self.field.name,
             )
             print " ? Since you are adding or removing this field, you MUST specify a default"
             print " ? value to use for existing rows. Would you like to:"
@@ -180,7 +181,7 @@ class AddField(Action):
     def console_line(self):
         "Returns the string to print on the console, e.g. ' + Added field foo'"
         return " + Added field %s on %s.%s" % (
-            self.field_name,
+            self.field.name,
             self.model._meta.app_label, 
             self.model._meta.object_name,
         )
@@ -190,7 +191,8 @@ class AddField(Action):
         return self.FORWARDS_TEMPLATE % {
             "model_name": self.model._meta.object_name,
             "table_name": self.model._meta.db_table,
-            "field_name": self.field_name,
+            "field_name": self.field.name,
+            "field_column": self.field.column,
             "field_def": self.triple_to_def(self.field_def),
         }
 
@@ -198,7 +200,8 @@ class AddField(Action):
         return self.BACKWARDS_TEMPLATE % {
             "model_name": self.model._meta.object_name,
             "table_name": self.model._meta.db_table,
-            "field_name": self.field_name,
+            "field_name": self.field.name,
+            "field_column": self.field.column,
         }
     
     
@@ -210,7 +213,7 @@ class DeleteField(AddField):
     def console_line(self):
         "Returns the string to print on the console, e.g. ' + Added field foo'"
         return " - Deleted field %s on %s.%s" % (
-            self.field_name,
+            self.field.name,
             self.model._meta.app_label, 
             self.model._meta.object_name,
         )
