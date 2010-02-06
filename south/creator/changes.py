@@ -119,33 +119,20 @@ class AutoChanges(BaseChanges):
                             "new_def": new_fields[fieldname],
                         })
                     # See if their uniques have changed
-                    old_triple = old_fields[fieldname]
-                    new_triple = new_fields[fieldname]
-                    if self.is_triple(old_triple) and self.is_triple(new_triple):
-                        if old_triple[2].get("unique", "False") != new_triple[2].get("unique", "False"):
-                            # Make sure we look at the one explicitly given to see what happened
-                            if "unique" in old_triple[2]:
-                                if old_triple[2]['unique'] == "False":
-                                    yield ("AddUnique", {
-                                        "model": self.current_model_from_key(key),
-                                        "fields": [self.current_field_from_key(key, fieldname)],
-                                    })
-                                else:
-                                    yield ("DeleteUnique", {
-                                        "model": self.old_orm[key],
-                                        "fields": [self.old_orm[key + ":" + fieldname]],
-                                    })
-                            else:
-                                if new_triple[2]['unique'] == "False":
-                                    yield ("DeleteUnique", {
-                                        "model": self.old_orm[key],
-                                        "fields": [self.old_orm[key + ":" + fieldname]],
-                                    })
-                                else:
-                                    yield ("AddUnique", {
-                                        "model": self.current_model_from_key(key),
-                                        "fields": [self.current_field_from_key(key, fieldname)],
-                                    })
+                    old_field = self.old_orm[key + ":" + fieldname]
+                    new_field = self.current_field_from_key(key, fieldname)
+                    if old_field.unique != new_field.unique:
+                        # Make sure we look at the one explicitly given to see what happened
+                        if new_field.unique:
+                            yield ("AddUnique", {
+                                "model": self.current_model_from_key(key),
+                                "fields": [self.current_field_from_key(key, fieldname)],
+                            })
+                        else:
+                            yield ("DeleteUnique", {
+                                "model": self.old_orm[key],
+                                "fields": [self.old_orm[key + ":" + fieldname]],
+                            })
                 
                 ## See if the unique_togethers have changed
                 # First, normalise them into lists of sets.
