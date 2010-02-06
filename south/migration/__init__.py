@@ -169,3 +169,4 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
             post_migrate.send(None, app=app_label)
     elif verbosity:
         print '- Nothing to migrate.'
+        post_migrate.send(None, app=app_label)
