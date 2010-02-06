@@ -294,7 +294,7 @@ class AddM2M(Action):
     """
     
     FORWARDS_TEMPLATE = '''
-        # Adding M2M field %(field_name)s on '%(model_name)s'
+        # Adding M2M table for field %(field_name)s on '%(model_name)s'
         db.create_table('%(table_name)s', (
             ('id', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)),
             ('%(left_field)s', models.ForeignKey(orm[%(left_model_key)r], null=False)),
@@ -302,43 +302,39 @@ class AddM2M(Action):
         ))'''
     
     BACKWARDS_TEMPLATE = '''
-        # Removing M2M field %(field_name)s on '%(model_name)s'
+        # Removing M2M table for field %(field_name)s on '%(model_name)s'
         db.delete_table('%(table_name)s')'''
     
     def __init__(self, model, field):
         self.model = model
-        self.field_name = field
+        self.field = field
     
     def console_line(self):
         "Returns the string to print on the console, e.g. ' + Added field foo'"
-        return " + Added M2M %s on %s.%s" % (
-            self.field_name,
+        return " + Added M2M table for %s on %s.%s" % (
+            self.field.name,
             self.model._meta.app_label, 
             self.model._meta.object_name,
         )
     
     def forwards_code(self):
         
-        field = self.model._meta.get_field_by_name(self.field_name)[0]
-        
         return self.FORWARDS_TEMPLATE % {
             "model_name": self.model._meta.object_name,
-            "field_name": self.field_name,
-            "table_name": field.m2m_db_table(),
-            "left_field": field.m2m_column_name()[:-3], # Remove the _id part
+            "field_name": self.field.name,
+            "table_name": self.field.m2m_db_table(),
+            "left_field": self.field.m2m_column_name()[:-3], # Remove the _id part
             "left_model_key": model_key(self.model),
-            "right_field": field.m2m_reverse_name()[:-3], # Remove the _id part
-            "right_model_key": model_key(field.rel.to),
+            "right_field": self.field.m2m_reverse_name()[:-3], # Remove the _id part
+            "right_model_key": model_key(self.field.rel.to),
         }
 
     def backwards_code(self):
         
-        field = self.model._meta.get_field_by_name(self.field_name)[0]
-        
         return self.BACKWARDS_TEMPLATE % {
             "model_name": self.model._meta.object_name,
-            "field_name": self.field_name,
-            "table_name": field.m2m_db_table(),
+            "field_name": self.field.name,
+            "table_name": self.field.m2m_db_table(),
         }
 
 
@@ -349,8 +345,8 @@ class DeleteM2M(AddM2M):
     
     def console_line(self):
         "Returns the string to print on the console, e.g. ' + Added field foo'"
-        return " - Deleted M2M %s on %s.%s" % (
-            self.field_name,
+        return " - Deleted M2M table for %s on %s.%s" % (
+            self.field.name,
             self.model._meta.app_label, 
             self.model._meta.object_name,
         )
