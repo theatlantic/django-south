@@ -66,7 +66,7 @@ def prep_for_freeze(model):
     # See if there's a Meta
     fields['Meta'] = remove_useless_meta(modelsinspector.get_model_meta(model))
     # Add in our own special items to track the object name and managed
-    fields['Meta']['object_name'] = repr(model._meta.object_name)
+    fields['Meta']['object_name'] = model._meta.object_name # Special: not eval'able.
     fields['Meta']['managed'] = repr(model._meta.managed)
     return fields
 
