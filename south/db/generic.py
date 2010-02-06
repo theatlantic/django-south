@@ -59,48 +59,48 @@ class DatabaseOperations(object):
         self.pending_transactions = 0
         self.pending_create_signals = []
         self.db_alias = db_alias
-    
+
     def _is_multidb(self):
-        try: 
+        try:                            
             from django.db import connections
-        except ImportError:
-            return False
-        else:
-            return True
+        except ImportError:                  
+            return False                     
+        else:                                
+            return True                      
 
     def _get_connection(self): 
-        """ 
+        """                    
         Returns a django connection for a given DB Alias 
-        """
-        if self._is_multidb():
-            from django.db import connections 
-            return connections[self.db_alias] 
-        else:
-            from django.db import connection 
-            return connection 
+        """                                              
+        if self._is_multidb():                           
+            from django.db import connections            
+            return connections[self.db_alias]            
+        else:                                            
+            from django.db import connection             
+            return connection                            
 
     def _get_setting(self, setting_name):
-        """
+        """                              
         Allows code to get a setting (like, for example, STORAGE_ENGINE)
-        """
-        setting_name = setting_name.upper()
-        connection = self._get_connection() 
-        if self._is_multidb():
-            # Django 1.2 and above
-            return connection.settings_dict[setting_name] 
-        else:
-            # Django 1.1 and below
-            return getattr(settings, "DATABASE_%s" % setting_name)
+        """                                                             
+        setting_name = setting_name.upper()                             
+        connection = self._get_connection()                             
+        if self._is_multidb():                                          
+            # Django 1.2 and above                                      
+            return connection.settings_dict[setting_name]               
+        else:                                                           
+            # Django 1.1 and below                                      
+            return getattr(settings, "DATABASE_%s" % setting_name)      
 
     def _has_setting(self, setting_name):
-        """
+        """                              
         Existence-checking version of _get_setting.
-        """
-        try:
-            self._get_setting(setting_name)
-        except (KeyError, AttributeError):
-            return False
-        else:
+        """                                        
+        try:                                       
+            self._get_setting(setting_name)        
+        except (KeyError, AttributeError):         
+            return False                           
+        else:                                      
             return True
 
     def connection_init(self):
@@ -390,9 +390,9 @@ class DatabaseOperations(object):
         
         # Find ones affecting these columns
         for constraint, itscols in mapping.items():
-            # If columns is None we definitely want this field! (see docstring)
             if itscols == columns or columns is None:
                 yield constraint
+
 
     def create_unique(self, table_name, columns):
         """
@@ -411,6 +411,8 @@ class DatabaseOperations(object):
             cols,
         ))
         return name
+
+
 
     def delete_unique(self, table_name, columns):
         """
@@ -480,10 +482,6 @@ class DatabaseOperations(object):
                         default = "'%s'" % default.replace("'", "''")
                     elif isinstance(default, (datetime.date, datetime.time, datetime.datetime)):
                         default = "'%s'" % default
-                    # Escape any % signs in the output (bug #317)
-                    if isinstance(default, basestring):
-                        default = default.replace("%", "%%")
-                    # Add it in
                     sql += " DEFAULT %s"
                     sqlparams = (default)
             elif (not field.null and field.blank) or ((field.get_default() == '') and (not getattr(field, '_suppress_default', False))):
@@ -645,17 +643,17 @@ class DatabaseOperations(object):
         # Dry runs mean we can't do anything.
         if self.dry_run:
             return
-        
+
         constraints = list(self._constraints_affecting_columns(table_name, None, type="PRIMARY KEY"))
         if not constraints:
             raise ValueError("Cannot find a PRIMARY KEY constraint on table %s" % (table_name,))
         
         for constraint in constraints:
             self.execute(self.delete_primary_key_sql % {
-                "table": self.quote_name(table_name),
+                "table": self.quote_name(table_name), 
                 "constraint": self.quote_name(constraint),
             })
-    
+
     drop_primary_key = alias('delete_primary_key')
 
 
@@ -749,10 +747,8 @@ class DatabaseOperations(object):
         over all models within the app sending the signal.  This is a
         patch we should push Django to make  For now, this should work.
         """
-        
         if self.debug:
             print " - Sending post_syncdb signal for %s: %s" % (app_label, model_names)
-        
         app = models.get_app(app_label)
         if not app:
             return
