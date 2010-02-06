@@ -34,9 +34,12 @@ class DatabaseOperations(generic.DatabaseOperations):
         Run before any SQL to let database-specific config be sent as a command,
         e.g. which storage engine (MySQL) or transaction serialisability level.
         """
+        cursor = self._get_connection().cursor()
         if self._has_setting('STORAGE_ENGINE') and self._get_setting('STORAGE_ENGINE'):
-            cursor = self._get_connection().cursor()
             cursor.execute("SET storage_engine=%s;" % self._get_setting('STORAGE_ENGINE'))
+        # Turn off foreign key checks, and turn them back on at the end
+        cursor.execute("SET FOREIGN_KEY_CHECKS=0;")
+        self.deferred_sql.append("SET FOREIGN_KEY_CHECKS=1;")
 
     
     def rename_column(self, table_name, old, new):
