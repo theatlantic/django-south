@@ -6,9 +6,10 @@ import sys
 
 from django.core.exceptions import ImproperlyConfigured
 
+import south.db
 from south import exceptions
 from south.models import MigrationHistory
-from south.db import db
+from south.db import db, DEFAULT_DB_ALIAS
 from south.migration.migrators import (Backwards, Forwards,
                                        DryRunMigrator, FakeMigrator,
                                        LoadInitialDataMigrator)
@@ -128,7 +129,7 @@ def get_migrator(direction, db_dry_run, fake, load_initial_data):
         direction = LoadInitialDataMigrator(migrator=direction)
     return direction
 
-def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False):
+def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False, database=DEFAULT_DB_ALIAS):
     app_label = migrations.app_label()
 
     verbosity = int(verbosity)
@@ -143,6 +144,10 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
     
     # Check there's no strange ones in the database
     applied = MigrationHistory.objects.filter(applied__isnull=False)
+    # If we're using a different database, use that
+    if database != DEFAULT_DB_ALIAS:
+        applied = applied.using(database)
+        south.db.db = south.db.dbs[database]
     applied = check_migration_histories(applied)
     
     # Guess the target_name
