@@ -245,7 +245,7 @@ class AddUnique(Action):
     def console_line(self):
         "Returns the string to print on the console, e.g. ' + Added field foo'"
         return " + Added unique constraint for %s on %s.%s" % (
-            self.fields,
+            [x.name for x in self.fields],
             self.model._meta.app_label, 
             self.model._meta.object_name,
         )
@@ -276,7 +276,7 @@ class DeleteUnique(AddUnique):
     def console_line(self):
         "Returns the string to print on the console, e.g. ' + Added field foo'"
         return " - Deleted unique constraint for %s on %s.%s" % (
-            self.fields,
+            [x.name for x in self.fields],
             self.model._meta.app_label, 
             self.model._meta.object_name,
         )
