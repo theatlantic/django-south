@@ -130,9 +130,10 @@ USELESS_DB_KEYWORDS = ["related_name"] # Important for ORM, not for DB.
 
 def remove_useless_attributes(field, db=False):
     "Removes useless (for database) attributes from the field's defn."
-    keywords = USELESS_KEYWORDS
+    # Work out what to remove, and remove it.
+    keywords = USELESS_KEYWORDS[:]
     if db:
-        keywords += USELESS_DB_KEYWORDS
+        keywords += USELESS_DB_KEYWORDS[:]
     if field:
         for name in keywords:
             if name in field[2]:
