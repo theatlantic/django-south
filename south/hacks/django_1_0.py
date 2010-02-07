@@ -56,8 +56,7 @@ class Hacks:
         Clears the contents of AppCache to a blank state, so new models
         from the ORM can be added.
         """
-        self.old_app_models = cache.app_models
-        cache.app_models = {}
+        self.old_app_models, cache.app_models = cache.app_models, {}
     
     
     def unclear_app_cache(self):
@@ -65,6 +64,7 @@ class Hacks:
         Reversed the effects of clear_app_cache.
         """
         cache.app_models = self.old_app_models
+        cache._get_models_cache = {}
     
     
     def repopulate_app_cache(self):
