@@ -61,6 +61,7 @@ introspection_details = [
         {
             "to": ["rel.to", {}],
             "symmetrical": ["rel.symmetrical", {"default": True}],
+            "related_name": ["rel.related_name", {"default": None}],
         },
     ),
     (
@@ -115,6 +116,9 @@ allowed_fields = [
     "^django\.contrib\.localflavor",
 ]
 
+# Regexes of ignored fields (custom fields which look like fields, but have no column behind them)
+ignored_fields = []
+
 # Similar, but for Meta, so just the inner level (kwds).
 meta_details = {
     "db_table": ["db_table", {"default_attr_concat": ["%s_%s", "app_label", "module_name"]}],
@@ -133,6 +137,21 @@ def add_introspection_rules(rules=[], patterns=[]):
     allowed_fields.extend(patterns)
     introspection_details.extend(rules)
 
+def add_ignored_fields(patterns):
+    "Allows you to add some ignore field patterns."
+    assert isinstance(patterns, (list, tuple))
+    ignored_fields.extend(patterns)
+    
+def can_ignore(field):
+    """
+    Returns True if we know for certain that we can ignore this field, False
+    otherwise.
+    """
+    full_name = "%s.%s" % (field.__class__.__module__, field.__class__.__name__)
+    for regex in ignored_fields:
+        if re.match(regex, full_name):
+            return True
+    return False
 
 def can_introspect(field):
     """
@@ -267,6 +286,9 @@ def get_model_fields(model, m2m=False):
         source += model._meta.local_many_to_many
     
     for field in source:
+        # Can we ignore it completely?
+        if can_ignore(field):
+            continue
         # Does it define a south_field_triple method?
         if hasattr(field, "south_field_triple"):
             if NOISY:
