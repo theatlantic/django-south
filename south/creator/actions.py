@@ -225,6 +225,65 @@ class DeleteField(AddField):
         return AddField.forwards_code(self)
 
 
+
+class ChangeField(Action):
+    """
+    Changes a field's type/options on a model.
+    """
+    
+    FORWARDS_TEMPLATE = BACKWARDS_TEMPLATE = '''
+        # Changing field '%(model_name)s.%(field_name)s'
+        db.add_column(%(table_name)r, %(field_name)r, %(field_def)s)'''
+    
+    RENAME_TEMPLATE = '''
+        # Renaming column for '%(model_name)s.%(field_name)s' to match new field type.
+        db.rename_column(%(table_name)r, %(old_column)r, %(new_column)r)'''
+    
+    def __init__(self, model, old_field, new_field, old_def, new_def):
+        self.model = model
+        self.old_field = old_field
+        self.new_field = new_field
+        self.old_def = old_def
+        self.new_def = new_def
+    
+    def console_line(self):
+        "Returns the string to print on the console, e.g. ' + Added field foo'"
+        return " ~ Changed field %s on %s.%s" % (
+            self.new_field.name,
+            self.model._meta.app_label, 
+            self.model._meta.object_name,
+        )
+    
+    def _code(self, old_field, new_field, new_def):
+        
+        output = ""
+        
+        if self.old_field.column != self.new_field.column:
+            output += self.RENAME_TEMPLATE % {
+                "model_name": self.model._meta.object_name,
+                "table_name": self.model._meta.db_table,
+                "field_name": new_field.name,
+                "old_column": old_field.column,
+                "new_column": new_field.column,
+            }
+        
+        output += self.FORWARDS_TEMPLATE % {
+            "model_name": self.model._meta.object_name,
+            "table_name": self.model._meta.db_table,
+            "field_name": new_field.name,
+            "field_column": new_field.column,
+            "field_def": self.triple_to_def(new_def),
+        }
+        
+        return output
+
+    def forwards_code(self):
+        return self._code(self.old_field, self.new_field, self.new_def)
+
+    def backwards_code(self):
+        return self._code(self.new_field, self.old_field, self.old_def)
+
+
 class AddUnique(Action):
     """
     Adds a unique constraint to a model. Takes a Model class and the field names.

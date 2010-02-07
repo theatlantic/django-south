@@ -132,9 +132,9 @@ class AutoChanges(BaseChanges):
                      remove_useless_attributes(old_fields[fieldname], True),
                      remove_useless_attributes(new_fields[fieldname], True)):
                         yield ("ChangeField", {
-                            "old_model": self.old_orm[key],
-                            "new_model": self.current_model_from_key(key),
-                            "field": fieldname,
+                            "model": self.current_model_from_key(key),
+                            "old_field": self.old_orm[key + ":" + fieldname],
+                            "new_field": self.current_field_from_key(key, fieldname),
                             "old_def": old_fields[fieldname],
                             "new_def": new_fields[fieldname],
                         })
