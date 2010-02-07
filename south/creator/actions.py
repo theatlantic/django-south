@@ -139,7 +139,7 @@ class AddField(Action):
         
         # See if they've made a NOT NULL column but also have no default (far too common)
         is_null = self.field.null
-        default = bool(self.field.default) and (self.field.default is not NOT_PROVIDED)
+        default = (self.field.default is not None) and (self.field.default is not NOT_PROVIDED)
         
         if not is_null and not default:
             # Oh dear. Ask them what to do.
