@@ -249,10 +249,11 @@ class Forwards(Migrator):
         stdout = sys.stdout
         sys.stdout = StringIO()
         try:
-            self.backwards(migration)()
-            return sys.stdout.getvalue()
-        except:
-            raise
+            try:
+                self.backwards(migration)()
+                return sys.stdout.getvalue()
+            except:
+                raise
         finally:
             db.debug, db.dry_run = old_debug, old_dry_run
             sys.stdout = stdout
