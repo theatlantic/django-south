@@ -298,7 +298,7 @@ class InitialChanges(BaseChanges):
                     for fields in unique_together:
                         yield ("AddUnique", {
                             "model": model,
-                            "fields": [model._meta.get_field_by_name(f)[0] for x in fields],
+                            "fields": [model._meta.get_field_by_name(x)[0] for x in fields],
                         })
             
             # Finally, see if there's some M2M action
