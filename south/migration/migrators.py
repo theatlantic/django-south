@@ -152,9 +152,10 @@ class DryRunMigrator(MigratorWrapper):
         db.start_transaction()
         migration_function = self.direction(migration)
         try:
-            migration_function()
-        except:
-            raise exceptions.FailedDryRun(sys.exc_info())
+            try:
+                migration_function()
+            except:
+                raise exceptions.FailedDryRun(sys.exc_info())
         finally:
             db.rollback_transactions_dry_run()
             db.debug = old_debug
