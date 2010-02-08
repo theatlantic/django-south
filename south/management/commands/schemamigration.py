@@ -151,7 +151,7 @@ class Command(DataCommand):
             fp = open(os.path.join(migrations.migrations_dir(), new_filename), "w")
             fp.write(file_contents)
             fp.close()
-            print >>sys.stderr, "Created %s." % new_filename
+            print >>sys.stderr, "Created %s. You can now apply this migration with: ./manage.py migrate %s" % (new_filename, app)
 
 
 MIGRATION_TEMPLATE = """# encoding: utf-8
