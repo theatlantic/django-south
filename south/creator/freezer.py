@@ -126,7 +126,7 @@ def pprint_fields(fields):
 ### Output sanitisers
 
 USELESS_KEYWORDS = ["choices", "help_text", "upload_to", "verbose_name", "storage"]
-USELESS_DB_KEYWORDS = ["related_name"] # Important for ORM, not for DB.
+USELESS_DB_KEYWORDS = ["related_name", "default"] # Important for ORM, not for DB.
 
 def remove_useless_attributes(field, db=False):
     "Removes useless (for database) attributes from the field's defn."
