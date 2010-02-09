@@ -111,7 +111,16 @@ class Command(DataCommand):
         
         else:
             # Read the commands manually off of the arguments
-            raise NotImplementedError
+            if (added_model_list or added_field_list or added_index_list):
+                change_source = changes.ManualChanges(
+                    migrations,
+                    added_model_list,
+                    added_field_list,
+                    added_index_list,
+                )
+            else:
+                print >>sys.stderr, "You have not passed any of --initial, --auto, --add-model, --add-field or --add-index."
+                sys.exit(1)
         
         # Get the actions, and then insert them into the actions lists
         forwards_actions = []

@@ -251,18 +251,34 @@ class AutoChanges(BaseChanges):
         return old_field != new_field or old_pos != new_pos or old_kwd != new_kwd
 
 
-class ManualChanges(object):
+class ManualChanges(BaseChanges):
     """
     Detects changes by reading the command line.
     """
     
-    def __init__(self):
-        pass
+    def __init__(self, migrations, added_models, added_fields, added_indexes):
+        self.migrations = migrations
+        self.added_models = added_models
+        self.added_fields = added_fields
+        self.added_indexes = added_indexes
     
     def get_changes(self):
-        return [
-            ("AddModel", {"model": self.current_orm['books.Book']}),
-        ]
+        # Get the model defs so we can use them for the yield later
+        model_defs = freeze_apps([self.migrations.app_label()])
+        # Make the model changes
+        for model_name in self.added_models:
+            model = models.get_model(self.migrations.app_label(), model_name)
+            real_fields, meta, m2m_fields = self.split_model_def(model, model_defs[model_key(model)])
+            yield ("AddModel", {
+                "model": model,
+                "model_def": real_fields,
+            })
+        # And the field changes
+        for field_name in self.added_fields:
+            raise NotImplementedError
+        # And the indexes
+        for index_name in self.added_indexes:
+            raise NotImplementedError
     
     
 class InitialChanges(BaseChanges):
