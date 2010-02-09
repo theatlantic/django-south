@@ -152,10 +152,9 @@ class DryRunMigrator(MigratorWrapper):
         db.start_transaction()
         migration_function = self.direction(migration)
         try:
-            try:
-                migration_function()
-            except:
-                raise exceptions.FailedDryRun(sys.exc_info())
+            migration_function()
+        except:
+            raise exceptions.FailedDryRun(sys.exc_info())
         finally:
             db.rollback_transactions_dry_run()
             db.debug = old_debug
@@ -249,11 +248,10 @@ class Forwards(Migrator):
         stdout = sys.stdout
         sys.stdout = StringIO()
         try:
-            try:
-                self.backwards(migration)()
-                return sys.stdout.getvalue()
-            except:
-                raise
+            self.backwards(migration)()
+            return sys.stdout.getvalue()
+        except:
+            raise
         finally:
             db.debug, db.dry_run = old_debug, old_dry_run
             sys.stdout = stdout

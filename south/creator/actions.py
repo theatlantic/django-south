@@ -233,7 +233,7 @@ class ChangeField(Action):
     
     FORWARDS_TEMPLATE = BACKWARDS_TEMPLATE = '''
         # Changing field '%(model_name)s.%(field_name)s'
-        db.add_column(%(table_name)r, %(field_name)r, %(field_def)s)'''
+        db.alter_column(%(table_name)r, %(field_name)r, %(field_def)s)'''
     
     RENAME_TEMPLATE = '''
         # Renaming column for '%(model_name)s.%(field_name)s' to match new field type.
