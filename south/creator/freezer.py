@@ -20,7 +20,9 @@ def freeze_apps(apps):
     # For each app, add in all its models
     for app in apps:
         for model in models.get_models(models.get_app(app)):
-            frozen_models.add(model)
+            # Only add if it's not abstract or proxy
+            if not model._meta.abstract and not getattr(model._meta, "proxy", False):
+                frozen_models.add(model)
     # Now, add all the dependencies
     for model in list(frozen_models):
         frozen_models.update(model_dependencies(model))
@@ -67,7 +69,8 @@ def prep_for_freeze(model):
     fields['Meta'] = remove_useless_meta(modelsinspector.get_model_meta(model))
     # Add in our own special items to track the object name and managed
     fields['Meta']['object_name'] = model._meta.object_name # Special: not eval'able.
-    fields['Meta']['managed'] = repr(model._meta.managed)
+    if not getattr(model._meta, "managed", True):
+        fields['Meta']['managed'] = repr(model._meta.managed)
     return fields
 
 ### Dependency resolvers
