@@ -10,12 +10,12 @@ engine_modules = {
     'django.db.backends.postgresql_psycopg2': 'postgresql_psycopg2',
     'django.db.backends.sqlite3': 'sqlite3',
     'django.db.backends.mysql': 'mysql',
-    #'django.db.backends.oracle': 'oracle',
-    'django.db.backends.sql_server.pyodbc': 'sql_server.pyodbc',
+    'django.db.backends.oracle': 'oracle',
+    'sql_server.pyodbc': 'sql_server.pyodbc',
     'django.contrib.gis.db.backends.postgis': 'postgresql_psycopg2',
     'django.contrib.gis.db.backends.spatialite': 'sqlite3',
     'django.contrib.gis.db.backends.mysql': 'mysql',
-    #'django.contrib.gis.db.backends.oracle': 'oracle',
+    'django.contrib.gis.db.backends.oracle': 'oracle',
 }
 
 # First, work out if we're multi-db or not, and which databases we have
