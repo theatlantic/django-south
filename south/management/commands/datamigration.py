@@ -23,7 +23,7 @@ from south.creator import freezer
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
         make_option('--freeze', action='append', dest='freeze_list', type='string',
-            help='Freeze the specified model(s). Pass in either an app name (to freeze the whole app) or a single model, as appname.modelname.'),
+            help='Freeze the specified app(s). Provide an app name with each; use the option multiple times for multiple apps'),
         make_option('--stdout', action='store_true', dest='stdout', default=False,
             help='Print the migration to stdout instead of writing it to a file.'),
     )
