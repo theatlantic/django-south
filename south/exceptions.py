@@ -56,10 +56,11 @@ class GhostMigrations(SouthError):
 
     def __str__(self):
         self.ghosts_list = "\n    ".join([unicode(m) for m in self.ghosts])
-        return (" ! These migrations are in the database but not on disk:\n"
+        return ("\n\n ! These migrations are in the database but not on disk:\n"
                 "    %(ghosts_list)s\n"
-                " ! I'm not trusting myself; fix this yourself by fiddling"
-                " ! with the south_migrationhistory table.") % self.__dict__
+                " ! I'm not trusting myself; either fix this yourself by fiddling\n"
+                " ! with the south_migrationhistory table, or pass --delete-ghost-migrations\n"
+                " ! to South to have it delete ALL of these records (this may not be good).") % self.__dict__
 
 
 class CircularDependency(SouthError):
