@@ -59,7 +59,8 @@ def backwards_problems(pending, done, verbosity):
         result.append((migration, missing))
     return result
 
-def check_migration_histories(histories):
+def check_migration_histories(histories, delete_ghosts=False):
+    "Checks that there's no 'ghost' migrations in the database."
     exists = SortedSet()
     ghosts = []
     for h in histories:
@@ -67,12 +68,17 @@ def check_migration_histories(histories):
             m = h.get_migration()
             m.migration()
         except exceptions.UnknownMigration:
-            ghosts.append(m)
+            ghosts.append(h)
         except ImproperlyConfigured:
             pass                        # Ignore missing applications
         exists.add(m)
     if ghosts:
-        raise exceptions.GhostMigrations(ghosts)
+        # They may want us to delete ghosts.
+        if delete_ghosts:
+            for h in ghosts:
+                h.delete()
+        else:
+            raise exceptions.GhostMigrations(ghosts)
     return exists
 
 def get_dependencies(target, migrations):
@@ -129,7 +135,7 @@ def get_migrator(direction, db_dry_run, fake, load_initial_data):
         direction = LoadInitialDataMigrator(migrator=direction)
     return direction
 
-def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False, database=DEFAULT_DB_ALIAS):
+def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False, database=DEFAULT_DB_ALIAS, delete_ghosts=False):
     app_label = migrations.app_label()
 
     verbosity = int(verbosity)
@@ -148,7 +154,7 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
     if database != DEFAULT_DB_ALIAS:
         applied = applied.using(database)
         south.db.db = south.db.dbs[database]
-    applied = check_migration_histories(applied)
+    applied = check_migration_histories(applied, delete_ghosts)
     
     # Guess the target_name
     target = migrations.guess_migration(target_name)
