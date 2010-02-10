@@ -62,9 +62,9 @@ def backwards_problems(pending, done, verbosity):
 def check_migration_histories(histories):
     exists = SortedSet()
     ghosts = []
-    for h in histories:
+    migrations = (h.get_migration() for h in histories)
+    for m in migrations:
         try:
-            m = h.get_migration()
             m.migration()
         except exceptions.UnknownMigration:
             ghosts.append(m)
