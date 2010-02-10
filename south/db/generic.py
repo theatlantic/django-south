@@ -506,11 +506,18 @@ class DatabaseOperations(object):
             if field.db_index and not field.unique:
                 self.add_deferred_sql(self.create_index_sql(table_name, [field.column]))
 
+        # Things like the contrib.gis module fields have this in 1.1 and below
         if hasattr(field, 'post_create_sql'):
-            style = no_style()
-            for stmt in field.post_create_sql(style, table_name):
+            for stmt in field.post_create_sql(no_style(), table_name):
                 self.add_deferred_sql(stmt)
-
+        
+        # In 1.2 and above, you have to ask the DatabaseCreation stuff for it.
+        if hasattr(self._get_connection().creation, "sql_indexes_for_field"):
+            # Make a fake model to pass in, with only db_table
+            model = self.mock_model("FakeModelForGISCreation", table_name)
+            for stmt in self._get_connection().creation.sql_indexes_for_field(model, field, no_style()):
+                self.add_deferred_sql(stmt)
+        
         if sql:
             return sql % sqlparams
         else:
