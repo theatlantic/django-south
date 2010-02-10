@@ -295,6 +295,10 @@ class InitialChanges(BaseChanges):
         
         for model in models.get_models(models.get_app(self.migrations.app_label())):
             
+            # Don't do anything for unmanaged, abstract or proxy models
+            if model._meta.abstract or getattr(model._meta, "proxy", False) or not getattr(model._meta, "managed", True):
+                continue
+            
             real_fields, meta, m2m_fields = self.split_model_def(model, model_defs[model_key(model)])
             
             # Firstly, add the main table and fields
