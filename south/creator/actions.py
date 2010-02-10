@@ -83,7 +83,7 @@ class AddModel(Action):
         field_defs = ",\n            ".join([
             "(%r, %s)" % (name, defn) for name, defn
             in self.triples_to_defs(self.model_def).items()
-        ])
+        ]) + ","
         
         return self.FORWARDS_TEMPLATE % {
             "model_name": self.model._meta.object_name,
