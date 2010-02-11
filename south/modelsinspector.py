@@ -6,7 +6,7 @@ rather than direct inspection of models.py.
 import datetime
 import re
 
-from south.utils import get_attribute
+from south.utils import get_attribute, auto_through
 
 from django.db import models
 from django.db.models.base import ModelBase, Model
@@ -62,6 +62,8 @@ introspection_details = [
             "to": ["rel.to", {}],
             "symmetrical": ["rel.symmetrical", {"default": True}],
             "related_name": ["rel.related_name", {"default": None}],
+            # TODO: Kind of ugly to add this one-time-only option
+            "through": ["rel.through", {"ignore_if_auto_through": True}],
         },
     ),
     (
@@ -204,6 +206,10 @@ def get_value(field, descriptor):
     # If there's an ignore_if, use it
     if "ignore_if" in options:
         if get_attribute(field, options['ignore_if']):
+            raise IsDefault
+    # If there's an ignore_if_auto_through which is True, use it
+    if options.get("ignore_if_auto_through", False):
+        if auto_through(field):
             raise IsDefault
     # Some default values need to be gotten from an attribute too.
     if "default_attr" in options:
