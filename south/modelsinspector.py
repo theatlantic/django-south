@@ -5,6 +5,7 @@ rather than direct inspection of models.py.
 
 import datetime
 import re
+import decimal
 
 from south.utils import get_attribute, auto_through
 
@@ -243,6 +244,9 @@ def get_value(field, descriptor):
     # As do model instances
     if isinstance(value, Model):
         return "orm['%s.%s'].objects.get(pk=%r)" % (value.__class__._meta.app_label, value.__class__._meta.object_name, value.pk)
+    # Make sure Decimal is converted down into a string
+    if isinstance(value, decimal.Decimal):
+        value = str(value)
     # Now, apply the converter func if there is one
     if "converter" in options:
         value = options['converter'](value)
