@@ -1,20 +1,18 @@
-.. South documentation master file, created by
-   sphinx-quickstart on Mon Feb 15 23:32:07 2010.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+South documentation
+===================
 
-Welcome to South's documentation!
-=================================
+South is a tool to provide consistent, easy-to-use and database-agnostic
+migrations for Django applications.
 
-Contents:
+This is the documentation for the current version (0.7); previous versions'
+documentation was written directly into our wiki, but is a subset of what is
+written here. Any new features are marked as such.
+
+Contents
+--------
 
 .. toctree::
    :maxdepth: 2
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   
+   databaseapi
 
