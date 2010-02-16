@@ -1,3 +1,6 @@
+
+.. _index:
+
 South documentation
 ===================
 
@@ -14,5 +17,10 @@ Contents
 .. toctree::
    :maxdepth: 2
    
+   whataremigrations
+   tutorial/index
    databaseapi
-
+   convertinganapp
+   migrationstructure
+   dependencies
+   commands
