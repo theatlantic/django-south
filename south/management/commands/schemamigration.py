@@ -38,11 +38,13 @@ class Command(DataCommand):
             help='Generate the initial schema for the app.'),
         make_option('--auto', action='store_true', dest='auto', default=False,
             help='Attempt to automatically detect differences from the last migration.'),
+        make_option('--empty', action='store_true', dest='empty', default=False,
+            help='Make a blank migration.'),
     )
     help = "Creates a new template schema migration for the given app"
     usage_str = "Usage: ./manage.py schemamigration appname migrationname [--initial] [--auto] [--add-model ModelName] [--add-field ModelName.field_name] [--stdout]"
     
-    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, freeze_list=None, initial=False, auto=False, stdout=False, added_index_list=None, verbosity=1, **options):
+    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, freeze_list=None, initial=False, auto=False, stdout=False, added_index_list=None, verbosity=1, empty=False, **options):
         
         # Any supposed lists that are None become empty lists
         added_model_list = added_model_list or []
@@ -106,13 +108,16 @@ class Command(DataCommand):
                     added_field_list,
                     added_index_list,
                 )
+            elif empty:
+                change_source = None
             else:
-                print >>sys.stderr, "You have not passed any of --initial, --auto, --add-model, --add-field or --add-index."
+                print >>sys.stderr, "You have not passed any of --initial, --auto, --empty, --add-model, --add-field or --add-index."
                 sys.exit(1)
         
         # if not name, there's an error
         if not name:
-            name = change_source.suggest_name()
+            if change_source:
+                name = change_source.suggest_name()
             if not name:
                 self.error("You must provide a name for this migration\n" + self.usage_str)
         
@@ -122,17 +127,18 @@ class Command(DataCommand):
         # Get the actions, and then insert them into the actions lists
         forwards_actions = []
         backwards_actions = []
-        for action_name, params in change_source.get_changes():
-            # Run the correct Action class
-            try:
-                action_class = getattr(actions, action_name)
-            except AttributeError:
-                raise ValueError("Invalid action name from source: %s" % action_name)
-            else:
-                action = action_class(**params)
-                action.add_forwards(forwards_actions)
-                action.add_backwards(backwards_actions)
-                print >>sys.stderr, action.console_line()
+        if change_source:
+            for action_name, params in change_source.get_changes():
+                # Run the correct Action class
+                try:
+                    action_class = getattr(actions, action_name)
+                except AttributeError:
+                    raise ValueError("Invalid action name from source: %s" % action_name)
+                else:
+                    action = action_class(**params)
+                    action.add_forwards(forwards_actions)
+                    action.add_backwards(backwards_actions)
+                    print >>sys.stderr, action.console_line()
         
         # Nowt happen? That's not good for --auto.
         if auto and not forwards_actions:
@@ -157,7 +163,10 @@ class Command(DataCommand):
             fp = open(os.path.join(migrations.migrations_dir(), new_filename), "w")
             fp.write(file_contents)
             fp.close()
-            print >>sys.stderr, "Created %s. You can now apply this migration with: ./manage.py migrate %s" % (new_filename, app)
+            if empty:
+                print >>sys.stderr, "Created %s. You must now edit this migration and add the code for each direction." % new_filename
+            else:
+                print >>sys.stderr, "Created %s. You can now apply this migration with: ./manage.py migrate %s" % (new_filename, app)
 
 
 MIGRATION_TEMPLATE = """# encoding: utf-8
