@@ -152,7 +152,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         for sql in sqls:
             try:
                 self.execute(sql)
-            except cx_Oracle.DatabaseError as exc:
+            except cx_Oracle.DatabaseError, exc:
                 if str(exc).find('ORA-01442') == -1:
                     raise
 
