@@ -7,3 +7,7 @@ dist/*
 South.egg-info/*
 # Ignore test log
 south/tests/test.log
+
+# Also ignore Sphinx files
+syntax: regexp
+^docs/\_build/
