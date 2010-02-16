@@ -96,16 +96,15 @@ class _FakeORM(object):
             except ValueError:
                 app_label = self.default_app
                 model_name = name
-                name = "%s.%s" % (app_label, model_name)
             
             # If there's an object_name in the Meta, use it and remove it
             if "object_name" in data['Meta']:
                 model_name = data['Meta']['object_name']
                 del data['Meta']['object_name']
             
-            name = name.lower()
-            self.models[name] = name
-            model_names.append((name, app_label, model_name, data))
+            name = "%s.%s" % (app_label, model_name)
+            self.models[name.lower()] = name
+            model_names.append((name.lower(), app_label, model_name, data))
         
         for name, app_label, model_name, data in model_names:
             self.models[name] = self.make_model(app_label, model_name, data)
