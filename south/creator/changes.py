@@ -12,6 +12,8 @@ class BaseChanges(object):
     """
     Base changes class.
     """
+    def suggest_name(self):
+        return ''
     
     def split_model_def(self, model, model_def):
         """
@@ -49,6 +51,9 @@ class AutoChanges(BaseChanges):
         self.old_defs = old_defs
         self.old_orm = old_orm
         self.new_defs = new_defs
+    
+    def suggest_name(self):
+        return 'auto'
     
     def get_changes(self):
         """
@@ -252,6 +257,16 @@ class ManualChanges(BaseChanges):
         self.added_fields = added_fields
         self.added_indexes = added_indexes
     
+    def suggest_name(self):
+        bits = []
+        for model_name in self.added_models:
+            bits.append('add_model_%s' % model_name)
+        for field_name in self.added_fields:
+            bits.append('add_field_%s' % field_name)
+        for index_name in self.added_indexes:
+            bits.append('add_field_%s' % index_name)
+        return '_'.join(bits)
+    
     def get_changes(self):
         # Get the model defs so we can use them for the yield later
         model_defs = freeze_apps([self.migrations.app_label()])
@@ -275,6 +290,8 @@ class InitialChanges(BaseChanges):
     """
     Creates all models; handles --initial.
     """
+    def suggest_name(self):
+        return 'initial'
     
     def __init__(self, migrations):
         self.migrations = migrations
