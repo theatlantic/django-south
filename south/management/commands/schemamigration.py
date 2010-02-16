@@ -61,23 +61,11 @@ class Command(DataCommand):
         if auto and (added_model_list or added_field_list or initial):
             self.error("You cannot use --auto and other options together\n" + self.usage_str)
         
-        # specify the default name 'initial' if a name wasn't specified and we're
-        # doing a migration for an entire app
-        if not name and initial:
-            name = 'initial'
-        
-        # if not name, there's an error
-        if not name:
-            self.error("You must provide a name for this migration\n" + self.usage_str)
-        
         if not app:
             self.error("You must provide an app to create a migration for.\n" + self.usage_str)
         
         # Get the Migrations for this app (creating the migrations dir if needed)
         migrations = Migrations(app, force_creation=True, verbose_creation=verbosity > 0)
-        
-        # See what filename is next in line. We assume they use numbers.
-        new_filename = migrations.next_filename(name)
         
         # What actions do we need to do?
         if auto:
@@ -121,6 +109,15 @@ class Command(DataCommand):
             else:
                 print >>sys.stderr, "You have not passed any of --initial, --auto, --add-model, --add-field or --add-index."
                 sys.exit(1)
+        
+        # if not name, there's an error
+        if not name:
+            name = change_source.suggest_name()
+            if not name:
+                self.error("You must provide a name for this migration\n" + self.usage_str)
+        
+        # See what filename is next in line. We assume they use numbers.
+        new_filename = migrations.next_filename(name)
         
         # Get the actions, and then insert them into the actions lists
         forwards_actions = []
