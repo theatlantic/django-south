@@ -6,6 +6,7 @@ from django.db import connection, models
 from django.db.backends.util import truncate_name
 from django.core.management.color import no_style
 from django.db.backends.oracle.base import get_sequence_name
+from django.db.models.fields import NOT_PROVIDED
 from south.db import generic
 
 print " ! WARNING: South's Oracle support is still alpha."
