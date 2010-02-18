@@ -155,7 +155,7 @@ class DryRunMigrator(MigratorWrapper):
             try:
                 migration_function()
             except:
-                raise exceptions.FailedDryRun(sys.exc_info())
+                raise exceptions.FailedDryRun(migration, sys.exc_info())
         finally:
             db.rollback_transactions_dry_run()
             db.debug = old_debug
