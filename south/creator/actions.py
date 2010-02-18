@@ -347,6 +347,48 @@ class DeleteUnique(AddUnique):
         return AddUnique.forwards_code(self)
 
 
+class AddIndex(AddUnique):
+    """
+    Adds an index to a model field[s]. Takes a Model class and the field names.
+    """
+    
+    FORWARDS_TEMPLATE = '''
+        # Adding index on '%(model_name)s', fields %(field_names)s
+        db.create_index(%(table_name)r, %(fields)r)'''
+    
+    BACKWARDS_TEMPLATE = '''
+        # Removing index on '%(model_name)s', fields %(field_names)s
+        db.delete_index(%(table_name)r, %(fields)r)'''
+    
+    def console_line(self):
+        "Returns the string to print on the console, e.g. ' + Added field foo'"
+        return " + Added index for %s on %s.%s" % (
+            [x.name for x in self.fields],
+            self.model._meta.app_label, 
+            self.model._meta.object_name,
+        )
+
+
+class DeleteIndex(AddIndex):
+    """
+    Deletes an index off a model field[s]. Takes a Model class and the field names.
+    """
+    
+    def console_line(self):
+        "Returns the string to print on the console, e.g. ' + Added field foo'"
+        return " + Deleted index for %s on %s.%s" % (
+            [x.name for x in self.fields],
+            self.model._meta.app_label, 
+            self.model._meta.object_name,
+        )
+    
+    def forwards_code(self):
+        return AddIndex.backwards_code(self)
+
+    def backwards_code(self):
+        return AddIndex.forwards_code(self)
+
+
 class AddM2M(Action):
     """
     Adds a unique constraint to a model. Takes a Model class and the field names.
