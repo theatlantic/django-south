@@ -53,7 +53,38 @@ class AutoChanges(BaseChanges):
         self.new_defs = new_defs
     
     def suggest_name(self):
-        return 'auto'
+        parts = ["auto"]
+        for change_name, params in self.get_changes():
+            if change_name == "AddModel":
+                parts.append("add_%s" % params['model']._meta.object_name.lower())
+            elif change_name == "DeleteModel":
+                parts.append("del_%s" % params['model']._meta.object_name.lower())
+            elif change_name == "AddField":
+                parts.append("add_field_%s.%s" % (
+                    params['model']._meta.object_name.lower(),
+                    params['field'].name,
+                ))
+            elif change_name == "DeleteField":
+                parts.append("del_field_%s.%s" % (
+                    params['model']._meta.object_name.lower(),
+                    params['field'].name,
+                ))
+            elif change_name == "ChangeField":
+                parts.append("chg_field_%s.%s" % (
+                    params['model']._meta.object_name.lower(),
+                    params['new_field'].name,
+                ))
+            elif change_name == "AddUnique":
+                parts.append("add_unique_%s.%s" % (
+                    params['model']._meta.object_name.lower(),
+                    "_".join([x.name for x in params['fields']]),
+                ))
+            elif change_name == "DeleteUnique":
+                parts.append("del_unique_%s.%s" % (
+                    params['model']._meta.object_name.lower(),
+                    "_".join([x.name for x in params['fields']]),
+                ))
+        return ("__".join(parts))[:70]
     
     def get_changes(self):
         """
@@ -264,7 +295,7 @@ class ManualChanges(BaseChanges):
         for field_name in self.added_fields:
             bits.append('add_field_%s' % field_name)
         for index_name in self.added_indexes:
-            bits.append('add_field_%s' % index_name)
+            bits.append('add_index_%s' % index_name)
         return '_'.join(bits)
     
     def get_changes(self):
@@ -279,11 +310,29 @@ class ManualChanges(BaseChanges):
                 "model_def": real_fields,
             })
         # And the field changes
-        for field_name in self.added_fields:
-            raise NotImplementedError
+        for field_desc in self.added_fields:
+            try:
+                model_name, field_name = field_desc.split(".")
+            except (TypeError, ValueError):
+                print "%r is not a valid field description." % field_desc
+            model = models.get_model(self.migrations.app_label(), model_name)
+            real_fields, meta, m2m_fields = self.split_model_def(model, model_defs[model_key(model)])
+            yield ("AddField", {
+                "model": model,
+                "field": model._meta.get_field_by_name(field_name)[0],
+                "field_def": real_fields[field_name],
+            })
         # And the indexes
-        for index_name in self.added_indexes:
-            raise NotImplementedError
+        for field_desc in self.added_indexes:
+            try:
+                model_name, field_name = field_desc.split(".")
+            except (TypeError, ValueError):
+                print "%r is not a valid field description." % field_desc
+            model = models.get_model(self.migrations.app_label(), model_name)
+            yield ("AddIndex", {
+                "model": model,
+                "fields": [model._meta.get_field_by_name(field_name)[0]],
+            })
     
     
 class InitialChanges(BaseChanges):
