@@ -52,6 +52,14 @@ a dict of parameters. If you don't have those, South will always put the value
 of that attribute as the value for that keyword; the parameters are usually
 there to allow an attribute to be omitted for clarity.
 
+.. _is-value-keyword:
+
+The one special case is the ``is_value`` keyword; if this is present and True,
+then the first item in the list will be interpreted as the actual value, rather
+than the attribute path to it on the field. For example::
+
+ "frozen_by_south": [True, {"is_value": True}],
+
 Parameters
 ^^^^^^^^^^
 
@@ -68,6 +76,8 @@ Parameters
  - ignore_if: Specifies an attribute that, if it coerces to true, causes this
    keyword to be omitted. Useful for ``db_index``, which has
    ``{'ignore_if': 'primary_key'}``, since it's always True in that case.
+ - is_value: If present, the 'attribute name' is instead used directly as the
+   value. See :ref:`above <is-value-keyword>` for more info.
  
  
 Field name patterns

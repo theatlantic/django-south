@@ -12,4 +12,3 @@ shown here is possible, but as with all things, it's best to start small!
    :maxdepth: 2
    
    part1
-   part2
