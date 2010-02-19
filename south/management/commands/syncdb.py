@@ -28,7 +28,7 @@ class Command(NoArgsCommand):
         make_option('--all', action='store_true', dest='migrate_all', default=False,
             help='Makes syncdb work on all apps, even migrated ones. Be careful!'),
     )
-    if '--verbosity' not in [opt.get_opt_string() for opt in BaseCommand.option_list]:
+    if '--verbosity' not in [opt.get_opt_string() for opt in syncdb.Command.option_list]:
         option_list += (
             make_option('--verbosity', action='store', dest='verbosity', default='1',
             type='choice', choices=['0', '1', '2'],
