@@ -197,7 +197,11 @@ def get_value(field, descriptor):
     Gets an attribute value from a Field instance and formats it.
     """
     attrname, options = descriptor
-    value = get_attribute(field, attrname)
+    # If the options say it's not a attribute name but a real value, use that.
+    if options.get('is_value', False):
+        value = attrname
+    else:
+        value = get_attribute(field, attrname)
     # Lazy-eval functions get eval'd.
     if isinstance(value, Promise):
         value = unicode(value)

@@ -1,6 +1,3 @@
-
-.. _database-api:
-
 Database API
 ============
 
