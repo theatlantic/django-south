@@ -1,13 +1,20 @@
+"""
+Quick conversion command module.
+"""
+
+from optparse import make_option
+import sys
+
 from django.core.management.base import BaseCommand
 from django.core.management.color import no_style
 from django.conf import settings
 from django.db import models
 from django.core import management
-from optparse import make_option
 from django.core.exceptions import ImproperlyConfigured
+
 from south.migration import Migrations
 from south.hacks import hacks
-import sys
+from south.exceptions import NoMigrations
 
 class Command(BaseCommand):
     
@@ -44,17 +51,24 @@ class Command(BaseCommand):
             return
         
         # Ask South if it thinks it's already got migrations
-        if Migrations(app):
+        try:
+            Migrations(app)
+        except NoMigrations:
+            pass
+        else:
             print "This application is already managed by South."
             return
         
         # Finally! It seems we've got a candidate, so do the two-command trick
         verbosity = int(options.get('verbosity', 0))
-        management.call_command("startmigration", app, initial=True, verbosity=verbosity)
+        management.call_command("schemamigration", app, initial=True, verbosity=verbosity)
         
         # Now, we need to re-clean and sanitise appcache
         hacks.clear_app_cache()
         hacks.repopulate_app_cache()
+        
+        # And also clear our cached Migration classes
+        Migrations._clear_cache()
         
         # Now, migrate
         management.call_command("migrate", app, "0001", fake=True, verbosity=verbosity)
