@@ -92,6 +92,8 @@ class DatabaseOperations(generic.DatabaseOperations):
         field.set_attributes_from_name(name)
         if not explicit_name:
             name = field.column
+        else:
+            field.column = name
         sql = self.column_sql(table_name, name, field)
         # Remake the table correctly
         self._remake_table(table_name, altered={name: sql})
