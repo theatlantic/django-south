@@ -144,7 +144,7 @@ class DryRunMigrator(MigratorWrapper):
 
     def _run_migration(self, migration):
         if migration.no_dry_run() and self.verbosity:
-            print " - Migration '%s' is marked for no-dry-run."
+            print " - Migration '%s' is marked for no-dry-run." % migration
             return
         db.dry_run = True
         db.debug, old_debug = False, db.debug
