@@ -60,27 +60,27 @@ class AutoChanges(BaseChanges):
             elif change_name == "DeleteModel":
                 parts.append("del_%s" % params['model']._meta.object_name.lower())
             elif change_name == "AddField":
-                parts.append("add_field_%s.%s" % (
+                parts.append("add_field_%s_%s" % (
                     params['model']._meta.object_name.lower(),
                     params['field'].name,
                 ))
             elif change_name == "DeleteField":
-                parts.append("del_field_%s.%s" % (
+                parts.append("del_field_%s_%s" % (
                     params['model']._meta.object_name.lower(),
                     params['field'].name,
                 ))
             elif change_name == "ChangeField":
-                parts.append("chg_field_%s.%s" % (
+                parts.append("chg_field_%s_%s" % (
                     params['model']._meta.object_name.lower(),
                     params['new_field'].name,
                 ))
             elif change_name == "AddUnique":
-                parts.append("add_unique_%s.%s" % (
+                parts.append("add_unique_%s_%s" % (
                     params['model']._meta.object_name.lower(),
                     "_".join([x.name for x in params['fields']]),
                 ))
             elif change_name == "DeleteUnique":
-                parts.append("del_unique_%s.%s" % (
+                parts.append("del_unique_%s_%s" % (
                     params['model']._meta.object_name.lower(),
                     "_".join([x.name for x in params['fields']]),
                 ))
