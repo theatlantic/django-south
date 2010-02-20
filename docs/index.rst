@@ -21,6 +21,7 @@ Contents
    :maxdepth: 2
    
    whataremigrations
+   installation
    tutorial/index
    databaseapi
    convertinganapp
