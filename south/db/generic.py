@@ -300,6 +300,8 @@ class DatabaseOperations(object):
         field.set_attributes_from_name(name)
         if not explicit_name:
             name = field.column
+        else:
+            field.column = name
 
         # Drop all check constraints. TODO: Add the right ones back.
         if self.has_check_constraints:
