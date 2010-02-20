@@ -61,6 +61,10 @@ class MigrationsMetaclass(type):
         
         return self.instances[app_label]
 
+    def _clear_cache(self):
+        "Clears the cache of Migration objects."
+        self.instances = {}
+
 
 class Migrations(list):
     """
