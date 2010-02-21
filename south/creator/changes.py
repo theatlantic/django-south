@@ -99,11 +99,18 @@ class AutoChanges(BaseChanges):
             if key not in self.new_defs:
                 # We shouldn't delete it if it was managed=False
                 if self.old_defs[key].get("Meta", {}).get("managed", "True") != "False":
+                    old_fields, old_meta, old_m2ms = self.split_model_def(self.old_orm[key], self.old_defs[key])
                     # Alright, delete it.
                     yield ("DeleteModel", {
                         "model": self.old_orm[key], 
-                        "model_def": self.split_model_def(self.old_orm[key], self.old_defs[key])[0],
+                        "model_def": old_fields,
                     })
+                    # Also make sure we delete any M2Ms it had.
+                    for fieldname in old_m2ms:
+                        # Only delete its stuff if it wasn't a through=.
+                        field = self.old_orm[key + ":" + fieldname]
+                        if auto_through(field):
+                            yield ("DeleteM2M", {"model": self.old_orm[key], "field": field})
                 # We always add it in here so we ignore it later
                 deleted_models.add(key)
         
@@ -112,10 +119,17 @@ class AutoChanges(BaseChanges):
             if key not in self.old_defs:
                 # We shouldn't add it if it's managed=False
                 if self.new_defs[key].get("Meta", {}).get("managed", "True") != "False":
+                    new_fields, new_meta, new_m2ms = self.split_model_def(self.current_model_from_key(key), self.new_defs[key])
                     yield ("AddModel", {
                         "model": self.current_model_from_key(key), 
-                        "model_def": self.split_model_def(self.current_model_from_key(key), self.new_defs[key])[0],
+                        "model_def": new_fields,
                     })
+                    # Also make sure we add any M2Ms it has.
+                    for fieldname in new_m2ms:
+                        # Only create its stuff if it wasn't a through=.
+                        field = self.current_field_from_key(key, fieldname)
+                        if auto_through(field):
+                            yield ("AddM2M", {"model": self.current_model_from_key(key), "field": field})
         
         # Now, for every model that's stayed the same, check its fields.
         for key in self.old_defs:
