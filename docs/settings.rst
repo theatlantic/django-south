@@ -70,6 +70,9 @@ A sample setting would be::
 
  SOUTH_LOGGING_FILE = os.path.join(os.path.dirname(__file__),"south.log")
 
+ 
+.. _setting-south-migration-modules: 
+ 
 SOUTH_MIGRATION_MODULES
 -----------------------
 

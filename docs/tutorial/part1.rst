@@ -4,178 +4,122 @@
 Part 1: The Basics
 ==================
 
-Welcome to South. This tutorial is designed to give you a runthrough of all the
-major features; smaller projects may only use the first lot of features you
-learn, but everything is built in for a reason!
-
-South is often said to have a "steep learning curve". This is somewhat true,
-but the hard part is in the middle - South is easy to plug in to a project,
-but it's when you want to do moderately interesting things that you have to sit
-down and learn how things work. There's plenty of documentation for you to read
-through, but if you're stuck, you can always ask on our mailing list or IRC
-channel.
+Welcome to the South tutorial; here, we'll try and cover all the basic usage of
+South, as well as giving you some general hints about what else to do.
 
 If you've never heard of the idea of a migrations library, then please read
 :ref:`what-are-migrations` first; that will help you get a better understanding
-of what both South and others such as django-evolution are trying to achieve.
+of what both South (and others, such as django-evolution) are trying to achieve.
 
 This tutorial assumes you have South installed correctly; if not, see the
-`download page on our website <http://south.aeracode.org/wiki/Download>`_ for
-instructions.
+:ref:`installation instructions <installation>`.
 
+Starting off
+------------
 
-Apps and Migrations
+In this tutorial, we'll follow the process of using migrations on a brand new
+app. Don't worry about converting your existing apps; we'll cover that in the
+next part.
+
+The first thing to note is that South is per-application; migrations are stored
+along with the app's code [#]_. If an app doesn't have any migrations defined,
+South will ignore it, and it will behave as normal (that is, using syncdb).
+
+.. [#] You can also :ref:`store them elsewhere <setting-south-migration-modules>` if you like.
+
+So, find a project to work in (or make a new one, and set it up with a database
+and other settings), and let's create our new app::
+
+ ./manage.py startapp southtut
+ 
+As usual, this should make a new directory ``southtut/``. First, add it to
+``INSTALLED_APPS``, then open up the newly-created ``southtut/models.py``,
+and create a new model::
+
+ from django.db import models
+
+ class Knight(models.Model):
+     name = models.CharField(max_length=100)
+     of_the_round_table = models.BooleanField()
+
+It's quite simple, but it'll do. Now, instead of running ``syncdb`` to create
+a table for the model in our database, we'll create a migration for it.
+
+The First Migration
 -------------------
 
-The first principle to learn is that, in South, individual apps are either
-'migrated' or not - for example, the django.contrib.admin app isn't migrated, as
-it has no migrations, whereas the app you'll create along with this tutorial
-will have migrations, and so is 'migrated'.
+South has several ways of creating migrations; some are automatic, some are
+manual. As a basic user, you'll probably use the two automatic ways - ``--auto``
+and ``--initial``.
 
-The reason this is important is that, with South enabled, you will have two
-ways of changing the database schema:
+``--auto`` looks at the previous migration, works out what's changed, and
+creates a migration which applies the differences - for example, if you add a
+field to a model, ``--auto`` will notice this, and make a migration which
+creates a new column for that field on its model's table.
 
- - ``./manage.py syncdb`` - As before, this only creates models' tables directly,
-   but with South enabled it will only do this for non-migrated apps.
- - ``./manage.py migrate`` - This command will change the database schema for
-   migrated apps only.
+However, you'll notice that ``--auto`` needs a previous migration - our new
+app doesn't have one. Instead, in this case, we need to use ``--initial``, which
+will create tables and indexes for all of the models in the app; it's what you
+use first, much like ``syncdb``, and ``--auto`` is then used afterwards for
+each change.
 
-South differentiates between migrated and non-migrated apps by seeing if they
-have a appname/migrations/ directory. To create this directory, and create
-migrations, there are a few important commands
+So, let's create our first migration::
 
- - ``./manage.py schemamigration`` - Creates schema migrations for apps, either blank
-   ones, ones with user-specified actions, or ones with automatically-detected
-   changes - we will cover all three of these uses.
- - ``./manage.py datamigration`` - Creates data migrations for apps. We'll cover
-   these in a later part.
-  
-
-Kicking Off
------------
-
-First, create an application the usual way::
-
-  django-admin.py startproject southtut
-  cd southtut
-  << add south to INSTALLED_APPS >>
-  ./manage.py syncdb
-
-Second, you will need an app, with a few models. It doesn't matter what;
-if you want to follow the examples, make a new app called 'southdemo'::
-
-  django-admin.py startapp southdemo
-  
-Give it the following models.py file::
-
-  from django.db import models
-  
-  class Lizard(models.Model):
-      
-      age = models.IntegerField()
-      name = models.CharField(max_length=30)
-  
-  class Adopter(models.Model):
-      
-      lizard = models.ForeignKey(Lizard)
-      name = models.CharField(max_length=50)
-
-Don't forget to update settings.py too:
-
- - Pick a ``DATABASE_ENGINE``, and set the relevant settings;
- - Add both 'south' and 'southdemo' to the list of ``INSTALLED_APPS``.
+ $ ./manage.py schemamigration southtut --initial
+ Creating migrations directory at '/home/andrew/Programs/litret/southtut/migrations'...
+ Creating __init__.py in '/home/andrew/Programs/litret/southtut/migrations'...
+  + Added model southtut.Knight
+ Created 0001_initial.py. You can now apply this migration with: ./manage.py migrate southtut
  
-Now, we need to make our first migration. The way South works is that, on a
-new installation, it will run through the entire history of migrations for each
-app, rather than just using syncdb. This helps keep things consistent, and lets
-you write migrations that put in complex initial data, but it does mean that
-doing all migrations for an app, one after the other, should take a database
-from blank to the most recent schema.
+As you can see, that's created a migrations directory for us, and made a new
+migration inside it. All we need to do now is apply our new migration::
 
-Specifically, this means that ``./manage.py migrate`` replaces ``./manage.py syncdb``
-for applications with migrations; the effect of syncdb is recreated by the
-migrations. You should not run syncdb on an application before you migrate it,
-if it is a new app (if you are converting an existing app, see 
-:ref:`converting-an-app`).
+ $ ./manage.py migrate southtut
+  Running migrations for southtut:
+  - Migrating forwards to 0001_initial.
+  > southtut:0001_initial
+  - Loading initial data for southtut.
 
-For this reason, the first migration has to be one that creates all the models
-you currently have. startmigration accepts an ``--add-model`` parameter, which tells it
-to make a migration that creates the named model, so we could do this::
+With that, South has created the new table for our model; check if you like, and
+try adding a few Knights using ``./manage.py shell``.
 
- ./manage.py schemamigration southdemo initial --add-model Lizard --add-model Adopter
 
-*(The arguments to startmigration are, in order, app name, migration name,
-and then parameters)*
+Changing the model
+------------------
 
-However, there is a shortcut for adding all models currently in the models.py
-file, which is --initial::
+So far, we've done nothing that ``syncdb`` couldn't accomplish; time to change
+that (or rather, our model). Let's add another field to our model::
 
- ./manage.py schemamigration southdemo --initial
+ from django.db import models
+
+ class Knight(models.Model):
+     name = models.CharField(max_length=100)
+     of_the_round_table = models.BooleanField()
+     dances_whenever_able = models.BooleanField()
+
+Now, if we weren't using migrations, making this new column appear on our
+``southtut_knight`` table would be annoying at best. However, with South, we
+need only do two, quick steps: make a migration for the change, then apply it.
+
+First, make the new migration, using the --auto feature::
+
+ $ ./manage.py schemamigration southtut --auto
+  + Added field dances_whenever_able on southtut.Knight
+ Created 0002_auto__add_field_knight_dances_whenever_able.py. You can now apply this migration with: ./manage.py migrate southtut
  
-*(You can also pass in a migration name here, but it will default to 'initial')*
+*(Notice that South has automatically picked a name for this migration; you
+can give migrations custom names by providing it as another argument)*
 
-Running this, we get::
+Now, apply it::
 
-  $ ./manage.py startmigration southdemo --initial
-  Creating migrations directory at '/home/andrew/Programs/mornsq/southdemo/migrations'...
-  Creating __init__.py in '/home/andrew/Programs/mornsq/southdemo/migrations'...
-   + Added model 'southdemo.Lizard'
-   + Added model 'southdemo.Adopter'
-  Created 0001_initial.py.
+ $ ./manage.py migrate southtut
+ Running migrations for southtut:
+  - Migrating forwards to 0002_auto__add_field_knight_dances_whenever_able.
+  > southtut:0002_auto__add_field_knight_dances_whenever_able
+  - Loading initial data for southtut.
 
-As you can see, it has made our southdemo/migrations directory for us, as well
-as putting an __init__.py file in it (to mark it as a Python package
-- this is also required).
+With that, our new column is created; again, go and check, you'll be able to
+add Knights who can dance whenever they're able.
 
-If you open up the migration file it made - 
-`southdemo/migrations/0001_initial.py` - you'll see something like this::
-
-  from south.db import db
-  from django.db import models
-  from southdemo.models import *
-  
-  class Migration:
-      
-      def forwards(self, orm):
-          
-          # Adding model 'Lizard'
-          db.create_table('southdemo_lizard', (
-              ('age', models.IntegerField()),
-              ('id', models.AutoField(primary_key=True)),
-              ('name', models.CharField(max_length=30)),
-          ))
-          db.send_create_signal('southdemo', ['Lizard'])
-          
-          # Adding model 'Adopter'
-          db.create_table('southdemo_adopter', (
-              ('lizard', models.ForeignKey(orm.Lizard)),
-              ('id', models.AutoField(primary_key=True)),
-              ('name', models.CharField(max_length=50)),
-          ))
-          db.send_create_signal('southdemo', ['Adopter'])
-          
-      
-      
-      def backwards(self, orm):
-          
-          # Deleting model 'Lizard'
-          db.delete_table('southdemo_lizard')
-          
-          # Deleting model 'Adopter'
-          db.delete_table('southdemo_adopter')
-      
-  
-      
-      models = { ... }
-  
-Migrations in South are, as you can see, just Migration classes with forwards()
-and backwards() methods, which get run as you go forwards or backwards over the
-migration respectively.
-
-Each method gets an 'orm' parameter, which contains a 'fake ORM' - it will let
-you access any frozen models for this migration (details on frozen models are
-covered in part three of the tutorial).
-
-Most of the time, you can get schemamigration to write either all or most of a
-migration for you; continue to :ref:`part two of the tutorial <tutorial-part-2>`
-for more about changing models.
+Once you're happy with this basic usage of South, move on to
+:ref:`tutorial-part-2`.
