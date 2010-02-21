@@ -396,11 +396,12 @@ class AddM2M(Action):
     
     FORWARDS_TEMPLATE = '''
         # Adding M2M table for field %(field_name)s on '%(model_name)s'
-        db.create_table('%(table_name)s', (
+        db.create_table(%(table_name)r, (
             ('id', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)),
-            ('%(left_field)s', models.ForeignKey(orm[%(left_model_key)r], null=False)),
-            ('%(right_field)s', models.ForeignKey(orm[%(right_model_key)r], null=False))
-        ))'''
+            (%(left_field)r, models.ForeignKey(orm[%(left_model_key)r], null=False)),
+            (%(right_field)r, models.ForeignKey(orm[%(right_model_key)r], null=False))
+        ))
+        db.create_unique(%(table_name)r, [%(left_column)r, %(right_column)r])'''
     
     BACKWARDS_TEMPLATE = '''
         # Removing M2M table for field %(field_name)s on '%(model_name)s'
@@ -425,8 +426,10 @@ class AddM2M(Action):
             "field_name": self.field.name,
             "table_name": self.field.m2m_db_table(),
             "left_field": self.field.m2m_column_name()[:-3], # Remove the _id part
+            "left_column": self.field.m2m_column_name(),
             "left_model_key": model_key(self.model),
             "right_field": self.field.m2m_reverse_name()[:-3], # Remove the _id part
+            "right_column": self.field.m2m_reverse_name(),
             "right_model_key": model_key(self.field.rel.to),
         }
 
