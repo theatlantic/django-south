@@ -108,7 +108,7 @@ First, make the new migration, using the --auto feature::
  Created 0002_auto__add_field_knight_dances_whenever_able.py. You can now apply this migration with: ./manage.py migrate southtut
  
 *(Notice that South has automatically picked a name for this migration; you
-can give migrations custom names by providing it as another argument)*
+can instead give migrations custom names by providing it as another argument)*
 
 Now, apply it::
 
