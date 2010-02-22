@@ -85,6 +85,10 @@ def model_dependencies(model, checked_models=None):
     # Get deps for each field
     for field in model._meta.fields + model._meta.many_to_many:
         depends.update(field_dependencies(field))
+    # Add in any non-abstract bases
+    for base in model.__bases__:
+        if isinstance(base, models.Model) and not base._meta.abstract:
+            depends.add(base)
     # Now recurse
     new_to_check = depends - checked_models
     while new_to_check:
