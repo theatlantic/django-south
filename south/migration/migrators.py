@@ -147,18 +147,21 @@ class DryRunMigrator(MigratorWrapper):
             print " - Migration '%s' is marked for no-dry-run." % migration
             return
         db.dry_run = True
-        db.debug, old_debug = False, db.debug
+        if self._ignore_fail:
+            db.debug, old_debug = False, db.debug
         pending_creates = db.get_pending_creates()
         db.start_transaction()
         migration_function = self.direction(migration)
         try:
             try:
                 migration_function()
+                db.execute_deferred_sql()
             except:
                 raise exceptions.FailedDryRun(migration, sys.exc_info())
         finally:
             db.rollback_transactions_dry_run()
-            db.debug = old_debug
+            if self._ignore_fail:
+                db.debug = old_debug
             db.clear_run_data(pending_creates)
             db.dry_run = False
 
