@@ -120,3 +120,18 @@ class FailedDryRun(SouthError):
     def __str__(self):
         return (" ! Error found during dry run of '%(name)s'! Aborting.\n"
                 "%(traceback)s") % self.__dict__
+
+
+class ORMBaseNotIncluded(SouthError):
+    """Raised when a frozen model has something in _ormbases which isn't frozen."""
+    pass
+
+
+class UnfreezeMeLater(Exception):
+    """An exception, which tells the ORM unfreezer to postpone this model."""
+    pass
+
+
+class ImpossibleORMUnfreeze(SouthError):
+    """Raised if the ORM can't manage to unfreeze all the models in a linear fashion."""
+    pass

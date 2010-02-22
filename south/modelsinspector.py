@@ -338,6 +338,20 @@ def get_model_meta(model):
         except IsDefault:
             pass
     
+    # Also, add on any non-abstract model base classes.
+    # This is called _ormbases as the _bases variable was previously used
+    # for a list of full class paths to bases, so we can't conflict.
+    for base in model.__bases__:
+        if base != models.Model and issubclass(base, models.Model):
+            if not base._meta.abstract:
+                # OK, that matches our terms.
+                if "_ormbases" not in meta_def:
+                    meta_def['_ormbases'] = []
+                meta_def['_ormbases'].append("%s.%s" % (
+                    base._meta.app_label,
+                    base._meta.object_name,
+                ))
+    
     return meta_def
 
 
