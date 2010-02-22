@@ -128,7 +128,7 @@ def get_migrator(direction, db_dry_run, fake, load_initial_data):
     if not direction:
         return direction
     if db_dry_run:
-        direction = DryRunMigrator(migrator=direction)
+        direction = DryRunMigrator(migrator=direction, ignore_fail=False)
     elif fake:
         direction = FakeMigrator(migrator=direction)
     elif load_initial_data:
