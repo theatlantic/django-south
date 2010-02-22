@@ -38,6 +38,15 @@ class BaseChanges(object):
     
     def current_field_from_key(self, key, fieldname):
         app_label, model_name = key.split(".")
+        # Special, for the magical field from order_with_respect_to
+        if fieldname == "_order":
+            field = models.IntegerField()
+            field.name = "_order"
+            field.attname = "_order"
+            field.column = "_order"
+            field.default = 0
+            return field
+        # Otherwise, normal.
         return models.get_model(app_label, model_name)._meta.get_field_by_name(fieldname)[0]
 
 
