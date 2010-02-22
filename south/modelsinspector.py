@@ -322,6 +322,11 @@ def get_model_fields(model, m2m=False):
                 print " ( Nodefing field: %s" % field.name
             field_defs[field.name] = None
     
+    # If they've used the horrific hack that is order_with_respect_to, deal with
+    # it.
+    if model._meta.order_with_respect_to:
+        field_defs['_order'] = ("django.db.models.fields.IntegerField", [], {"default": "0"})
+    
     return field_defs
 
 
