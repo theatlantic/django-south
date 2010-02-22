@@ -395,7 +395,14 @@ class InitialChanges(BaseChanges):
             for name, triple in m2m_fields.items():
                 field = model._meta.get_field_by_name(name)[0]
                 # But only if it's not through=foo (#120)
-                if (not field.rel.through) or getattr(field.rel.through._meta, "auto_created", False):
+                if field.rel.through:
+                    try:
+                        # Django 1.1 and below
+                        through_model = field.rel.through_model
+                    except AttributeError:
+                        # Django 1.2
+                        through_model = field.rel.through
+                if (not field.rel.through) or getattr(through_model._meta, "auto_created", False):
                     yield ("AddM2M", {
                         "model": model,
                         "field": field,
