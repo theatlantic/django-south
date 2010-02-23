@@ -216,12 +216,12 @@ class Migrations(list):
     def full_name(self):
         return self._migrations.__name__
 
-    def calculate_dependents(self):
+    @staticmethod
+    def calculate_dependencies():
+        "Goes through all the migrations, and works out the dependencies."
         for migrations in all_migrations():
             for migration in migrations:
-                migration.add_dependent(None)
-                for dependency in migration.dependencies():
-                    dependency.add_dependent(migration)
+                migration.calculate_dependencies()
     
     def next_filename(self, name):
         "Returns the fully-formatted filename of what a new migration 'name' would be"
@@ -251,6 +251,8 @@ class Migration(object):
         """
         self.migrations = migrations
         self.filename = filename
+        self.dependencies = set()
+        self.dependents = set()
 
     def __str__(self):
         return self.app_label() + ':' + self.name()
@@ -313,14 +315,13 @@ class Migration(object):
             return None
         return self.migrations[index]
     next = memoize(next)
-
-    def dependencies(self):
-        "Returns the list of migrations this migration depends on."
-        result = [self.previous()]
-        if result[0] is None:
-            result = []
-        # Get forwards dependencies
-        for app, name in getattr(self.migration_class(), 'depends_on', []):
+    
+    def _get_dependency_objects(self, attrname):
+        """
+        Given the name of an attribute (depends_on or needed_by), either yields
+        a list of migration objects representing it, or errors out.
+        """
+        for app, name in getattr(self.migration_class(), attrname, []):
             try:
                 migrations = Migrations(app)
             except ImproperlyConfigured:
@@ -332,21 +333,26 @@ class Migration(object):
                 raise exceptions.DependsOnUnknownMigration(self, migration)
             if migration.is_before(self) == False:
                 raise exceptions.DependsOnHigherMigration(self, migration)
-            result.append(migration)
-        return result
-    dependencies = memoize(dependencies)
-
-    def add_dependent(self, migration):
-        if not hasattr(self, '_dependents'):
-            self._dependents = deque()
-        if migration and migration not in self._dependents:
-            self._dependents.appendleft(migration)
-
-    def dependents(self):
-        "Returns the list of migrations that depend on this one"
-        self.migrations.calculate_dependents()
-        return self._dependents
-    dependents = memoize(dependents)
+            yield migration
+    
+    def calculate_dependencies(self):
+        """
+        Loads dependency info for this migration, and stores it in itself
+        and any other relevant migrations.
+        """
+        # Normal deps first
+        for migration in self._get_dependency_objects("depends_on"):
+            self.dependencies.add(migration)
+            migration.dependents.add(self)
+        # And reverse deps
+        for migration in self._get_dependency_objects("needed_by"):
+            self.dependents.add(migration)
+            migration.dependencies.add(self)
+        # And implicit ordering deps
+        previous = self.previous()
+        if previous:
+            self.dependencies.add(previous)
+            previous.dependents.add(self)
 
     def forwards(self):
         return self.migration_instance().forwards
@@ -360,10 +366,10 @@ class Migration(object):
 
         This list includes `self`, which will be applied last.
         """
-        return depends(self, self.__class__.dependencies)
+        return depends(self, lambda x: x.dependencies)
 
     def _backwards_plan(self):
-        return depends(self, self.__class__.dependents)
+        return depends(self, lambda x: x.dependents)
 
     def backwards_plan(self):
         """
