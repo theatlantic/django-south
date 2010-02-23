@@ -57,8 +57,9 @@ def forwards_problems(pending, done, verbosity):
         missing = [m for m in last.forwards_plan()[:-1]
                    if m not in done]
         if verbosity:
+            m = ", ".join(str(m) for m in missing)
             print (" ! Migration %s should not have been applied "
-                   "before %s but was." % (last, migration))
+                   "before %s but was." % (last, m))
         result.append((last, missing))
     return result
 
@@ -68,7 +69,8 @@ def backwards_problems(pending, done, verbosity):
         missing = [m for m in migration.backwards_plan()[:-1]
                    if m in done]
         if verbosity:
-            print " ! Migration %s should have been applied before %s but wasn't." % (migration, last)
+            m = ", ".join(str(m) for m in missing)
+            print " ! Migration %s should have been applied before %s but wasn't." % (migration, m)
         result.append((migration, missing))
     return result
 
