@@ -34,3 +34,4 @@ Contents
    extendingintrospection
    fixtures
    settings
+   releasenotes/index
