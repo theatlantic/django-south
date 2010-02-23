@@ -67,7 +67,7 @@ def flatten(*stack):
 def _dfs(start, get_children):
     # Prepend ourselves to the result
     yield start
-    children = reversed(get_children(start))
+    children = get_children(start)
     if children:
         # We need to apply all the migrations this one depends on
         yield (_dfs(n, get_children) for n in children)
