@@ -63,6 +63,7 @@ introspection_details = [
             "to": ["rel.to", {}],
             "symmetrical": ["rel.symmetrical", {"default": True}],
             "related_name": ["rel.related_name", {"default": None}],
+            "db_table": ["db_table", {"default": None}],
             # TODO: Kind of ugly to add this one-time-only option
             "through": ["rel.through", {"ignore_if_auto_through": True}],
         },
