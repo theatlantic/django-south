@@ -36,7 +36,22 @@ def problems(pending, done):
         if last and migration not in done:
             yield last, migration
 
+def problems(pending, done):
+    last = None
+    if not pending:
+        raise StopIteration()
+    for migration in pending:
+        if migration in done:
+            last = migration
+            continue
+        if last and migration not in done:
+            yield last, migration
+
 def forwards_problems(pending, done, verbosity):
+    """
+    Takes the list of linearised pending migrations, and the set of done ones,
+    and returns the list of problems, if any.
+    """
     result = []
     for last, migration in problems(reversed(pending), done):
         missing = [m for m in last.forwards_plan()[:-1]
@@ -147,6 +162,9 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
     if not migrations:
         print "? You have no migrations for the '%s' app. You might want some." % app_label
         return
+    
+    # Load the entire dependency graph
+    Migrations.calculate_dependencies()
     
     # Check there's no strange ones in the database
     applied = MigrationHistory.objects.filter(applied__isnull=False)
