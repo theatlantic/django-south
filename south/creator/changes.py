@@ -4,6 +4,7 @@ commandline, or by using autodetection, etc.
 """
 
 from django.db import models
+from django.contrib.contenttypes.generic import GenericRelation
 
 from south.creator.freezer import remove_useless_attributes, freeze_apps, model_key
 from south.utils import auto_through
@@ -54,6 +55,11 @@ class AutoChanges(BaseChanges):
     """
     Detects changes by 'diffing' two sets of frozen model definitions.
     """
+    
+    # Field types we don't generate add/remove field changes for.
+    IGNORED_FIELD_TYPES = [
+        GenericRelation,
+    ]
     
     def __init__(self, migrations, old_defs, old_orm, new_defs):
         self.migrations = migrations
@@ -152,12 +158,36 @@ class AutoChanges(BaseChanges):
                 # Find fields that have vanished.
                 for fieldname in old_fields:
                     if fieldname not in new_fields:
-                        yield ("DeleteField", {"model": self.old_orm[key], "field": self.old_orm[key + ":" + fieldname], "field_def": old_fields[fieldname]})
+                        # Don't do it for any fields we're ignoring
+                        field = self.old_orm[key + ":" + fieldname]
+                        field_allowed = True
+                        for field_type in self.IGNORED_FIELD_TYPES:
+                            if isinstance(field, field_type):
+                                field_allowed = False
+                        if field_allowed:
+                            # Looks alright.
+                            yield ("DeleteField", {
+                                "model": self.old_orm[key],
+                                "field": field,
+                                "field_def": old_fields[fieldname],
+                            })
                 
                 # And ones that have appeared
                 for fieldname in new_fields:
                     if fieldname not in old_fields:
-                        yield ("AddField", {"model": self.current_model_from_key(key), "field": self.current_field_from_key(key, fieldname), "field_def": new_fields[fieldname]})
+                        # Don't do it for any fields we're ignoring
+                        field = self.current_field_from_key(key, fieldname)
+                        field_allowed = True
+                        for field_type in self.IGNORED_FIELD_TYPES:
+                            if isinstance(field, field_type):
+                                field_allowed = False
+                        if field_allowed:
+                            # Looks alright.
+                            yield ("AddField", {
+                                "model": self.current_model_from_key(key),
+                                "field": field,
+                                "field_def": new_fields[fieldname],
+                            })
                 
                 # Find M2Ms that have vanished
                 for fieldname in old_m2ms:
