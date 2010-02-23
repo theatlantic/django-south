@@ -52,26 +52,28 @@ def forwards_problems(pending, done, verbosity):
     Takes the list of linearised pending migrations, and the set of done ones,
     and returns the list of problems, if any.
     """
-    result = []
-    for last, migration in problems(reversed(pending), done):
-        missing = [m for m in last.forwards_plan()[:-1]
-                   if m not in done]
-        if verbosity:
-            m = ", ".join(str(m) for m in missing)
-            print (" ! Migration %s should not have been applied "
-                   "before %s but was." % (last, m))
-        result.append((last, missing))
-    return result
+    return inner_problem_check(problems(reversed(pending), done), done, verbosity)
 
 def backwards_problems(pending, done, verbosity):
+    return inner_problem_check(problems(pending, done), done, verbosity)
+
+def inner_problem_check(problems, done, verbosity):
+    "Takes a set of possible problems and gets the actual issues out of it."
     result = []
-    for last, migration in problems(pending, done):
-        missing = [m for m in migration.backwards_plan()[:-1]
-                   if m in done]
-        if verbosity:
-            m = ", ".join(str(m) for m in missing)
-            print " ! Migration %s should have been applied before %s but wasn't." % (migration, m)
-        result.append((migration, missing))
+    for last, migration in problems:
+        # 'Last' is the last applied migration. Step back from it until we
+        # either find nothing wrong, or we find something.
+        to_check = list(last.dependencies)
+        while to_check:
+            checking = to_check.pop()
+            if checking not in done:
+                # That's bad. Error.
+                if verbosity:
+                    print (" ! Migration %s should not have been applied "
+                           "before %s but was." % (last, checking))
+                result.append((last, checking))
+            else:
+                to_check.extend(checking.dependencies)
     return result
 
 def check_migration_histories(histories, delete_ghosts=False):
