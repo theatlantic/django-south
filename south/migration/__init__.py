@@ -88,7 +88,8 @@ def check_migration_histories(histories, delete_ghosts=False):
             ghosts.append(h)
         except ImproperlyConfigured:
             pass                        # Ignore missing applications
-        exists.add(m)
+        else:
+            exists.add(m)
     if ghosts:
         # They may want us to delete ghosts.
         if delete_ghosts:
