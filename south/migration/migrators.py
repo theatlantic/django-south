@@ -6,6 +6,7 @@ import sys
 import traceback
 
 from django.core.management import call_command
+from django.core.management.commands import loaddata
 from django.db import models
 
 from south import exceptions
@@ -199,11 +200,14 @@ class LoadInitialDataMigrator(MigratorWrapper):
         # Override Django's get_apps call temporarily to only load from the
         # current app
         old_get_apps = models.get_apps
-        models.get_apps = lambda: [models.get_app(target.app_label())]
+        new_get_apps = lambda: [models.get_app(target.app_label())]
+        models.get_apps = new_get_apps
+        loaddata.get_apps = new_get_apps
         try:
             call_command('loaddata', 'initial_data', verbosity=self.verbosity)
         finally:
             models.get_apps = old_get_apps
+            loaddata.get_apps = old_get_apps
 
     def migrate_many(self, target, migrations):
         migrator = self._migrator
