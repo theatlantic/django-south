@@ -114,6 +114,13 @@ def field_dependencies(field, checked_models=None):
         checked_models.add(field.rel.to)
         depends.add(field.rel.to)
         depends.update(field_dependencies(field.rel.to._meta.pk, checked_models))
+        # Also include M2M throughs
+        if isinstance(field, models.ManyToManyField):
+            if field.rel.through:
+                if hasattr(field.rel, "through_model"): # 1.1 and below
+                    depends.add(field.rel.through_model)
+                else:
+                    depends.add(field.rel.through) # 1.2 and up
     return depends
 
 ### Prettyprinters
