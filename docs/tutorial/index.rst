@@ -17,3 +17,4 @@ Advanced features have their own extensive documentation, as well; the
    
    part1
    part2
+   part3

@@ -7,6 +7,8 @@ Part 2: Advanced Changes
 Now you've done a simple change to the model, let's look at some of the more
 advanced changes you can do with South.
 
+.. _tutorial-part-2-defaults:
+
 Defaults
 --------
 
@@ -110,3 +112,43 @@ As you can see, it's detected the change in ``unique``; you can now apply it::
 
 South also detects changes to ``unique_together`` in your model's ``Meta`` in
 the same way.
+
+
+ManyToMany fields
+-----------------
+
+South should automatically detect ManyToMany fields; when you add the field,
+South will create the table the ManyToMany represents, and when you remove the
+field, the table will be deleted.
+
+The one exception to this is when you have a 'through model' (i.e. you're using
+the ``through=`` option) - since the table for the model is already created when
+the model is detected, South does nothing with these types of ManyToMany fields.
+
+Custom fields
+-------------
+
+If you've looked closely at the migration files, you'll see that South stores
+field definitions by storing their class, and the arguments that need to be
+passed to the field's constructor.
+
+Since Python offers no way to get the arguments used in a class' constructor
+directly, South uses something called the *model introspector* to work out
+what arguments fields were passed. This knows what variables the arguments
+are stored into on the field, and using this knowledge, can reconstruct the
+arguments directly.
+
+Because custom fields (either those written by you, or included with third-party
+apps) are all different, South can't work out how to get their arguments without
+extra help, so if you try to add, change or remove custom fields, South will
+bail out and say that you need to give it rules for your custom fields; this
+topic is covered in detail in :ref:`custom-fields`.
+
+More?
+-----
+
+South supports most operations you'll do on your models day-to-day; if you're
+interested, there's a :ref:`full list of what the autodetector supports
+<autodetector-supported-actions>`.
+
+You'll probably want to read :ref:`tutorial-part-3` next.
