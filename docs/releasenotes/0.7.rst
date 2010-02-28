@@ -17,6 +17,9 @@ Tests now run with migrations by default, not using syncdb for everything as in
 0.6. This is the behaviour most people expect; to turn it off again,
 set ``SOUTH_TESTS_MIGRATE`` to False (migrating everything can be slow).
 
+In addition, you may note that some or all of your custom fields don't work when
+you upgrade; read more about this at :ref:`custom-fields`.
+
 
 Major changes
 =============

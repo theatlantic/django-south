@@ -31,7 +31,9 @@ Contents
    unittests
    ormfreezing
    generics
-   extendingintrospection
+   customfields
+   autodetector
+   signals
    fixtures
    settings
    releasenotes/index
