@@ -18,7 +18,9 @@ Tests now run with migrations by default, not using syncdb for everything as in
 set ``SOUTH_TESTS_MIGRATE`` to False (migrating everything can be slow).
 
 In addition, you may note that some or all of your custom fields don't work when
-you upgrade; read more about this at :ref:`custom-fields`.
+you upgrade; read more about this at :ref:`custom-fields`. You may also wish to
+change your old migration files and insert the full path to custom field classes
+in the ``models`` dictionary entries, to prevent future issues.
 
 
 Major changes
