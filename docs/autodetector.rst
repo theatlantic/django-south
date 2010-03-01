@@ -75,7 +75,8 @@ Unique changes
 
 If you change the ``unique=`` attribute on a field, or the ``unique_together``
 in a model's Meta, South will detect and change the constraints on the database
-accordingly (except on SQLite, where UNIQUE isn't supported, and just ignored.)
+accordingly (except on SQLite, where we don't get have the code to edit UNIQUE
+constraints).
 
 
 
