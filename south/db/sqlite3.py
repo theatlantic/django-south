@@ -47,9 +47,14 @@ class DatabaseOperations(generic.DatabaseOperations):
         # Work out the (possibly new) definitions of each column
         definitions = {}
         cursor = self._get_connection().cursor()
+        # Get the index descriptions
+        indexes = self._get_connection().introspection.get_indexes(cursor, table_name)
+        # Work out new column defs.
         for column_info in self._get_connection().introspection.get_table_description(cursor, table_name):
             name = column_info[0]
             type = column_info[1]
+            unique = indexes[name]['unique']
+            primary_key = indexes[name]['primary_key']
             # Deal with an alter (these happen before renames)
             if name in altered:
                 type = altered[name]
@@ -58,6 +63,8 @@ class DatabaseOperations(generic.DatabaseOperations):
                 name = renames[name]
             # Add to the defs
             definitions[name] = type
+            if primary_key:
+                definitions[name] += " PRIMARY KEY"
         # Alright, Make the table
         self.execute("CREATE TABLE %s (%s)" % (
             self.quote_name(temp_name),
