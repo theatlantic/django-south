@@ -56,8 +56,9 @@ class Command(DataCommand):
         if stdout:
             name = "-"
 	
-	if re.search('[^_\w]', name):
-	    self.error("Migration names should contain only alphanumeric characters and underscores.")
+        # Only allow valid names
+        if re.search('[^_\w]', name) and name != "-":
+            self.error("Migration names should contain only alphanumeric characters and underscores.")
         
         # Make sure options are compatable
         if initial and (added_model_list or added_field_list or auto):
