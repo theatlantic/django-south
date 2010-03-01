@@ -4,6 +4,7 @@ Data migration creation command
 
 import sys
 import os
+import re
 from optparse import make_option
 
 try:
@@ -38,6 +39,10 @@ class Command(BaseCommand):
         # --stdout means name = -
         if stdout:
             name = "-"
+	
+        # Only allow valid names
+        if re.search('[^_\w]', name) and name != "-":
+            self.error("Migration names should contain only alphanumeric characters and underscores.")
         
         # if not name, there's an error
         if not name:
