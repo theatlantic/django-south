@@ -201,3 +201,29 @@ Options
 
  - ``--freeze``: Use appname or appname.modelname to freeze additional models into the app.
  - ``--stdout``: Writes the migration to stdout instead of a file.
+ 
+ 
+graphmigrations
+---------------
+
+*(New in South 0.7)*
+
+Run this command to generate a graphviz .dot file for your migrations; you
+can then use this to generate a graph of your migrations' dependencies.
+
+Typical usage::
+
+ ./manage.py graphmigrations | dot -omigrations.png
+ 
+This command can be particularly helpful to examine complex dependency sets
+between lots of different apps [#]_.
+
+ .. [#] This command was written and used for the first time while helping the
+        debug the rather complex set of dependencies in django-cms; it's quite
+        a sight to behold.
+
+Options
+^^^^^^^
+
+This command has no options.
+
