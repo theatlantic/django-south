@@ -14,14 +14,32 @@ from south.models import MigrationHistory
 from south.tests import Monkeypatcher
 from south.db import db
 
-class TestMigration(Monkeypatcher):
+
+
+class TestBrokenMigration(Monkeypatcher):
     installed_apps = ["fakeapp", "otherfakeapp", "brokenapp"]
+
+    def test_broken_dependencies(self):
+        self.assertRaises(
+            exceptions.DependsOnUnmigratedApplication,
+            Migrations.calculate_dependencies,
+        )
+        #depends_on_unknown = self.brokenapp['0002_depends_on_unknown']
+        #self.assertRaises(exceptions.DependsOnUnknownMigration,
+        #                  depends_on_unknown.dependencies)
+        #depends_on_higher = self.brokenapp['0003_depends_on_higher']
+        #self.assertRaises(exceptions.DependsOnHigherMigration,
+        #                  depends_on_higher.dependencies)
+
+
+class TestMigration(Monkeypatcher):
+    installed_apps = ["fakeapp", "otherfakeapp"]
 
     def setUp(self):
         super(TestMigration, self).setUp()
         self.fakeapp = Migrations('fakeapp')
         self.otherfakeapp = Migrations('otherfakeapp')
-        self.brokenapp = Migrations('brokenapp')
+        Migrations.calculate_dependencies()
 
     def test_str(self):
         migrations = [str(m) for m in self.fakeapp]
@@ -29,7 +47,7 @@ class TestMigration(Monkeypatcher):
                           'fakeapp:0002_eggs',
                           'fakeapp:0003_alter_spam'],
                          migrations)
-                         
+    
     def test_repr(self):
         migrations = [repr(m) for m in self.fakeapp]
         self.assertEqual(['<Migration: fakeapp:0001_spam>',
@@ -68,45 +86,61 @@ class TestMigration(Monkeypatcher):
                          [m.previous() for m in self.fakeapp])
 
     def test_dependencies(self):
-        self.assertEqual([[],
-                          [self.fakeapp['0001_spam']],
-                          [self.fakeapp['0002_eggs']]],
-                         [m.dependencies() for m in self.fakeapp])
-        self.assertEqual([[self.fakeapp['0001_spam']],
-                          [self.otherfakeapp['0001_first']],
-                          [self.otherfakeapp['0002_second'],
-                           self.fakeapp['0003_alter_spam']]],
-                         [m.dependencies() for m in self.otherfakeapp])
-        depends_on_unmigrated = self.brokenapp['0001_depends_on_unmigrated']
-        self.assertRaises(exceptions.DependsOnUnmigratedApplication,
-                          depends_on_unmigrated.dependencies)
-        depends_on_unknown = self.brokenapp['0002_depends_on_unknown']
-        self.assertRaises(exceptions.DependsOnUnknownMigration,
-                          depends_on_unknown.dependencies)
-        depends_on_higher = self.brokenapp['0003_depends_on_higher']
-        self.assertRaises(exceptions.DependsOnHigherMigration,
-                          depends_on_higher.dependencies)
+        "Test that the dependency detection works."
+        self.assertEqual([
+                set([]),
+                set([self.fakeapp['0001_spam']]),
+                set([self.fakeapp['0002_eggs']])
+            ],
+            [m.dependencies for m in self.fakeapp],
+        )
+        self.assertEqual([
+                set([self.fakeapp['0001_spam']]),
+                set([self.otherfakeapp['0001_first']]),
+                set([
+                    self.otherfakeapp['0002_second'],
+                    self.fakeapp['0003_alter_spam'],
+                ])
+            ],
+            [m.dependencies for m in self.otherfakeapp],
+        )
 
     def test_forwards_plan(self):
-        self.assertEqual([[self.fakeapp['0001_spam']],
-                          [self.fakeapp['0001_spam'],
-                           self.fakeapp['0002_eggs']],
-                          [self.fakeapp['0001_spam'],
-                           self.fakeapp['0002_eggs'],
-                           self.fakeapp['0003_alter_spam']]],
-                         [m.forwards_plan() for m in self.fakeapp])
-        self.assertEqual([[self.fakeapp['0001_spam'],
-                           self.otherfakeapp['0001_first']],
-                          [self.fakeapp['0001_spam'],
-                           self.otherfakeapp['0001_first'],
-                           self.otherfakeapp['0002_second']],
-                          [self.fakeapp['0001_spam'],
-                           self.otherfakeapp['0001_first'],
-                           self.otherfakeapp['0002_second'],
-                           self.fakeapp['0002_eggs'],
-                           self.fakeapp['0003_alter_spam'],
-                           self.otherfakeapp['0003_third']]],
-                         [m.forwards_plan() for m in self.otherfakeapp])
+        self.assertEqual([
+                set([self.fakeapp['0001_spam']]),
+                set([
+                    self.fakeapp['0001_spam'],
+                    self.fakeapp['0002_eggs']
+                ]),
+                set([
+                    self.fakeapp['0001_spam'],
+                    self.fakeapp['0002_eggs'],
+                    self.fakeapp['0003_alter_spam'],
+                ])
+            ],
+            [m.forwards_plan() for m in self.fakeapp],
+        )
+        self.assertEqual([
+                set([
+                    self.fakeapp['0001_spam'],
+                    self.otherfakeapp['0001_first']
+                ]),
+                set([
+                    self.fakeapp['0001_spam'],
+                    self.otherfakeapp['0001_first'],
+                    self.otherfakeapp['0002_second']
+                ]),
+                set([
+                    self.fakeapp['0001_spam'],
+                    self.otherfakeapp['0001_first'],
+                    self.otherfakeapp['0002_second'],
+                    self.fakeapp['0002_eggs'],
+                    self.fakeapp['0003_alter_spam'],
+                    self.otherfakeapp['0003_third'],
+                ])
+            ],
+            [m.forwards_plan() for m in self.otherfakeapp],
+        )
 
     def test_is_before(self):
         F1 = self.fakeapp['0001_spam']
@@ -143,7 +177,7 @@ class TestMigrationDependencies(Monkeypatcher):
                           [self.deps_a['0003_a'],
                            self.deps_b['0003_b']],
                           [self.deps_a['0004_a']]],
-                         [m.dependencies() for m in self.deps_a])
+                         [m.dependencies for m in self.deps_a])
         self.assertEqual([[],
                           [self.deps_b['0001_b'],
                            self.deps_a['0002_a']],
@@ -151,14 +185,14 @@ class TestMigrationDependencies(Monkeypatcher):
                            self.deps_a['0003_a']],
                           [self.deps_b['0003_b']],
                           [self.deps_b['0004_b']]],
-                         [m.dependencies() for m in self.deps_b])
+                         [m.dependencies for m in self.deps_b])
         self.assertEqual([[],
                           [self.deps_c['0001_c']],
                           [self.deps_c['0002_c']],
                           [self.deps_c['0003_c']],
                           [self.deps_c['0004_c'],
                            self.deps_a['0002_a']]],
-                         [m.dependencies() for m in self.deps_c])
+                         [m.dependencies for m in self.deps_c])
 
     def test_dependents(self):
         self.assertEqual([deque([self.deps_a['0002_a']]),
@@ -169,20 +203,20 @@ class TestMigrationDependencies(Monkeypatcher):
                                  self.deps_a['0004_a']]),
                           deque([self.deps_a['0005_a']]),
                           deque([])],
-                         [m.dependents() for m in self.deps_a])
+                         [m.dependents for m in self.deps_a])
         self.assertEqual([deque([self.deps_b['0002_b']]),
                           deque([self.deps_b['0003_b']]),
                           deque([self.deps_b['0004_b'],
                                  self.deps_a['0004_a']]),
                           deque([self.deps_b['0005_b']]),
                           deque([])],
-                         [m.dependents() for m in self.deps_b])
+                         [m.dependents for m in self.deps_b])
         self.assertEqual([deque([self.deps_c['0002_c']]),
                           deque([self.deps_c['0003_c']]),
                           deque([self.deps_c['0004_c']]),
                           deque([self.deps_c['0005_c']]),
                           deque([])],
-                         [m.dependents() for m in self.deps_c])
+                         [m.dependents for m in self.deps_c])
 
     def test_forwards_plan(self):
         self.assertEqual([[self.deps_a['0001_a']],
@@ -206,7 +240,7 @@ class TestMigrationDependencies(Monkeypatcher):
                            self.deps_b['0003_b'],
                            self.deps_a['0004_a'],
                            self.deps_a['0005_a']]],
-                         [m.forwards_plan() for m in self.deps_a])
+                         [m.forwards_plan for m in self.deps_a])
         self.assertEqual([[self.deps_b['0001_b']],
                           [self.deps_b['0001_b'],
                            self.deps_a['0001_a'],
@@ -233,7 +267,7 @@ class TestMigrationDependencies(Monkeypatcher):
                            self.deps_b['0003_b'],
                            self.deps_b['0004_b'],
                            self.deps_b['0005_b']]],
-                         [m.forwards_plan() for m in self.deps_b])
+                         [m.forwards_plan for m in self.deps_b])
         self.assertEqual([[self.deps_c['0001_c']],
                           [self.deps_c['0001_c'],
                            self.deps_c['0002_c']],
@@ -251,7 +285,7 @@ class TestMigrationDependencies(Monkeypatcher):
                            self.deps_a['0001_a'],
                            self.deps_a['0002_a'],
                            self.deps_c['0005_c']]],
-                         [m.forwards_plan() for m in self.deps_c])
+                         [m.forwards_plan for m in self.deps_c])
 
     def test_backwards_plan(self):
         self.assertEqual([[self.deps_c['0005_c'],
@@ -282,7 +316,7 @@ class TestMigrationDependencies(Monkeypatcher):
                           [self.deps_a['0005_a'],
                            self.deps_a['0004_a']],
                           [self.deps_a['0005_a']]],
-                         [m.backwards_plan() for m in self.deps_a])
+                         [m.backwards_plan for m in self.deps_a])
         self.assertEqual([[self.deps_b['0005_b'],
                            self.deps_b['0004_b'],
                            self.deps_a['0005_a'],
@@ -304,7 +338,7 @@ class TestMigrationDependencies(Monkeypatcher):
                           [self.deps_b['0005_b'],
                            self.deps_b['0004_b']],
                           [self.deps_b['0005_b']]],
-                         [m.backwards_plan() for m in self.deps_b])
+                         [m.backwards_plan for m in self.deps_b])
         self.assertEqual([[self.deps_c['0005_c'],
                            self.deps_c['0004_c'],
                            self.deps_c['0003_c'],
@@ -320,23 +354,32 @@ class TestMigrationDependencies(Monkeypatcher):
                           [self.deps_c['0005_c'],
                            self.deps_c['0004_c']],
                           [self.deps_c['0005_c']]],
-                         [m.backwards_plan() for m in self.deps_c])
+                         [m.backwards_plan for m in self.deps_c])
 
 
 class TestCircularDependencies(Monkeypatcher):
     installed_apps = ["circular_a", "circular_b"]
 
     def test_plans(self):
+        Migrations.calculate_dependencies()
         circular_a = Migrations('circular_a')
         circular_b = Migrations('circular_b')
-        self.assertRaises(exceptions.CircularDependency,
-                          Migration.forwards_plan, circular_a[-1])
-        self.assertRaises(exceptions.CircularDependency,
-                          Migration.forwards_plan, circular_b[-1])
-        self.assertRaises(exceptions.CircularDependency,
-                          Migration.backwards_plan, circular_a[-1])
-        self.assertRaises(exceptions.CircularDependency,
-                          Migration.backwards_plan, circular_b[-1])
+        self.assertRaises(
+            exceptions.CircularDependency,
+            circular_a[-1].forwards_plan,
+        )
+        self.assertRaises(
+            exceptions.CircularDependency,
+            circular_b[-1].forwards_plan,
+        )
+        self.assertRaises(
+            exceptions.CircularDependency,
+            circular_a[-1].backwards_plan,
+        )
+        self.assertRaises(
+            exceptions.CircularDependency,
+            circular_b[-1].backwards_plan,
+        )
 
 
 class TestMigrations(Monkeypatcher):
