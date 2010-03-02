@@ -8,6 +8,7 @@ from django.db import models
 from django.contrib.contenttypes.generic import GenericRelation
 
 from south.orm import FakeORM
+from south.utils import auto_model
 from south import modelsinspector
 
 def freeze_apps(apps):
@@ -120,7 +121,9 @@ def field_dependencies(field, checked_models=None):
                 if hasattr(field.rel, "through_model"): # 1.1 and below
                     depends.add(field.rel.through_model)
                 else:
-                    depends.add(field.rel.through) # 1.2 and up
+                    # Make sure it's not an automatic one
+                    if not auto_model(field.rel.through):
+                        depends.add(field.rel.through) # 1.2 and up
     return depends
 
 ### Prettyprinters

@@ -48,6 +48,10 @@ def auto_through(field):
         getattr(getattr(field.rel.through, "_meta", None), "auto_created", False)
     )
 
+def auto_model(model):
+    "Returns if the given model was automatically generated."
+    return getattr(model._meta, "auto_created", False)
+
 def memoize(function):
     name = function.__name__
     _name = '_' + name
