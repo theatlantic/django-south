@@ -75,11 +75,11 @@ class Migrations(list):
     
     if getattr(settings, "SOUTH_USE_PYC", False):
         MIGRATION_FILENAME = re.compile(r'(?!__init__)' # Don't match __init__.py
-                                        r'[^.]*'        # Don't match dotfiles, or names with dots in them
-                                        r'(\.pyc?)$')     # Match .py or .pyc files, or module dirs
+                                        r'[0-9a-zA-Z_]*' # Don't match dotfiles, or names with dots/invalid chars in them
+                                        r'(\.pyc?)?$')     # Match .py or .pyc files, or module dirs
     else:
         MIGRATION_FILENAME = re.compile(r'(?!__init__)' # Don't match __init__.py
-                                        r'[^.]*'        # Don't match dotfiles, or names with dots in them
+                                        r'[0-9a-zA-Z_]*' # Don't match dotfiles, or names with dots/invalid chars in them
                                         r'(\.py)?$')       # Match only .py files, or module dirs
 
     def __init__(self, application, force_creation=False, verbose_creation=True):
