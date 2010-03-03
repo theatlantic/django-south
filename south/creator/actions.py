@@ -126,7 +126,7 @@ class AddField(Action):
     
     FORWARDS_TEMPLATE = '''
         # Adding field '%(model_name)s.%(field_name)s'
-        db.add_column(%(table_name)r, %(field_name)r, %(field_def)s)'''
+        db.add_column(%(table_name)r, %(field_name)r, %(field_def)s, keep_default=False)'''
     
     BACKWARDS_TEMPLATE = '''
         # Deleting field '%(model_name)s.%(field_name)s'
