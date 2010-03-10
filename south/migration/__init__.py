@@ -175,6 +175,9 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
     if database != DEFAULT_DB_ALIAS:
         applied = applied.using(database)
         south.db.db = south.db.dbs[database]
+        # We now have to make sure the migrations are all reloaded, as they'll
+        # have imported the old value of south.db.db.
+        Migrations.invalidate_all_modules()
     applied = check_migration_histories(applied, delete_ghosts)
     
     # Guess the target_name

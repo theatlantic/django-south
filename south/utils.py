@@ -53,13 +53,21 @@ def auto_model(model):
     return getattr(model._meta, "auto_created", False)
 
 def memoize(function):
+    "Standard memoization decorator."
     name = function.__name__
     _name = '_' + name
+    
     def method(self):
         if not hasattr(self, _name):
             value = function(self)
             setattr(self, _name, value)
         return getattr(self, _name)
+    
+    def invalidate():
+        if hasattr(method, _name):
+            delattr(method, _name)
+        
     method.__name__ = function.__name__
     method.__doc__ = function.__doc__
+    method._invalidate = invalidate
     return method

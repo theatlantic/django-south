@@ -223,6 +223,13 @@ class Migrations(list):
             for migration in migrations:
                 migration.calculate_dependencies()
     
+    @staticmethod
+    def invalidate_all_modules():
+        "Goes through all the migrations, and invalidates all cached modules."
+        for migrations in all_migrations():
+            for migration in migrations:
+                migration.invalidate_module()
+    
     def next_filename(self, name):
         "Returns the fully-formatted filename of what a new migration 'name' would be"
         highest_number = 0
@@ -353,6 +360,14 @@ class Migration(object):
         if previous:
             self.dependencies.add(previous)
             previous.dependents.add(self)
+    
+    def invalidate_module(self):
+        """
+        Removes the cached version of this migration's module import, so we
+        have to re-import it. Used when south.db.db changes.
+        """
+        reload(self.migration())
+        self.migration._invalidate()
 
     def forwards(self):
         return self.migration_instance().forwards
