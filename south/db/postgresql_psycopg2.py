@@ -62,6 +62,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         Strips CHECKs from PositiveSmallIntegerField) and PositiveIntegerField
         @param field: The field to generate type for
         """
+        super_result = super(DatabaseOperations, self)._db_type_for_alter_column(field)
         if isinstance(field, models.PositiveSmallIntegerField) or isinstance(field, models.PositiveIntegerField):
-            return field.db_type().split(" ")[0]
-        return super(DatabaseOperations, self)._db_type_for_alter_column(field)
+            return super_result.split(" ")[0]
+        return super_result
