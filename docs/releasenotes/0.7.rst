@@ -2,9 +2,6 @@
 South 0.7
 =========
 
-**RELEASE NOTES STILL IN PROGRESS. ANYTHING HERE MAY BE INNACURATE,
-WRONG, OR COMPOSED OF PURE EVIL.**
-
 This is a major new release of South. A lot of work has been done to the
 internals, and a few annoying remnants from South's history have
 finally been eradicated.
