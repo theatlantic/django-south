@@ -49,13 +49,12 @@ tutorial.
 Field changes
 ^^^^^^^^^^^^^
 
-South will detect if you change a field, and can generally apply the changes,
-with a few exceptions:
+South will detect if you change a field, and should correctly change the field
+type, with one exception:
 
- - If you change the field to a ``ForeignKey``, or change the target model
-   of a ``ForeignKey``, South won't create a new constraint on your database
-   reflecting the change. This will be fixed in a future release; the interim 
-   effect is just that there's less error checking on your database.
+ - If you alter to a field with a CHECK constraint (e.g. ``PositiveIntegerField``)
+   the constraint won't be added to the column (it is removed if you alter away,
+   however). This will be fixed in a future release.
 
 
 ManyToMany addition and removal
