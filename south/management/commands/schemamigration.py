@@ -42,7 +42,7 @@ class Command(DataCommand):
             help='Make a blank migration.'),
     )
     help = "Creates a new template schema migration for the given app"
-    usage_str = "Usage: ./manage.py schemamigration appname migrationname [--initial] [--auto] [--add-model ModelName] [--add-field ModelName.field_name] [--stdout]"
+    usage_str = "Usage: ./manage.py schemamigration appname migrationname [--empty] [--initial] [--auto] [--add-model ModelName] [--add-field ModelName.field_name] [--stdout]"
     
     def handle(self, app=None, name="", added_model_list=None, added_field_list=None, freeze_list=None, initial=False, auto=False, stdout=False, added_index_list=None, verbosity=1, empty=False, **options):
         
@@ -153,8 +153,8 @@ class Command(DataCommand):
         
         # So, what's in this file, then?
         file_contents = MIGRATION_TEMPLATE % {
-            "forwards": "\n".join(forwards_actions), 
-            "backwards": "\n".join(backwards_actions), 
+            "forwards": "\n".join(forwards_actions or ["pass"]), 
+            "backwards": "\n".join(backwards_actions or ["pass"]), 
             "frozen_models":  freezer.freeze_apps_to_string(apps_to_freeze),
             "complete_apps": apps_to_freeze and "complete_apps = [%s]" % (", ".join(map(repr, apps_to_freeze))) or ""
         }
