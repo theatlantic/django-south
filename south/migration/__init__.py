@@ -157,7 +157,6 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
     app_label = migrations.app_label()
 
     verbosity = int(verbosity)
-    db.debug = (verbosity > 1)
     # Fire off the pre-migrate signal
     pre_migrate.send(None, app=app_label)
     
@@ -178,6 +177,8 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
         # We now have to make sure the migrations are all reloaded, as they'll
         # have imported the old value of south.db.db.
         Migrations.invalidate_all_modules()
+    
+    south.db.db.debug = (verbosity > 1)
     applied = check_migration_histories(applied, delete_ghosts)
     
     # Guess the target_name
@@ -198,7 +199,7 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
     migrator = get_migrator(direction, db_dry_run, fake, load_initial_data)
     if migrator:
         migrator.print_title(target)
-        success = migrator.migrate_many(target, workplan)
+        success = migrator.migrate_many(target, workplan, database)
         # Finally, fire off the post-migrate signal
         if success:
             post_migrate.send(None, app=app_label)
