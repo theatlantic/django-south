@@ -9,8 +9,9 @@ from django.core.management import call_command
 from django.core.management.commands import loaddata
 from django.db import models
 
+import south.db
 from south import exceptions
-from south.db import db
+from south.db import DEFAULT_DB_ALIAS
 from south.models import MigrationHistory
 from south.signals import ran_migration
 
@@ -55,7 +56,7 @@ class Migrator(object):
         return (lambda: direction(orm))
 
     @staticmethod
-    def record(migration):
+    def record(migration, database):
         raise NotImplementedError()
 
     def run_migration_error(self, migration, extra_info=''):
@@ -71,38 +72,38 @@ class Migrator(object):
 
     def run_migration(self, migration):
         migration_function = self.direction(migration)
-        db.start_transaction()
+        south.db.db.start_transaction()
         try:
             migration_function()
-            db.execute_deferred_sql()
+            south.db.db.execute_deferred_sql()
         except:
-            db.rollback_transaction()
-            if not db.has_ddl_transactions:
+            south.db.db.rollback_transaction()
+            if not south.db.db.has_ddl_transactions:
                 print self.run_migration_error(migration)
             raise
         else:
-            db.commit_transaction()
+            south.db.db.commit_transaction()
 
     def run(self, migration):
         # Get the correct ORM.
-        db.current_orm = self.orm(migration)
+        south.db.db.current_orm = self.orm(migration)
         # If the database doesn't support running DDL inside a transaction
         # *cough*MySQL*cough* then do a dry run first.
-        if not db.has_ddl_transactions:
+        if not south.db.db.has_ddl_transactions:
             dry_run = DryRunMigrator(migrator=self, ignore_fail=False)
             dry_run.run_migration(migration)
         return self.run_migration(migration)
 
-    def done_migrate(self, migration):
-        db.start_transaction()
+    def done_migrate(self, migration, database):
+        south.db.db.start_transaction()
         try:
             # Record us as having done this
-            self.record(migration)
+            self.record(migration, database)
         except:
-            db.rollback_transaction()
+            south.db.db.rollback_transaction()
             raise
         else:
-            db.commit_transaction()
+            south.db.db.commit_transaction()
 
     def send_ran_migration(self, migration):
         ran_migration.send(None,
@@ -110,7 +111,7 @@ class Migrator(object):
                            migration=migration,
                            method=self.__class__.__name__.lower())
 
-    def migrate(self, migration):
+    def migrate(self, migration, database):
         """
         Runs the specified migration forwards/backwards, in order.
         """
@@ -118,11 +119,11 @@ class Migrator(object):
         migration_name = migration.name()
         self.print_status(migration)
         result = self.run(migration)
-        self.done_migrate(migration)
+        self.done_migrate(migration, database)
         self.send_ran_migration(migration)
         return result
 
-    def migrate_many(self, target, migrations):
+    def migrate_many(self, target, migrations, database):
         raise NotImplementedError()
 
 
@@ -147,24 +148,24 @@ class DryRunMigrator(MigratorWrapper):
         if migration.no_dry_run() and self.verbosity:
             print " - Migration '%s' is marked for no-dry-run." % migration
             return
-        db.dry_run = True
+        south.db.db.dry_run = True
         if self._ignore_fail:
-            db.debug, old_debug = False, db.debug
-        pending_creates = db.get_pending_creates()
-        db.start_transaction()
+            south.db.db.debug, old_debug = False, south.db.db.debug
+        pending_creates = south.db.db.get_pending_creates()
+        south.db.db.start_transaction()
         migration_function = self.direction(migration)
         try:
             try:
                 migration_function()
-                db.execute_deferred_sql()
+                south.db.db.execute_deferred_sql()
             except:
                 raise exceptions.FailedDryRun(migration, sys.exc_info())
         finally:
-            db.rollback_transactions_dry_run()
+            south.db.db.rollback_transactions_dry_run()
             if self._ignore_fail:
-                db.debug = old_debug
-            db.clear_run_data(pending_creates)
-            db.dry_run = False
+                south.db.db.debug = old_debug
+            south.db.db.clear_run_data(pending_creates)
+            south.db.db.dry_run = False
 
     def run_migration(self, migration):
         try:
@@ -209,9 +210,9 @@ class LoadInitialDataMigrator(MigratorWrapper):
             models.get_apps = old_get_apps
             loaddata.get_apps = old_get_apps
 
-    def migrate_many(self, target, migrations):
+    def migrate_many(self, target, migrations, database):
         migrator = self._migrator
-        result = migrator.__class__.migrate_many(migrator, target, migrations)
+        result = migrator.__class__.migrate_many(migrator, target, migrations, database)
         if result:
             self.load_initial_data(target)
         return True
@@ -244,15 +245,19 @@ class Forwards(Migrator):
     direction = forwards
 
     @staticmethod
-    def record(migration):
+    def record(migration, database):
         # Record us as having done this
         record = MigrationHistory.for_migration(migration)
         record.applied = datetime.datetime.utcnow()
-        record.save()
+        if database != DEFAULT_DB_ALIAS:
+            record.save(using=database)
+        else:
+            # Django 1.1 and below always go down this branch.
+            record.save()
 
     def format_backwards(self, migration):
-        old_debug, old_dry_run = db.debug, db.dry_run
-        db.debug = db.dry_run = True
+        old_debug, old_dry_run = south.db.db.debug, south.db.db.dry_run
+        south.db.db.debug = south.db.db.dry_run = True
         stdout = sys.stdout
         sys.stdout = StringIO()
         try:
@@ -262,7 +267,7 @@ class Forwards(Migrator):
             except:
                 raise
         finally:
-            db.debug, db.dry_run = old_debug, old_dry_run
+            south.db.db.debug, south.db.db.dry_run = old_debug, old_dry_run
             sys.stdout = stdout
 
     def run_migration_error(self, migration, extra_info=''):
@@ -273,15 +278,15 @@ class Forwards(Migrator):
                       (self.format_backwards(migration), extra_info))
         return super(Forwards, self).run_migration_error(migration, extra_info)
 
-    def migrate_many(self, target, migrations):
+    def migrate_many(self, target, migrations, database):
         try:
             for migration in migrations:
-                result = self.migrate(migration)
+                result = self.migrate(migration, database)
                 if result is False: # The migrations errored, but nicely.
                     return False
         finally:
             # Call any pending post_syncdb signals
-            db.send_pending_create_signals()
+            south.db.db.send_pending_create_signals()
         return True
 
 
@@ -309,15 +314,19 @@ class Backwards(Migrator):
     direction = Migrator.backwards
 
     @staticmethod
-    def record(migration):
+    def record(migration, database):
         # Record us as having not done this
         record = MigrationHistory.for_migration(migration)
         if record.id is not None:
-            record.delete()
+            if database != DEFAULT_DB_ALIAS:
+                record.delete(using=database)
+            else:
+                # Django 1.1 always goes down here
+                record.delete()
 
-    def migrate_many(self, target, migrations):
+    def migrate_many(self, target, migrations, database):
         for migration in migrations:
-            self.migrate(migration)
+            self.migrate(migration, database)
         return True
 
 

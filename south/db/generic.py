@@ -43,7 +43,7 @@ class DatabaseOperations(object):
     allows_combined_alters = True
     add_column_string = 'ALTER TABLE %s ADD COLUMN %s;'
     delete_unique_sql = "ALTER TABLE %s DROP CONSTRAINT %s"
-    delete_foreign_key_sql = 'ALTER TABLE %s DROP CONSTRAINT %s'
+    delete_foreign_key_sql = 'ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s'
     supports_foreign_keys = True
     max_index_name_length = 63
     drop_index_string = 'DROP INDEX %(index_name)s'
@@ -278,7 +278,10 @@ class DatabaseOperations(object):
         To be overriden by backend specific subclasses
         @param field: The field to generate type for
         """
-        return field.db_type()
+        try:
+            return field.db_type(connection=self._get_connection())
+        except TypeError:
+            return field.db_type()
 
     def alter_column(self, table_name, name, field, explicit_name=True):
         """
@@ -311,6 +314,13 @@ class DatabaseOperations(object):
                     'table': self.quote_name(table_name),
                     'constraint': self.quote_name(constraint),
                 })
+        
+        # Drop all foreign key constraints
+        try:
+            self.delete_foreign_key(table_name, name)
+        except ValueError:
+            # There weren't any
+            pass
 
         # First, change the type
         params = {
@@ -330,17 +340,12 @@ class DatabaseOperations(object):
 
 
         # Next, nullity
-        params = {
-            "column": self.quote_name(name),
-            "type": field.db_type(),
-        }
         if field.null:
             sqls.append((self.alter_string_set_null % params, []))
         else:
             sqls.append((self.alter_string_drop_null % params, []))
 
-        # TODO: Unique
-
+        # Finally, actually change the column
         if self.allows_combined_alters:
             sqls, values = zip(*sqls)
             self.execute(
@@ -351,6 +356,17 @@ class DatabaseOperations(object):
             # Databases like e.g. MySQL don't like more than one alter at once.
             for sql, values in sqls:
                 self.execute("ALTER TABLE %s %s;" % (self.quote_name(table_name), sql), values)
+        
+        # Add back FK constraints if needed
+        if field.rel and self.supports_foreign_keys:
+            self.execute(
+                self.foreign_key_sql(
+                    table_name,
+                    field.column,
+                    field.rel.to._meta.db_table,
+                    field.rel.to._meta.get_field(field.rel.field_name).column
+                )
+            )
 
 
     def _constraints_affecting_columns(self, table_name, columns, type="UNIQUE"):
@@ -450,7 +466,11 @@ class DatabaseOperations(object):
         # Possible hook to fiddle with the fields (e.g. defaults & TEXT on MySQL)
         field = self._field_sanity(field)
 
-        sql = field.db_type()
+        try:
+            sql = field.db_type(connection=self._get_connection())
+        except TypeError:
+            sql = field.db_type()
+        
         if sql:        
             field_output = [self.quote_name(field.column), sql]
             field_output.append('%sNULL' % (not field.null and 'NOT ' or ''))
@@ -545,7 +565,7 @@ class DatabaseOperations(object):
             self.quote_name(to_column_name),
             self._get_connection().ops.deferrable_sql() # Django knows this
         )
-
+    
 
     def delete_foreign_key(self, table_name, column):
         "Drop a foreign key constraint"
@@ -555,10 +575,10 @@ class DatabaseOperations(object):
         if not constraints:
             raise ValueError("Cannot find a FOREIGN KEY constraint on table %s, column %s" % (table_name, column))
         for constraint_name in constraints:
-            self.execute(self.delete_foreign_key_sql % (
-                self.quote_name(table_name),
-                self.quote_name(constraint_name),
-            ))
+            self.execute(self.delete_foreign_key_sql % {
+                "table": self.quote_name(table_name),
+                "constraint": self.quote_name(constraint_name),
+            })
 
     drop_foreign_key = alias('delete_foreign_key')
 

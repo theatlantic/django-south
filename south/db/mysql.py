@@ -23,6 +23,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     alter_string_drop_null = 'MODIFY %(column)s %(type)s NOT NULL;'
     drop_index_string = 'DROP INDEX %(index_name)s ON %(table_name)s'
     delete_primary_key_sql = "ALTER TABLE %(table)s DROP PRIMARY KEY"
+    delete_foreign_key_sql = "ALTER TABLE %(table)s DROP FOREIGN KEY %(constraint)s"
     allows_combined_alters = False
     has_ddl_transactions = False
     has_check_constraints = False
@@ -154,6 +155,6 @@ class DatabaseOperations(generic.DatabaseOperations):
         """
         This particular override stops us sending DEFAULTs for BLOB/TEXT columns.
         """
-        if field.db_type().upper() in ["BLOB", "TEXT", "LONGTEXT"]:
+        if self._db_type_for_alter_column(field).upper() in ["BLOB", "TEXT", "LONGTEXT"]:
             field._suppress_default = True
         return field
