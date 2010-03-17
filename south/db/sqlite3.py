@@ -81,9 +81,17 @@ class DatabaseOperations(generic.DatabaseOperations):
         # Make a list of all the fields to select
         cursor = self._get_connection().cursor()
         q_fields = [column_info[0] for column_info in self._get_connection().introspection.get_table_description(cursor, dst)]
-        # Make sure renames are done correctly
+        new_to_old = {}
         for old, new in field_renames.items():
-            q_fields[q_fields.index(new)] = "%s AS %s" % (old, self.quote_name(new))
+            new_to_old[new] = old
+        q_fields_new = []
+        for field in q_fields:
+            if field in new_to_old:
+                # Make sure renames are done correctly
+                q_fields_new.append("%s AS %s" % (self.quote_name(new_to_old[field]), self.quote_name(field)))
+            else:
+                q_fields_new.append(self.quote_name(field))
+        q_fields = q_fields_new
         # Copy over the data
         self.execute("INSERT INTO %s SELECT %s FROM %s;" % (
             self.quote_name(dst),
