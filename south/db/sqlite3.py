@@ -52,6 +52,8 @@ class DatabaseOperations(generic.DatabaseOperations):
         # Work out new column defs.
         for column_info in self._get_connection().introspection.get_table_description(cursor, table_name):
             name = column_info[0]
+            if name in deleted:
+                continue
             type = column_info[1]
             unique = indexes[name]['unique']
             primary_key = indexes[name]['primary_key']
