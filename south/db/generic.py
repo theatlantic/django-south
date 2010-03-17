@@ -452,12 +452,14 @@ class DatabaseOperations(object):
             ))
 
 
-    def column_sql(self, table_name, field_name, field, tablespace=''):
+    def column_sql(self, table_name, field_name, field, tablespace='', with_name=True, field_prepared=False):
         """
         Creates the SQL snippet for a column. Used by add_column and add_table.
         """
 
-        field.set_attributes_from_name(field_name)
+        # If the field hasn't already been told its attribute name, do so.
+        if not field_prepared:
+            field.set_attributes_from_name(field_name)
 
         # hook for the field to do any resolution prior to it's attributes being queried
         if hasattr(field, 'south_init'):
@@ -471,8 +473,14 @@ class DatabaseOperations(object):
         except TypeError:
             sql = field.db_type()
         
-        if sql:        
-            field_output = [self.quote_name(field.column), sql]
+        if sql:
+            
+            # Some callers, like the sqlite stuff, just want the extended type.
+            if with_name:
+                field_output = [self.quote_name(field.column), sql]
+            else:
+                field_output = [sql]
+            
             field_output.append('%sNULL' % (not field.null and 'NOT ' or ''))
             if field.primary_key:
                 field_output.append('PRIMARY KEY')

@@ -106,10 +106,10 @@ class DatabaseOperations(generic.DatabaseOperations):
         # Get the column's SQL
         field.set_attributes_from_name(name)
         if not explicit_name:
-            name = field.column
+            name = field.db_column
         else:
             field.column = name
-        sql = self.column_sql(table_name, name, field)
+        sql = self.column_sql(table_name, name, field, with_name=False, field_prepared=True)
         # Remake the table correctly
         self._remake_table(table_name, altered={name: sql})
 
