@@ -207,9 +207,10 @@ class AutoChanges(BaseChanges):
                 
                 # For the ones that exist in both models, see if they were changed
                 for fieldname in set(old_fields).intersection(set(new_fields)):
+                    # Non-index changes
                     if self.different_attributes(
-                     remove_useless_attributes(old_fields[fieldname], True),
-                     remove_useless_attributes(new_fields[fieldname], True)):
+                     remove_useless_attributes(old_fields[fieldname], True, True),
+                     remove_useless_attributes(new_fields[fieldname], True, True)):
                         yield ("ChangeField", {
                             "model": self.current_model_from_key(key),
                             "old_field": self.old_orm[key + ":" + fieldname],
@@ -217,20 +218,33 @@ class AutoChanges(BaseChanges):
                             "old_def": old_fields[fieldname],
                             "new_def": new_fields[fieldname],
                         })
-                    # See if their uniques have changed
+                    # Index changes
                     old_field = self.old_orm[key + ":" + fieldname]
                     new_field = self.current_field_from_key(key, fieldname)
+                    if not old_field.db_index and new_field.db_index:
+                        # They've added an index.
+                        yield ("AddIndex", {
+                            "model": self.current_model_from_key(key),
+                            "fields": [new_field],
+                        })
+                    if old_field.db_index and not new_field.db_index:
+                        # They've removed an index.
+                        yield ("DeleteIndex", {
+                            "model": self.old_orm[key],
+                            "fields": [old_field],
+                        })
+                    # See if their uniques have changed
                     if old_field.unique != new_field.unique:
                         # Make sure we look at the one explicitly given to see what happened
                         if new_field.unique:
                             yield ("AddUnique", {
                                 "model": self.current_model_from_key(key),
-                                "fields": [self.current_field_from_key(key, fieldname)],
+                                "fields": [new_field],
                             })
                         else:
                             yield ("DeleteUnique", {
                                 "model": self.old_orm[key],
-                                "fields": [self.old_orm[key + ":" + fieldname]],
+                                "fields": [old_field],
                             })
                 
                 # See if there's any M2Ms that have changed.
