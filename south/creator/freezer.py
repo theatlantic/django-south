@@ -144,13 +144,16 @@ def pprint_fields(fields):
 
 USELESS_KEYWORDS = ["choices", "help_text", "upload_to", "verbose_name", "storage"]
 USELESS_DB_KEYWORDS = ["related_name", "default"] # Important for ORM, not for DB.
+INDEX_KEYWORDS = ["db_index"]
 
-def remove_useless_attributes(field, db=False):
+def remove_useless_attributes(field, db=False, indexes=False):
     "Removes useless (for database) attributes from the field's defn."
     # Work out what to remove, and remove it.
     keywords = USELESS_KEYWORDS[:]
     if db:
         keywords += USELESS_DB_KEYWORDS[:]
+    if indexes:
+        keywords += INDEX_KEYWORDS[:]
     if field:
         for name in keywords:
             if name in field[2]:
