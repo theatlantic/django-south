@@ -247,7 +247,7 @@ class Forwards(Migrator):
     @staticmethod
     def record(migration, database):
         # Record us as having done this
-        record = MigrationHistory.for_migration(migration)
+        record = MigrationHistory.for_migration(migration, database)
         record.applied = datetime.datetime.utcnow()
         if database != DEFAULT_DB_ALIAS:
             record.save(using=database)
@@ -316,7 +316,7 @@ class Backwards(Migrator):
     @staticmethod
     def record(migration, database):
         # Record us as having not done this
-        record = MigrationHistory.for_migration(migration)
+        record = MigrationHistory.for_migration(migration, database)
         if record.id is not None:
             if database != DEFAULT_DB_ALIAS:
                 record.delete(using=database)
