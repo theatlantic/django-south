@@ -43,3 +43,24 @@ of its attributes.
 Make note that the entries in positional_args and kwd_args are
 **strings passed into eval**; thus, a string would be ``'"hello"'``.
 We strongly recommend you use schemamigration/datamigration to freeze things.
+
+Accessing the ORM
+-----------------
+
+From inside a migration, you can access models from the frozen ORM in two ways.
+If the model you're accessing is part of the same app, you can simply call::
+
+ orm.ModelName
+ 
+Otherwise, you'll need to specify the app name as well, using::
+
+ orm['myapp.ModelName']
+ 
+For example, if you wanted to get a user with ID 1, you could use:
+
+ orm['auth.User'].objects.get(id=1)
+ 
+Note that you can only access models that have been frozen; South automatically
+includes anything that could be reaches via foreign keys or many-to-many
+relationships, but if you want to add other models in, simply pass ``--freeze appname``
+to the ``./manage.py datamigration`` command.
