@@ -25,6 +25,7 @@ Contents
 .. toctree::
    :maxdepth: 2
    
+   about
    whataremigrations
    installation
    tutorial/index
