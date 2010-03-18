@@ -107,37 +107,37 @@ class TestMigration(Monkeypatcher):
 
     def test_forwards_plan(self):
         self.assertEqual([
-                set([self.fakeapp['0001_spam']]),
-                set([
+                [self.fakeapp['0001_spam']],
+                [
                     self.fakeapp['0001_spam'],
                     self.fakeapp['0002_eggs']
-                ]),
-                set([
+                ],
+                [
                     self.fakeapp['0001_spam'],
                     self.fakeapp['0002_eggs'],
                     self.fakeapp['0003_alter_spam'],
-                ])
+                ]
             ],
             [m.forwards_plan() for m in self.fakeapp],
         )
         self.assertEqual([
-                set([
+                [
                     self.fakeapp['0001_spam'],
                     self.otherfakeapp['0001_first']
-                ]),
-                set([
+                ],
+                [
                     self.fakeapp['0001_spam'],
                     self.otherfakeapp['0001_first'],
                     self.otherfakeapp['0002_second']
-                ]),
-                set([
+                ],
+                [
                     self.fakeapp['0001_spam'],
                     self.otherfakeapp['0001_first'],
                     self.otherfakeapp['0002_second'],
                     self.fakeapp['0002_eggs'],
                     self.fakeapp['0003_alter_spam'],
                     self.otherfakeapp['0003_third'],
-                ])
+                ]
             ],
             [m.forwards_plan() for m in self.otherfakeapp],
         )
@@ -169,53 +169,74 @@ class TestMigrationDependencies(Monkeypatcher):
         self.deps_a = Migrations('deps_a')
         self.deps_b = Migrations('deps_b')
         self.deps_c = Migrations('deps_c')
+        Migrations.calculate_dependencies()
 
     def test_dependencies(self):
-        self.assertEqual([[],
-                          [self.deps_a['0001_a']],
-                          [self.deps_a['0002_a']],
-                          [self.deps_a['0003_a'],
-                           self.deps_b['0003_b']],
-                          [self.deps_a['0004_a']]],
-                         [m.dependencies for m in self.deps_a])
-        self.assertEqual([[],
-                          [self.deps_b['0001_b'],
-                           self.deps_a['0002_a']],
-                          [self.deps_b['0002_b'],
-                           self.deps_a['0003_a']],
-                          [self.deps_b['0003_b']],
-                          [self.deps_b['0004_b']]],
-                         [m.dependencies for m in self.deps_b])
-        self.assertEqual([[],
-                          [self.deps_c['0001_c']],
-                          [self.deps_c['0002_c']],
-                          [self.deps_c['0003_c']],
-                          [self.deps_c['0004_c'],
-                           self.deps_a['0002_a']]],
-                         [m.dependencies for m in self.deps_c])
+        self.assertEqual(
+            [
+                set([]),
+                set([self.deps_a['0001_a']]),
+                set([self.deps_a['0002_a']]),
+                set([
+                    self.deps_a['0003_a'],
+                    self.deps_b['0003_b'],
+                ]),
+                set([self.deps_a['0004_a']]),
+            ],
+            [m.dependencies for m in self.deps_a],
+        )
+        self.assertEqual(
+            [
+                set([]),
+                set([
+                    self.deps_b['0001_b'],
+                    self.deps_a['0002_a']
+                ]),
+                set([
+                    self.deps_b['0002_b'],
+                    self.deps_a['0003_a']
+                ]),
+                set([self.deps_b['0003_b']]),
+                set([self.deps_b['0004_b']]),
+            ],
+            [m.dependencies for m in self.deps_b],
+        )
+        self.assertEqual(
+            [
+                set([]),
+                set([self.deps_c['0001_c']]),
+                set([self.deps_c['0002_c']]),
+                set([self.deps_c['0003_c']]),
+                set([
+                    self.deps_c['0004_c'],
+                    self.deps_a['0002_a']
+                ]),
+            ],
+            [m.dependencies for m in self.deps_c],
+        )
 
     def test_dependents(self):
-        self.assertEqual([deque([self.deps_a['0002_a']]),
-                          deque([self.deps_c['0005_c'],
+        self.assertEqual([set([self.deps_a['0002_a']]),
+                          set([self.deps_c['0005_c'],
                                  self.deps_b['0002_b'],
                                  self.deps_a['0003_a']]),
-                          deque([self.deps_b['0003_b'],
+                          set([self.deps_b['0003_b'],
                                  self.deps_a['0004_a']]),
-                          deque([self.deps_a['0005_a']]),
-                          deque([])],
+                          set([self.deps_a['0005_a']]),
+                          set([])],
                          [m.dependents for m in self.deps_a])
-        self.assertEqual([deque([self.deps_b['0002_b']]),
-                          deque([self.deps_b['0003_b']]),
-                          deque([self.deps_b['0004_b'],
+        self.assertEqual([set([self.deps_b['0002_b']]),
+                          set([self.deps_b['0003_b']]),
+                          set([self.deps_b['0004_b'],
                                  self.deps_a['0004_a']]),
-                          deque([self.deps_b['0005_b']]),
-                          deque([])],
+                          set([self.deps_b['0005_b']]),
+                          set([])],
                          [m.dependents for m in self.deps_b])
-        self.assertEqual([deque([self.deps_c['0002_c']]),
-                          deque([self.deps_c['0003_c']]),
-                          deque([self.deps_c['0004_c']]),
-                          deque([self.deps_c['0005_c']]),
-                          deque([])],
+        self.assertEqual([set([self.deps_c['0002_c']]),
+                          set([self.deps_c['0003_c']]),
+                          set([self.deps_c['0004_c']]),
+                          set([self.deps_c['0005_c']]),
+                          set([])],
                          [m.dependents for m in self.deps_c])
 
     def test_forwards_plan(self):
@@ -240,7 +261,7 @@ class TestMigrationDependencies(Monkeypatcher):
                            self.deps_b['0003_b'],
                            self.deps_a['0004_a'],
                            self.deps_a['0005_a']]],
-                         [m.forwards_plan for m in self.deps_a])
+                         [m.forwards_plan() for m in self.deps_a])
         self.assertEqual([[self.deps_b['0001_b']],
                           [self.deps_b['0001_b'],
                            self.deps_a['0001_a'],
@@ -267,7 +288,7 @@ class TestMigrationDependencies(Monkeypatcher):
                            self.deps_b['0003_b'],
                            self.deps_b['0004_b'],
                            self.deps_b['0005_b']]],
-                         [m.forwards_plan for m in self.deps_b])
+                         [m.forwards_plan() for m in self.deps_b])
         self.assertEqual([[self.deps_c['0001_c']],
                           [self.deps_c['0001_c'],
                            self.deps_c['0002_c']],
@@ -285,76 +306,107 @@ class TestMigrationDependencies(Monkeypatcher):
                            self.deps_a['0001_a'],
                            self.deps_a['0002_a'],
                            self.deps_c['0005_c']]],
-                         [m.forwards_plan for m in self.deps_c])
+                         [m.forwards_plan() for m in self.deps_c])
 
     def test_backwards_plan(self):
-        self.assertEqual([[self.deps_c['0005_c'],
-                           self.deps_b['0005_b'],
-                           self.deps_b['0004_b'],
-                           self.deps_a['0005_a'],
-                           self.deps_a['0004_a'],
-                           self.deps_b['0003_b'],
-                           self.deps_b['0002_b'],
-                           self.deps_a['0003_a'],
-                           self.deps_a['0002_a'],
-                           self.deps_a['0001_a']],
-                          [self.deps_c['0005_c'],
-                           self.deps_b['0005_b'],
-                           self.deps_b['0004_b'],
-                           self.deps_a['0005_a'],
-                           self.deps_a['0004_a'],
-                           self.deps_b['0003_b'],
-                           self.deps_b['0002_b'],
-                           self.deps_a['0003_a'],
-                           self.deps_a['0002_a']],
-                          [self.deps_b['0005_b'],
-                           self.deps_b['0004_b'],
-                           self.deps_a['0005_a'],
-                           self.deps_a['0004_a'],
-                           self.deps_b['0003_b'],
-                           self.deps_a['0003_a']],
-                          [self.deps_a['0005_a'],
-                           self.deps_a['0004_a']],
-                          [self.deps_a['0005_a']]],
-                         [m.backwards_plan for m in self.deps_a])
-        self.assertEqual([[self.deps_b['0005_b'],
-                           self.deps_b['0004_b'],
-                           self.deps_a['0005_a'],
-                           self.deps_a['0004_a'],
-                           self.deps_b['0003_b'],
-                           self.deps_b['0002_b'],
-                           self.deps_b['0001_b']],
-                          [self.deps_b['0005_b'],
-                           self.deps_b['0004_b'],
-                           self.deps_a['0005_a'],
-                           self.deps_a['0004_a'],
-                           self.deps_b['0003_b'],
-                           self.deps_b['0002_b']],
-                          [self.deps_b['0005_b'],
-                           self.deps_b['0004_b'],
-                           self.deps_a['0005_a'],
-                           self.deps_a['0004_a'],
-                           self.deps_b['0003_b']],
-                          [self.deps_b['0005_b'],
-                           self.deps_b['0004_b']],
-                          [self.deps_b['0005_b']]],
-                         [m.backwards_plan for m in self.deps_b])
-        self.assertEqual([[self.deps_c['0005_c'],
-                           self.deps_c['0004_c'],
-                           self.deps_c['0003_c'],
-                           self.deps_c['0002_c'],
-                           self.deps_c['0001_c']],
-                          [self.deps_c['0005_c'],
-                           self.deps_c['0004_c'],
-                           self.deps_c['0003_c'],
-                           self.deps_c['0002_c']],
-                          [self.deps_c['0005_c'],
-                           self.deps_c['0004_c'],
-                           self.deps_c['0003_c']],
-                          [self.deps_c['0005_c'],
-                           self.deps_c['0004_c']],
-                          [self.deps_c['0005_c']]],
-                         [m.backwards_plan for m in self.deps_c])
+        self.assertEqual([
+            [
+                self.deps_c['0005_c'],
+                self.deps_b['0005_b'],
+                self.deps_b['0004_b'],
+                self.deps_a['0005_a'],
+                self.deps_a['0004_a'],
+                self.deps_b['0003_b'],
+                self.deps_b['0002_b'],
+                self.deps_a['0003_a'],
+                self.deps_a['0002_a'],
+                self.deps_a['0001_a'],
+            ],
+            [
+                self.deps_c['0005_c'],
+                self.deps_b['0005_b'],
+                self.deps_b['0004_b'],
+                self.deps_a['0005_a'],
+                self.deps_a['0004_a'],
+                self.deps_b['0003_b'],
+                self.deps_b['0002_b'],
+                self.deps_a['0003_a'],
+                self.deps_a['0002_a'],
+            ],
+            [
+                self.deps_b['0005_b'],
+                self.deps_b['0004_b'],
+                self.deps_a['0005_a'],
+                self.deps_a['0004_a'],
+                self.deps_b['0003_b'],
+                self.deps_a['0003_a'],
+            ],
+            [
+                self.deps_a['0005_a'],
+                self.deps_a['0004_a'],
+            ],
+            [
+                self.deps_a['0005_a'],
+            ]
+        ], [m.backwards_plan() for m in self.deps_a])
+        self.assertEqual([
+            [
+                self.deps_b['0005_b'],
+                self.deps_b['0004_b'],
+                self.deps_a['0005_a'],
+                self.deps_a['0004_a'],
+                self.deps_b['0003_b'],
+                self.deps_b['0002_b'],
+                self.deps_b['0001_b'],
+            ],
+            [
+                self.deps_b['0005_b'],
+                self.deps_b['0004_b'],
+                self.deps_a['0005_a'],
+                self.deps_a['0004_a'],
+                self.deps_b['0003_b'],
+                self.deps_b['0002_b'],
+            ],
+            [
+                self.deps_b['0005_b'],
+                self.deps_b['0004_b'],
+                self.deps_a['0005_a'],
+                self.deps_a['0004_a'],
+                self.deps_b['0003_b'],
+            ],
+            [
+                self.deps_b['0005_b'],
+                self.deps_b['0004_b'],
+            ],
+            [
+                self.deps_b['0005_b'],
+            ],
+        ], [m.backwards_plan() for m in self.deps_b])
+        self.assertEqual([
+            [
+                self.deps_c['0005_c'],
+                self.deps_c['0004_c'],
+                self.deps_c['0003_c'],
+                self.deps_c['0002_c'],
+                self.deps_c['0001_c'],
+            ],
+            [
+                self.deps_c['0005_c'],
+                self.deps_c['0004_c'],
+                self.deps_c['0003_c'],
+                self.deps_c['0002_c'],
+            ],
+            [
+                self.deps_c['0005_c'],
+                self.deps_c['0004_c'],
+                self.deps_c['0003_c'],
+            ],
+            [
+                self.deps_c['0005_c'],
+                self.deps_c['0004_c'],
+            ],
+            [self.deps_c['0005_c']]
+        ],  [m.backwards_plan() for m in self.deps_c])
 
 
 class TestCircularDependencies(Monkeypatcher):
@@ -522,15 +574,27 @@ class TestMigrationLogic(Monkeypatcher):
         try:
             migrate_app(migrations, target_name=None, fake=False)
         except exceptions.InconsistentMigrationHistory, e:
-            self.assertEqual([(migrations['0002_eggs'],
-                               [migrations['0001_spam']])],
-                             e.problems)
+            self.assertEqual(
+                [
+                    (
+                        migrations['0002_eggs'],
+                        migrations['0001_spam'],
+                    )
+                ],
+                e.problems,
+            )
         try:
             migrate_app(migrations, target_name="zero", fake=False)
         except exceptions.InconsistentMigrationHistory, e:
-            self.assertEqual([(migrations['0001_spam'],
-                               [migrations['0002_eggs']])],
-                             e.problems)
+            self.assertEqual(
+                [
+                    (
+                        migrations['0002_eggs'],
+                        migrations['0001_spam'],
+                    )
+                ],
+                e.problems,
+            )
         
         # Nothing should have changed (no merge mode!)
         self.assertListEqual(
@@ -682,15 +746,19 @@ class TestUtils(unittest.TestCase):
                  'A2': ['A1'],
                  'A3': ['A2', 'A1', 'B1'],
                  'B1': []}
-        self.assertEqual(['A1', 'A2', 'B1', 'A3'],
-                         depends('A3', lambda n: graph[n]))
+        self.assertEqual(
+            ['B1', 'A1', 'A2', 'A3'],
+            depends('A3', lambda n: graph[n]),
+        )
         graph = {'A1': [],
                  'A2': ['A1'],
                  'A3': ['A2', 'A1', 'B2'],
                  'B1': [],
                  'B2': ['B1']}
-        self.assertEqual(['A1', 'A2', 'B1', 'B2', 'A3'],
-                         depends('A3', lambda n: graph[n]))
+        self.assertEqual(
+            ['B1', 'B2', 'A1', 'A2', 'A3'],
+            depends('A3', lambda n: graph[n]),
+        )
         graph = {'A1': [],
                  'A2': ['A1', 'B1'],
                  'A3': ['A2'],
@@ -703,8 +771,10 @@ class TestUtils(unittest.TestCase):
                  'B1': [],
                  'B2': ['B1', 'C1'],
                  'C1': ['B1']}
-        self.assertEqual(['A1', 'A2', 'B1', 'C1', 'B2', 'A3'],
-                         depends('A3', lambda n: graph[n]))
+        self.assertEqual(
+            ['B1', 'C1', 'B2', 'A1', 'A2', 'A3'],
+            depends('A3', lambda n: graph[n]),
+        )
         graph = {'A1': [],
                  'A2': ['A1'],
                  'A3': ['A2', 'B2', 'A1', 'C1'],
@@ -713,12 +783,19 @@ class TestUtils(unittest.TestCase):
                  'C1': ['B1'],
                  'C2': ['C1', 'A1'],
                  'C3': ['C2']}
-        self.assertEqual(['A1', 'A2', 'B1', 'C1', 'C2', 'B2', 'A3'],
-                         depends('A3', lambda n: graph[n]))
+        self.assertEqual(
+            ['A1', 'B1', 'C1', 'C2', 'B2', 'A2', 'A3'],
+            depends('A3', lambda n: graph[n]),
+        )
 
     def assertCircularDependency(self, trace, target, graph):
-        self.assertRaises(exceptions.CircularDependency,
-                          depends, target, lambda n: graph[n])
+        "Custom assertion that checks a circular dependency is detected correctly."
+        self.assertRaises(
+            exceptions.CircularDependency,
+            depends,
+            target,
+            lambda n: graph[n],
+        )
         try:
             depends(target, lambda n: graph[n])
         except exceptions.CircularDependency, e:
@@ -726,45 +803,66 @@ class TestUtils(unittest.TestCase):
 
     def test_depends_cycle(self):
         graph = {'A1': ['A1']}
-        self.assertCircularDependency(['A1', 'A1'],
-                                      'A1', graph)
+        self.assertCircularDependency(
+            ['A1', 'A1'],
+            'A1',
+            graph,
+        )
         graph = {'A1': [],
                  'A2': ['A1', 'A2'],
                  'A3': ['A2']}
-        self.assertCircularDependency(['A2', 'A2'],
-                                      'A3', graph)
+        self.assertCircularDependency(
+            ['A1', 'A2', 'A1'],
+            'A3',
+            graph,
+        )
         graph = {'A1': [],
                  'A2': ['A1'],
                  'A3': ['A2', 'A3'],
                  'A4': ['A3']}
-        self.assertCircularDependency(['A3', 'A3'],
-                                      'A4', graph)
+        self.assertCircularDependency(
+            ['A3', 'A2', 'A1', 'A3'],
+            'A4',
+            graph,
+        )
         graph = {'A1': ['B1'],
                  'B1': ['A1']}
-        self.assertCircularDependency(['A1', 'B1', 'A1'],
-                                      'A1', graph)
+        self.assertCircularDependency(
+            ['A1', 'B1', 'A1'],
+            'A1',
+            graph,
+        )
         graph = {'A1': [],
                  'A2': ['A1', 'B2'],
                  'A3': ['A2'],
                  'B1': [],
                  'B2': ['B1', 'A2'],
                  'B3': ['B2']}
-        self.assertCircularDependency(['B2', 'A2', 'B2'],
-                                      'A3', graph)
+        self.assertCircularDependency(
+            ['B1', 'A2', 'A1', 'B2', 'B1'],
+            'A3',
+            graph,
+        )
         graph = {'A1': [],
                  'A2': ['A1', 'B3'],
                  'A3': ['A2'],
                  'B1': [],
                  'B2': ['B1', 'A2'],
                  'B3': ['B2']}
-        self.assertCircularDependency(['A2', 'B3', 'B2', 'A2'],
-                                      'A3', graph)
+        self.assertCircularDependency(
+            ['B3', 'B2', 'B1', 'A2', 'A1', 'B3'],
+            'A3',
+            graph,
+        )
         graph = {'A1': [],
                  'A2': ['A1'],
                  'A3': ['A2', 'B2'],
                  'A4': ['A3'],
                  'B1': ['A3'],
                  'B2': ['B1']}
-        self.assertCircularDependency(['A3', 'B2', 'B1', 'A3'],
-                                      'A4', graph)
+        self.assertCircularDependency(
+            ['A1', 'B2', 'B1', 'A3', 'A2', 'A1'],
+            'A4',
+            graph,
+        )
 
