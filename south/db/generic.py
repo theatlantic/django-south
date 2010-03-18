@@ -268,7 +268,7 @@ class DatabaseOperations(object):
             # Now, drop the default if we need to
             if not keep_default and field.default is not None:
                 field.default = NOT_PROVIDED
-                self.alter_column(table_name, name, field, explicit_name=False)
+                self.alter_column(table_name, name, field, explicit_name=False, ignore_constraints=True)
 
 
     def _db_type_for_alter_column(self, field):
@@ -283,7 +283,7 @@ class DatabaseOperations(object):
         except TypeError:
             return field.db_type()
 
-    def alter_column(self, table_name, name, field, explicit_name=True):
+    def alter_column(self, table_name, name, field, explicit_name=True, ignore_constraints=False):
         """
         Alters the given column name so it will match the given field.
         Note that conversion between the two by the database must be possible.
@@ -306,21 +306,22 @@ class DatabaseOperations(object):
         else:
             field.column = name
 
-        # Drop all check constraints. TODO: Add the right ones back.
-        if self.has_check_constraints:
-            check_constraints = self._constraints_affecting_columns(table_name, [name], "CHECK")
-            for constraint in check_constraints:
-                self.execute(self.delete_check_sql % {
-                    'table': self.quote_name(table_name),
-                    'constraint': self.quote_name(constraint),
-                })
+        if not ignore_constraints:
+            # Drop all check constraints. TODO: Add the right ones back.
+            if self.has_check_constraints:
+                check_constraints = self._constraints_affecting_columns(table_name, [name], "CHECK")
+                for constraint in check_constraints:
+                    self.execute(self.delete_check_sql % {
+                        'table': self.quote_name(table_name),
+                        'constraint': self.quote_name(constraint),
+                    })
         
-        # Drop all foreign key constraints
-        try:
-            self.delete_foreign_key(table_name, name)
-        except ValueError:
-            # There weren't any
-            pass
+            # Drop all foreign key constraints
+            try:
+                self.delete_foreign_key(table_name, name)
+            except ValueError:
+                # There weren't any
+                pass
 
         # First, change the type
         params = {
@@ -357,16 +358,17 @@ class DatabaseOperations(object):
             for sql, values in sqls:
                 self.execute("ALTER TABLE %s %s;" % (self.quote_name(table_name), sql), values)
         
-        # Add back FK constraints if needed
-        if field.rel and self.supports_foreign_keys:
-            self.execute(
-                self.foreign_key_sql(
-                    table_name,
-                    field.column,
-                    field.rel.to._meta.db_table,
-                    field.rel.to._meta.get_field(field.rel.field_name).column
+        if not ignore_constraints:
+            # Add back FK constraints if needed
+            if field.rel and self.supports_foreign_keys:
+                self.execute(
+                    self.foreign_key_sql(
+                        table_name,
+                        field.column,
+                        field.rel.to._meta.db_table,
+                        field.rel.to._meta.get_field(field.rel.field_name).column
+                    )
                 )
-            )
 
 
     def _constraints_affecting_columns(self, table_name, columns, type="UNIQUE"):
