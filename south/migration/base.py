@@ -211,7 +211,7 @@ class Migrations(list):
             return self._guess_migration(prefix=target_name)
     
     def app_label(self):
-        return get_app_label(self._migrations)
+        return self._application.__name__.split('.')[-1]
 
     def full_name(self):
         return self._migrations.__name__
