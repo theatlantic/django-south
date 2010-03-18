@@ -272,7 +272,7 @@ class _FakeORM(object):
                     raise UnfreezeMeLater()
             bases = [self.models[key.lower()] for key in data['Meta']['_ormbases']]
         # Perhaps the old style?
-        if "_bases" in data['Meta']:
+        elif "_bases" in data['Meta']:
             bases = map(ask_for_it_by_name, data['Meta']['_bases'])
         # Ah, bog standard, then.
         else:
