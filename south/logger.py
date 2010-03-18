@@ -24,3 +24,10 @@ def get_logger():
         else:
             raise IOError, "SOUTH_LOGGING_ON is True. You also need a SOUTH_LOGGING_FILE setting."
     return _logger
+
+def close_logger():
+    "Closes the logger handler for the file, so we can remove the file after a test."
+    for handler in _logger.handlers:
+        _logger.removeHandler(handler)
+        if isinstance(handler, logging.FileHandler):
+            handler.close()
