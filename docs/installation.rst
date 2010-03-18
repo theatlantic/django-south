@@ -18,6 +18,9 @@ repositories; if you're running unstable Debian you can
 ``yum install Django-south``. Note that this may give you an older version - 
 check the version before using the packages.
 
+South should work with versions of Django from 0.97-pre through to 1.2, although
+some features (such as multi-db) may not be available for older Django versions.
+
 
 .. _installation-easy-install:
  
