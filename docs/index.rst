@@ -14,6 +14,11 @@ what is written here.
 If you want to view the old docs (for example, if you need something that was
 only in 0.6) they're `still available <http://south.aeracode.org/wiki/OldDocumentation>`_.
 
+Support
+-------
+
+For initial help with problems, see our `mailing list <http://groups.google.com/group/south-users>`_, or `#django-south <irc://irc.freenode.net/django-south>`_ on `freenode <http://freenode.net/>`_. If you find a real bug, then `file a new ticket <http://south.aeracode.org/newticket>`_.
+
 Contents
 --------
 

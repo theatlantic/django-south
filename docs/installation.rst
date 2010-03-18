@@ -4,6 +4,8 @@
 Installation
 ============
 
+South's current release is :ref:`0.7 RC1 <0-7-release-notes>`.
+
 There are a few different ways to install South:
 
  - :ref:`Using easy_install <installation-easy-install>` (or pip), which is recommended if you want stable releases.
@@ -13,7 +15,8 @@ There are a few different ways to install South:
 Some Linux distributions are also starting to include South in their package
 repositories; if you're running unstable Debian you can
 ``apt-get install python-django-south``, and on new Fedoras you can use
-``yum install Django-south``.
+``yum install Django-south``. Note that this may give you an older version - 
+check the version before using the packages.
 
 
 .. _installation-easy-install:
