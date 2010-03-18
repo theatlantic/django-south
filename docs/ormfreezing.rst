@@ -56,7 +56,7 @@ Otherwise, you'll need to specify the app name as well, using::
 
  orm['myapp.ModelName']
  
-For example, if you wanted to get a user with ID 1, you could use:
+For example, if you wanted to get a user with ID 1, you could use::
 
  orm['auth.User'].objects.get(id=1)
  
