@@ -17,9 +17,10 @@ def get_logger():
     logging_file = getattr(settings, "SOUTH_LOGGING_FILE", False)
     
     if debug_on:
-        if logging_file and len(_logger.handlers) < 2:
-            _logger.addHandler(logging.FileHandler(logging_file))
-            _logger.setLevel(logging.DEBUG)
+        if logging_file:
+            if len(_logger.handlers) < 2:
+                _logger.addHandler(logging.FileHandler(logging_file))
+                _logger.setLevel(logging.DEBUG)
         else:
             raise IOError, "SOUTH_LOGGING_ON is True. You also need a SOUTH_LOGGING_FILE setting."
     
