@@ -28,4 +28,4 @@ class Command(BaseCommand):
     
     def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, freeze_list=None, auto=False, stdout=False, added_index_list=None, **options):
         
-        print "The 'startmigration' command is now depreciated; please use the new 'schemamigration' and 'datamigration' commands."
+        print "The 'startmigration' command is now deprecated; please use the new 'schemamigration' and 'datamigration' commands."
