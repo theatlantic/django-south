@@ -169,8 +169,8 @@ Example (this is in the GeoDjango module South ships with, and presumes
  
 Additionally, you can ignore some fields completely if you know they're not
 needed. For example, django-taggit has a manager that actually shows up as a
-fake field (this makes the API for using it much nicer, but confuses South no
-end). The django-taggit module we ship with contains this rule to ignore it:
+fake field (this makes the API for using it much nicer, but confuses South to no
+end). The django-taggit module we ship with contains this rule to ignore it::
 
  from south.modelsinspector import add_ignored_fields
  add_ignored_fields(["^taggit\.managers"])
