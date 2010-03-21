@@ -21,10 +21,14 @@ Run against our project from before, we get::
   (*) 0004_auto__add_unique_knight_name
   
 The output has an asterisk ``(*)`` next to a migration name if it has been
-applied, and an empty space ``( )`` if not.
+applied, and an empty space ``( )`` if not [#]_.
  
 If you have a lot of apps or migrations, you can also specify an app name
 to show just the migrations from that app.
+
+.. [#] An interesting side effect of this is that you can run the command
+       ``./manage.py migrate --list |grep -v "*"`` to see which migrations
+       are unapplied, and need running.
 
 Data migrations
 ---------------
