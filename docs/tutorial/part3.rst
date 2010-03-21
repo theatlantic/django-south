@@ -57,7 +57,7 @@ the old column, as otherwise the old column won't be around for us to get data
 out of, and you'll have lost all your users' passwords [#]_.
 
 .. [#] Always, always, backup your database before doing any kind of potentially
-       destrictive migration. One time, it *will* go wrong.
+       destructive migration. One time, it *will* go wrong.
 
 Let's follow a real example. Make a new app, and call it ``southtut2``. Add it
 to ``INSTALLED_APPS``, and then give it this model::
