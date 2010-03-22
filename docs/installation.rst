@@ -57,6 +57,7 @@ appear, and run::
  
 To update an existing Mercurial checkout to the newest version, run::
 
+ hg pull
  hg up -C tip
  
 (Rather than running from tip, you can also use the ``stableish`` tag, which is
