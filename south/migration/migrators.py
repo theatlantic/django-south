@@ -42,7 +42,7 @@ class Migrator(object):
         raise NotImplementedError()
 
     def backwards(self, migration):
-        return self._wrap_direction(migration.backwards(), self.orm(migration))
+        return self._wrap_direction(migration.backwards(), migration.prev_orm())
 
     def direction(self, migration):
         raise NotImplementedError()
@@ -240,7 +240,7 @@ class Forwards(Migrator):
         return migration.orm()
 
     def forwards(self, migration):
-        return self._wrap_direction(migration.forwards(), self.orm(migration))
+        return self._wrap_direction(migration.forwards(), migration.orm())
 
     direction = forwards
 
