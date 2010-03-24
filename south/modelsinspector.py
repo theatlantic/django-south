@@ -121,7 +121,10 @@ allowed_fields = [
 ]
 
 # Regexes of ignored fields (custom fields which look like fields, but have no column behind them)
-ignored_fields = []
+ignored_fields = [
+    "^django\.contrib\.contenttypes\.generic\.GenericRelation",
+    "^django\.contrib\.contenttypes\.generic\.GenericForeignKey",
+]
 
 # Similar, but for Meta, so just the inner level (kwds).
 meta_details = {
