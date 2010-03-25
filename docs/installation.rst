@@ -4,7 +4,7 @@
 Installation
 ============
 
-South's current release is :ref:`0.7 RC1 <0-7-release-notes>`.
+South's current release is :ref:`0.7 <0-7-release-notes>`.
 
 There are a few different ways to install South:
 
