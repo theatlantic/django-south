@@ -180,7 +180,8 @@ class TestOperations(unittest.TestCase):
         db.delete_index("test3", ["SELECT"])
         db.delete_index("test3", ["SELECT", "eggs"])
         # Delete the unique index/constraint
-        db.delete_unique("test3", ["eggs"])
+        if db.backend_name != "sqlite3":
+            db.delete_unique("test3", ["eggs"])
         db.delete_table("test3")
     
     def test_primary_key(self):
