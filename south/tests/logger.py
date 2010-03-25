@@ -41,7 +41,11 @@ class TestLogger(unittest.TestCase):
         db.create_table("test10", [('email_confirmed', models.BooleanField(default=False))])
         # Close the logged file
         close_logger()
-        os.remove(self.test_path) 
+        try:
+            os.remove(self.test_path)
+        except:
+            # It's a tempfile, it's not vital we remove it.
+            pass
 
     def test_db_execute_logging_missingfilename(self):
         "Does logging raise an error if there is a missing filename?"
