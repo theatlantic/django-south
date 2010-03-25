@@ -48,6 +48,8 @@ it easier to :ref:`add a south_field_triple method <south-field-triple>`.
 Extending Introspection
 =======================
 
+(Note: This is also featured in the tutorial in :ref:`tutorial-part-4`)
+
 South does the majority of its field introspection using a set of simple rules;
 South works out what class a field is, and then runs all rules which have been
 defined for either that class or a parent class of it.
