@@ -213,7 +213,7 @@ can then use this to generate a graph of your migrations' dependencies.
 
 Typical usage::
 
- ./manage.py graphmigrations | dot -omigrations.png
+ ./manage.py graphmigrations | dot -Tpng -omigrations.png
  
 This command can be particularly helpful to examine complex dependency sets
 between lots of different apps [#]_.
