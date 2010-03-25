@@ -41,7 +41,7 @@ introspection_details = [
             "max_length": ["max_length", {"default": None}],
             "unique": ["_unique", {"default": False}],
             "db_index": ["db_index", {"default": False}],
-            "default": ["default", {"default": NOT_PROVIDED}],
+            "default": ["default", {"default": NOT_PROVIDED, "ignore_dynamics": True}],
             "db_column": ["db_column", {"default": None}],
             "db_tablespace": ["db_tablespace", {"default": settings.DEFAULT_INDEX_TABLESPACE}],
         },
@@ -251,6 +251,8 @@ def get_value(field, descriptor):
         return "orm['%s.%s']" % (value._meta.app_label, value._meta.object_name)
     # As do model instances
     if isinstance(value, Model):
+        if options.get("ignore_dynamics", False):
+            raise IsDefault
         return "orm['%s.%s'].objects.get(pk=%r)" % (value.__class__._meta.app_label, value.__class__._meta.object_name, value.pk)
     # Make sure Decimal is converted down into a string
     if isinstance(value, decimal.Decimal):

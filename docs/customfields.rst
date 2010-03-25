@@ -147,6 +147,10 @@ Parameters
  - ignore_if: Specifies an attribute that, if it coerces to true, causes this
    keyword to be omitted. Useful for ``db_index``, which has
    ``{'ignore_if': 'primary_key'}``, since it's always True in that case.
+ 
+ - ignore_dynamics: If this is True, any value that is "dynamic" - such as model
+   instances - will cause the field to be omitted instead. Used internally
+   for the ``default`` keyword.
 
  - is_value: If present, the 'attribute name' is instead used directly as the
    value. See :ref:`above <is-value-keyword>` for more info.
