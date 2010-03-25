@@ -74,8 +74,9 @@ solution means they'll always work or fail.
 This does have the unfortunate side-effect of making South not "magically" make
 your simpler custom fields work any more; we're trying to help by shipping
 introspection modules for the more common third-party apps with South, but you
-may also want to read about
-:ref:`writing your own introspection rules <extending-introspection>`.
+may also want to read the new 
+:ref:`reference for your own introspection rules <extending-introspection>`, or
+:ref:`our new tutorial chapter on it <tutorial-part-4>`.
 
 Migration Directories
 ---------------------
