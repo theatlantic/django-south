@@ -4,8 +4,8 @@
 Command Reference
 =================
 
-South is mainly used via the console and its three important commands: migrate
-and schemamigration.
+South is mainly used via the console and its three important commands: migrate,
+schemamigration and datamigration. It also overrides a few parts of syncdb.
 
 migrate
 -------
@@ -227,3 +227,21 @@ Options
 
 This command has no options.
 
+
+syncdb
+------
+
+South overrides the Django syncdb command; as well as changing the output
+to show apps delineated by their migration status, it also makes syncdb only
+work on a subset of the apps - those without migrations.
+
+If you want to run syncdb on all of the apps, then use ``--all``, but be warned;
+this will put your database schema and migrations out of sync. If you do this,
+you *might* be able to fix it with::
+
+ ./manage.py migrate --fake
+
+Options
+^^^^^^^
+
+ - ``--all``: Makes syncdb operate on all apps, not just unmigrated ones.
