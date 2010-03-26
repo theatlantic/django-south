@@ -5,6 +5,7 @@ commandline, or by using autodetection, etc.
 
 from django.db import models
 from django.contrib.contenttypes.generic import GenericRelation
+from django.utils.datastructures import SortedDict
 
 from south.creator.freezer import remove_useless_attributes, freeze_apps, model_key
 from south.utils import auto_through
@@ -21,9 +22,9 @@ class BaseChanges(object):
         Given a model and its model def (a dict of field: triple), returns three
         items: the real fields dict, the Meta dict, and the M2M fields dict.
         """
-        real_fields = {}
-        meta = {}
-        m2m_fields = {}
+        real_fields = SortedDict()
+        meta = SortedDict()
+        m2m_fields = SortedDict()
         for name, triple in model_def.items():
             if name == "Meta":
                 meta = triple
