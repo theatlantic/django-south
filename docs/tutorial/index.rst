@@ -19,3 +19,4 @@ Advanced features have their own extensive documentation, as well; the
    part2
    part3
    part4
+   part5
