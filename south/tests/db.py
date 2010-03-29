@@ -200,12 +200,31 @@ class TestOperations(unittest.TestCase):
         ])
         db.execute_deferred_sql()
         # Remove the default primary key, and make eggs it
-        db.drop_primary_key("test_pk")
+        db.delete_primary_key("test_pk")
         db.create_primary_key("test_pk", "new_pkey")
         # Try inserting a now-valid row pair
         db.execute("INSERT INTO test_pk (id, new_pkey, eggs) VALUES (1, 2, 3)")
         db.execute("INSERT INTO test_pk (id, new_pkey, eggs) VALUES (1, 3, 4)")
         db.delete_table("test_pk")
+    
+    def test_primary_key_implicit(self):
+        """
+        Tests changing primary key implicitly.
+        """
+        db.create_table("test_pki", [
+            ('id', models.IntegerField(primary_key=True)),
+            ('new_pkey', models.IntegerField()),
+            ('eggs', models.IntegerField(unique=True)),
+        ])
+        db.execute_deferred_sql()
+        # Remove the default primary key, and make eggs it
+        db.alter_column("test_pki", "id", models.IntegerField())
+        db.alter_column("test_pki", "new_pkey", models.IntegerField(primary_key=True))
+        # Try inserting a now-valid row pair
+        db.execute("INSERT INTO test_pki (id, new_pkey, eggs) VALUES (1, 2, 3)")
+        db.execute("INSERT INTO test_pki (id, new_pkey, eggs) VALUES (1, 3, 4)")
+        db.delete_table("test_pki")
+        
     
     def test_add_columns(self):
         """
