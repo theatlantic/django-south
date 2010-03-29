@@ -1,0 +1,29 @@
+
+.. _0-7-1-release-notes:
+
+===========
+South 0.7.1
+===========
+
+This is a minor new release of South.
+
+
+Backwards incompatible changes
+==============================
+
+None.
+
+
+Major changes
+=============
+
+South tests
+-----------
+
+South's internal test suite now doesn't run by default (the ``SKIP_SOUTH_TESTS``
+setting now defaults to True). This is mainly because the test suite is meant
+to be run in isolation (the test framework continually changes
+``INSTALLED_APPS`` and fiddles with the ORM as it runs, among other things), and
+was causing compatability problems with other applications.
+
+If you wish to run the tests still, simply set ``SKIP_SOUTH_TESTS = False``.
