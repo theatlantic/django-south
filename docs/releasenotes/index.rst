@@ -7,3 +7,4 @@ Release notes from various versions of South.
    :maxdepth: 1
    
    0.7
+   0.7.1

@@ -51,7 +51,7 @@ class Monkeypatcher(unittest.TestCase):
 try:
     skiptest = settings.SKIP_SOUTH_TESTS
 except:
-    skiptest = False
+    skiptest = True
 
 if not skiptest:
     from south.tests.db import *
