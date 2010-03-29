@@ -33,10 +33,12 @@ class TestLogger(unittest.TestCase):
         settings.SOUTH_LOGGING_FILE = self.test_path
         # Check to see if we can make the logfile
         try:
-            open(self.test_path, "w")
+            fh = open(self.test_path, "w")
         except IOError:
             # Permission was denied, ignore the test.
             return
+        else:
+            fh.close()
         # Do an action which logs
         db.create_table("test10", [('email_confirmed', models.BooleanField(default=False))])
         # Close the logged file
