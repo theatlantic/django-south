@@ -60,15 +60,18 @@ class Migrator(object):
         raise NotImplementedError()
 
     def run_migration_error(self, migration, extra_info=''):
-        return (' ! Error found during real run of migration! Aborting.\n'
-                '\n'
-                ' ! Since you have a database that does not support running\n'
-                ' ! schema-altering statements in transactions, we have had \n'
-                ' ! to leave it in an interim state between migrations.\n'
-                '%s\n'
-                ' ! The South developers regret this has happened, and would\n'
-                ' ! like to gently persuade you to consider a slightly\n'
-                ' ! easier-to-deal-with DBMS.\n') % extra_info
+        return (
+            ' ! Error found during real run of migration! Aborting.\n'
+            '\n'
+            ' ! Since you have a database that does not support running\n'
+            ' ! schema-altering statements in transactions, we have had \n'
+            ' ! to leave it in an interim state between migrations.\n'
+            '%s\n'
+            ' ! The South developers regret this has happened, and would\n'
+            ' ! like to gently persuade you to consider a slightly\n'
+            ' ! easier-to-deal-with DBMS.\n'
+            ' ! NOTE: The error which caused the migration to fail is further up.'
+        ) % extra_info
 
     def run_migration(self, migration):
         migration_function = self.direction(migration)
@@ -256,6 +259,8 @@ class Forwards(Migrator):
             record.save()
 
     def format_backwards(self, migration):
+        if migration.no_dry_run():
+            return "   (migration cannot be dry-run; cannot discover commands)"
         old_debug, old_dry_run = south.db.db.debug, south.db.db.dry_run
         south.db.db.debug = south.db.db.dry_run = True
         stdout = sys.stdout
