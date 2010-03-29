@@ -18,23 +18,22 @@ class DatabaseOperations(generic.DatabaseOperations):
     supports_foreign_keys = False
     has_check_constraints = False
 
-    # You can't add UNIQUE columns with an ALTER TABLE.
     def add_column(self, table_name, name, field, *args, **kwds):
-        # Run ALTER TABLE with no unique column
-        unique, field._unique, field.db_index = field.unique, False, False
+        """
+        Adds a column.
+        """
         # If it's not nullable, and has no default, raise an error (SQLite is picky)
         if (not field.null and 
             (not field.has_default() or field.get_default() is None) and
             not field.empty_strings_allowed):
             raise ValueError("You cannot add a null=False column without a default value.")
-        # Don't try and drop the default, it'll fail
-        kwds['keep_default'] = True
-        generic.DatabaseOperations.add_column(self, table_name, name, field, *args, **kwds)
-        # If it _was_ unique, make an index on it.
-        if unique:
-            self.create_index(table_name, [field.column], unique=True)
+        # We add columns by remaking the table; even though SQLite supports 
+        # adding columns, it doesn't support adding PRIMARY KEY or UNIQUE cols.
+        self._remake_table(table_name, added={
+            name: self._column_sql_for_create(table_name, name, field, False),
+        })
     
-    def _remake_table(self, table_name, renames={}, deleted=[], altered={}):
+    def _remake_table(self, table_name, added={}, renames={}, deleted=[], altered={}):
         """
         Given a table and three sets of changes (renames, deletes, alters),
         recreates it with the modified schema.
@@ -54,19 +53,22 @@ class DatabaseOperations(generic.DatabaseOperations):
             name = column_info[0]
             if name in deleted:
                 continue
-            type = column_info[1]
-            unique = indexes[name]['unique']
-            primary_key = indexes[name]['primary_key']
-            # Deal with an alter (these happen before renames)
-            if name in altered:
-                type = altered[name]
+            # Get the type, ignoring PRIMARY KEY (we need to be consistent)
+            type = column_info[1].replace("PRIMARY KEY", "")
+            # Add on unique or primary key if needed.
+            if indexes[name]['unique']:
+                type += " UNIQUE"
+            if indexes[name]['primary_key']:
+                type += " PRIMARY KEY"
             # Deal with a rename
             if name in renames:
                 name = renames[name]
             # Add to the defs
             definitions[name] = type
-            if primary_key:
-                definitions[name] += " PRIMARY KEY"
+        # Add on altered columns
+        definitions.update(altered)
+        # Add on the new columns
+        definitions.update(added)
         # Alright, Make the table
         self.execute("CREATE TABLE %s (%s)" % (
             self.quote_name(temp_name),
@@ -101,19 +103,28 @@ class DatabaseOperations(generic.DatabaseOperations):
             self.quote_name(src),
         ))
     
-    def alter_column(self, table_name, name, field, explicit_name=True):
-        """
-        Changes a column's SQL definition
-        """
-        # Get the column's SQL
+    def _column_sql_for_create(self, table_name, name, field, explicit_name=True):
+        "Given a field and its name, returns the full type for the CREATE TABLE."
         field.set_attributes_from_name(name)
         if not explicit_name:
             name = field.db_column
         else:
             field.column = name
         sql = self.column_sql(table_name, name, field, with_name=False, field_prepared=True)
+        #if field.primary_key:
+        #    sql += " PRIMARY KEY"
+        #if field.unique:
+        #    sql += " UNIQUE"
+        return sql
+    
+    def alter_column(self, table_name, name, field, explicit_name=True):
+        """
+        Changes a column's SQL definition
+        """
         # Remake the table correctly
-        self._remake_table(table_name, altered={name: sql})
+        self._remake_table(table_name, altered={
+            name: self._column_sql_for_create(table_name, name, field, explicit_name),
+        })
 
     def delete_column(self, table_name, column_name):
         """
