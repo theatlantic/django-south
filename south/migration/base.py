@@ -216,12 +216,15 @@ class Migrations(list):
     def full_name(self):
         return self._migrations.__name__
 
-    @staticmethod
-    def calculate_dependencies():
+    @classmethod
+    def calculate_dependencies(cls, force=False):
         "Goes through all the migrations, and works out the dependencies."
+        if getattr(cls, "_dependencies_done", False) and not force:
+            return
         for migrations in all_migrations():
             for migration in migrations:
                 migration.calculate_dependencies()
+        cls._dependencies_done = True
     
     @staticmethod
     def invalidate_all_modules():
