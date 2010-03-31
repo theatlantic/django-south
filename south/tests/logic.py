@@ -23,6 +23,7 @@ class TestBrokenMigration(Monkeypatcher):
         self.assertRaises(
             exceptions.DependsOnUnmigratedApplication,
             Migrations.calculate_dependencies,
+            force=True,
         )
         #depends_on_unknown = self.brokenapp['0002_depends_on_unknown']
         #self.assertRaises(exceptions.DependsOnUnknownMigration,
@@ -39,7 +40,7 @@ class TestMigration(Monkeypatcher):
         super(TestMigration, self).setUp()
         self.fakeapp = Migrations('fakeapp')
         self.otherfakeapp = Migrations('otherfakeapp')
-        Migrations.calculate_dependencies()
+        Migrations.calculate_dependencies(force=True)
 
     def test_str(self):
         migrations = [str(m) for m in self.fakeapp]
@@ -169,7 +170,7 @@ class TestMigrationDependencies(Monkeypatcher):
         self.deps_a = Migrations('deps_a')
         self.deps_b = Migrations('deps_b')
         self.deps_c = Migrations('deps_c')
-        Migrations.calculate_dependencies()
+        Migrations.calculate_dependencies(force=True)
 
     def test_dependencies(self):
         self.assertEqual(
@@ -413,7 +414,7 @@ class TestCircularDependencies(Monkeypatcher):
     installed_apps = ["circular_a", "circular_b"]
 
     def test_plans(self):
-        Migrations.calculate_dependencies()
+        Migrations.calculate_dependencies(force=True)
         circular_a = Migrations('circular_a')
         circular_b = Migrations('circular_b')
         self.assertRaises(
