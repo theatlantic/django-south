@@ -76,7 +76,7 @@ def inner_problem_check(problems, done, verbosity):
                 to_check.extend(checking.dependencies)
     return result
 
-def check_migration_histories(histories, delete_ghosts=False):
+def check_migration_histories(histories, delete_ghosts=False, ignore_ghosts=False):
     "Checks that there's no 'ghost' migrations in the database."
     exists = SortedSet()
     ghosts = []
@@ -95,7 +95,7 @@ def check_migration_histories(histories, delete_ghosts=False):
         if delete_ghosts:
             for h in ghosts:
                 h.delete()
-        else:
+        elif not ignore_ghosts:
             raise exceptions.GhostMigrations(ghosts)
     return exists
 
@@ -153,7 +153,7 @@ def get_migrator(direction, db_dry_run, fake, load_initial_data):
         direction = LoadInitialDataMigrator(migrator=direction)
     return direction
 
-def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False, database=DEFAULT_DB_ALIAS, delete_ghosts=False):
+def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False, database=DEFAULT_DB_ALIAS, delete_ghosts=False, ignore_ghosts=False):
     app_label = migrations.app_label()
 
     verbosity = int(verbosity)
@@ -179,7 +179,7 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
         Migrations.invalidate_all_modules()
     
     south.db.db.debug = (verbosity > 1)
-    applied = check_migration_histories(applied, delete_ghosts)
+    applied = check_migration_histories(applied, delete_ghosts, ignore_ghosts)
     
     # Guess the target_name
     target = migrations.guess_migration(target_name)
