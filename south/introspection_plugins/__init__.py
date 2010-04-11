@@ -5,3 +5,5 @@
 import south.introspection_plugins.geodjango
 import south.introspection_plugins.django_tagging
 import south.introspection_plugins.django_taggit
+import south.introspection_plugins.django_objectpermissions
+
