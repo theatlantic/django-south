@@ -88,7 +88,7 @@ def model_dependencies(model, checked_models=None):
         depends.update(field_dependencies(field))
     # Add in any non-abstract bases
     for base in model.__bases__:
-        if isinstance(base, models.Model) and not base._meta.abstract:
+        if issubclass(base, models.Model) and (base is not models.Model) and not base._meta.abstract:
             depends.add(base)
     # Now recurse
     new_to_check = depends - checked_models
