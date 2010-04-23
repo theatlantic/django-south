@@ -204,5 +204,12 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
         if success:
             post_migrate.send(None, app=app_label)
     elif verbosity:
+        # Say there's nothing.
         print '- Nothing to migrate.'
+        # If we have initial data enabled, and we're at the most recent
+        # migration, do initial data.
+        # Note: We use a fake Forwards() migrator here. It's never used really.
+        migrator = LoadInitialDataMigrator(migrator=Forwards(verbosity=verbosity))
+        migrator.load_initial_data(target)
+        # Send signal.
         post_migrate.send(None, app=app_label)
