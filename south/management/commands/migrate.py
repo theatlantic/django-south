@@ -99,6 +99,7 @@ class Command(BaseCommand):
                     db_dry_run = db_dry_run,
                     verbosity = int(options.get('verbosity', 0)),
                     load_initial_data = not options.get('no_initial_data', False),
+                    merge = merge,
                     skip = skip,
                     database = database,
                     delete_ghosts = delete_ghosts,
