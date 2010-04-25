@@ -339,7 +339,6 @@ class DatabaseOperations(object):
         else:
             sqls.append(('ALTER COLUMN %s DROP DEFAULT' % (self.quote_name(name),), []))
 
-
         # Next, nullity
         if field.null:
             sqls.append((self.alter_string_set_null % params, []))
