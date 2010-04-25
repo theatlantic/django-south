@@ -211,6 +211,12 @@ class TestOperations(unittest.TestCase):
         """
         Tests changing primary key implicitly.
         """
+        
+        # This is ONLY important for SQLite. It's not a feature we support, but
+        # not implementing it means SQLite fails (due to the table-copying weirdness).
+        if db.backend_name != "sqlite3":
+            return
+        
         db.create_table("test_pki", [
             ('id', models.IntegerField(primary_key=True)),
             ('new_pkey', models.IntegerField()),
