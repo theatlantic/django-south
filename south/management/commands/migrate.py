@@ -36,6 +36,8 @@ class Command(BaseCommand):
             help="Tells South to delete any 'ghost' migrations (ones in the database but not on disk)."),
         make_option('--ignore-ghost-migrations', action='store_true', dest='ignore_ghosts', default=False,
             help="Tells South to ignore any 'ghost' migrations (ones in the database but not on disk) and continue to apply new migrations."),
+        make_option('--noinput', action='store_false', dest='interactive', default=True,
+            help='Tells Django to NOT prompt the user for input of any kind.'),
         make_option('--database', action='store', dest='database',
             default=DEFAULT_DB_ALIAS, help='Nominates a database to synchronize. '
                 'Defaults to the "default" database.'),
@@ -98,6 +100,7 @@ class Command(BaseCommand):
                     fake = fake,
                     db_dry_run = db_dry_run,
                     verbosity = int(options.get('verbosity', 0)),
+                    interactive = options.get('interactive', True),
                     load_initial_data = not options.get('no_initial_data', False),
                     merge = merge,
                     skip = skip,

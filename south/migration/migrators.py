@@ -17,8 +17,9 @@ from south.signals import ran_migration
 
 
 class Migrator(object):
-    def __init__(self, verbosity=0):
+    def __init__(self, verbosity=0, interactive=False):
         self.verbosity = int(verbosity)
+        self.interactive = bool(interactive)
 
     @staticmethod
     def title(target):
@@ -292,7 +293,8 @@ class Forwards(Migrator):
                     return False
         finally:
             # Call any pending post_syncdb signals
-            south.db.db.send_pending_create_signals()
+            south.db.db.send_pending_create_signals(verbosity=self.verbosity,
+                                                    interactive=self.interactive)
         return True
 
 
