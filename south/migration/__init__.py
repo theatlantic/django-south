@@ -114,7 +114,7 @@ def get_dependencies(target, migrations):
             backwards = migration_before_here.backwards_plan
     return forwards, backwards
 
-def get_direction(target, applied, migrations, verbosity):
+def get_direction(target, applied, migrations, verbosity, interactive):
     # Get the forwards and reverse dependencies for this target
     forwards, backwards = get_dependencies(target, migrations)
     # Is the whole forward branch applied?
@@ -129,7 +129,7 @@ def get_direction(target, applied, migrations, verbosity):
         # the forwards trace, we just need to go forwards to our
         # target (and check for badness)
         problems = forwards_problems(forwards, applied, verbosity)
-        direction = Forwards(verbosity=verbosity)
+        direction = Forwards(verbosity=verbosity, interactive=interactive)
     if not problems:
         # What about the whole backward trace then?
         backwards = backwards()
@@ -139,7 +139,7 @@ def get_direction(target, applied, migrations, verbosity):
             # all the higher migrations) then we need to go backwards
             workplan = to_unapply(backwards, applied)
             problems = backwards_problems(backwards, applied, verbosity)
-            direction = Backwards(verbosity=verbosity)
+            direction = Backwards(verbosity=verbosity, interactive=interactive)
     return direction, problems, workplan
 
 def get_migrator(direction, db_dry_run, fake, load_initial_data):
@@ -153,7 +153,7 @@ def get_migrator(direction, db_dry_run, fake, load_initial_data):
         direction = LoadInitialDataMigrator(migrator=direction)
     return direction
 
-def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False, database=DEFAULT_DB_ALIAS, delete_ghosts=False, ignore_ghosts=False):
+def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False, database=DEFAULT_DB_ALIAS, delete_ghosts=False, ignore_ghosts=False, interactive=False):
     app_label = migrations.app_label()
 
     verbosity = int(verbosity)
@@ -190,8 +190,8 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
         print "Running migrations for %s:" % app_label
     
     # Get the forwards and reverse dependencies for this target
-    direction, problems, workplan = get_direction(target, applied,
-                                                  migrations, verbosity)
+    direction, problems, workplan = get_direction(target, applied, migrations,
+                                                  verbosity, interactive)
     if problems and not (merge or skip):
         raise exceptions.InconsistentMigrationHistory(problems)
     

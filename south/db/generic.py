@@ -760,7 +760,7 @@ class DatabaseOperations(object):
         self.pending_create_signals.append((app_label, model_names))
 
 
-    def send_pending_create_signals(self):
+    def send_pending_create_signals(self, verbosity=0, interactive=False):
         # Group app_labels together
         signals = SortedDict()
         for (app_label, model_names) in self.pending_create_signals:
@@ -770,11 +770,14 @@ class DatabaseOperations(object):
                 signals[app_label] = list(model_names)
         # Send only one signal per app.
         for (app_label, model_names) in signals.iteritems():
-            self.really_send_create_signal(app_label, list(set(model_names)))
+            self.really_send_create_signal(app_label, list(set(model_names)),
+                                           verbosity=verbosity,
+                                           interactive=interactive)
         self.pending_create_signals = []
 
 
-    def really_send_create_signal(self, app_label, model_names):
+    def really_send_create_signal(self, app_label, model_names,
+                                  verbosity=0, interactive=False):
         """
         Sends a post_syncdb signal for the model specified.
 
@@ -801,9 +804,6 @@ class DatabaseOperations(object):
                 created_models.append(model)
 
         if created_models:
-            # syncdb defaults -- perhaps take these as options?
-            verbosity = 1
-            interactive = True
 
             if hasattr(dispatcher, "send"):
                 # Older djangos
