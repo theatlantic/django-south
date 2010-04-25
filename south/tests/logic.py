@@ -692,13 +692,17 @@ class TestMigrationLogic(Monkeypatcher):
                          fakeapp['0003_alter_spam'].forwards_plan())
         
         # And a complex one.
-        self.assertEqual([fakeapp['0001_spam'],
-                          otherfakeapp['0001_first'],
-                          otherfakeapp['0002_second'],
-                          fakeapp['0002_eggs'],
-                          fakeapp['0003_alter_spam'],
-                          otherfakeapp['0003_third']],
-                         otherfakeapp['0003_third'].forwards_plan())
+        self.assertEqual(
+            [
+                fakeapp['0001_spam'],
+                otherfakeapp['0001_first'],
+                otherfakeapp['0002_second'],
+                fakeapp['0002_eggs'],
+                fakeapp['0003_alter_spam'],
+                otherfakeapp['0003_third']
+            ],
+            otherfakeapp['0003_third'].forwards_plan(),
+        )
 
 
 class TestMigrationUtils(Monkeypatcher):
@@ -840,7 +844,7 @@ class TestUtils(unittest.TestCase):
                  'B2': ['B1', 'A2'],
                  'B3': ['B2']}
         self.assertCircularDependency(
-            ['B1', 'A2', 'A1', 'B2', 'B1'],
+            ['A2', 'A1', 'B2', 'A2'],
             'A3',
             graph,
         )
@@ -851,7 +855,7 @@ class TestUtils(unittest.TestCase):
                  'B2': ['B1', 'A2'],
                  'B3': ['B2']}
         self.assertCircularDependency(
-            ['B3', 'B2', 'B1', 'A2', 'A1', 'B3'],
+            ['B2', 'A2', 'A1', 'B3', 'B2'],
             'A3',
             graph,
         )

@@ -384,10 +384,10 @@ class Migration(object):
 
         This list includes `self`, which will be applied last.
         """
-        return depends(self, lambda x: sorted(x.dependencies))
+        return depends(self, lambda x: x.dependencies)
 
     def _backwards_plan(self):
-        return depends(self, lambda x: sorted(x.dependents))
+        return depends(self, lambda x: x.dependents)
 
     def backwards_plan(self):
         """

@@ -63,11 +63,12 @@ def flatten(*stack):
             stack.appendleft(x)
         else:
             yield x
+    
 
 def _dfs(start, get_children):
     # Prepend ourselves to the result
     yield start
-    children = get_children(start)
+    children = sorted(get_children(start), key=lambda x: str(x))
     if children:
         # We need to apply all the migrations this one depends on
         yield (_dfs(n, get_children) for n in children)
