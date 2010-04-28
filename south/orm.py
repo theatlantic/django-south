@@ -148,7 +148,7 @@ class _FakeORM(object):
         try:
             return self.models[fullname]
         except KeyError:
-            raise AttributeError("The model '%s' from the app '%s' is not available in this migration." % (key, self.default_app))
+            raise AttributeError("The model '%s' from the app '%s' is not available in this migration. (Did you use orm.ModelName, not orm['app.ModelName']?)" % (key, self.default_app))
     
     
     def __getitem__(self, key):
