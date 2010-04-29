@@ -264,7 +264,19 @@ class TestOperations(unittest.TestCase):
         # Change eggs to be a FloatField
         db.alter_column("test_alterc", "eggs", models.FloatField())
         db.delete_table("test_alterc")
-        
+    
+    def test_mysql_defaults(self):
+        """
+        Test MySQL default handling for BLOB and TEXT.
+        """
+        db.create_table("test_altermyd", [
+            ('spam', models.BooleanField(default=False)),
+            ('eggs', models.TextField()),
+        ])
+        # Change eggs to be a FloatField
+        db.alter_column("test_altermyd", "eggs", models.TextField(null=True))
+        db.delete_table("test_altermyd")
+    
     def test_alter_column_postgres_multiword(self):
         """
         Tests altering columns with multiple words in Postgres types (issue #125)

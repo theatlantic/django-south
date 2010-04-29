@@ -158,3 +158,14 @@ class DatabaseOperations(generic.DatabaseOperations):
         if self._db_type_for_alter_column(field).upper() in ["BLOB", "TEXT", "LONGTEXT"]:
             field._suppress_default = True
         return field
+    
+    
+    def _alter_set_defaults(self, field, name, params, sqls):
+        """
+        MySQL does not support defaults on text or blob columns.
+        """
+        type = params['type']
+        print type
+    
+        if not (type.endswith('text') or type.endswith('blob')):
+            super(DatabaseOperations, self)._alter_set_defaults(field, name, params, sqls)
