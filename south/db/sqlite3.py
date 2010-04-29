@@ -30,7 +30,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         # We add columns by remaking the table; even though SQLite supports 
         # adding columns, it doesn't support adding PRIMARY KEY or UNIQUE cols.
         self._remake_table(table_name, added={
-            name: self._column_sql_for_create(table_name, name, field, False),
+            field.column: self._column_sql_for_create(table_name, name, field, False),
         })
     
     def _remake_table(self, table_name, added={}, renames={}, deleted=[], altered={}):
