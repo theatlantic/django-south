@@ -84,22 +84,23 @@ class DatabaseOperations(generic.DatabaseOperations):
         "Used to copy data into a new table"
         # Make a list of all the fields to select
         cursor = self._get_connection().cursor()
-        q_fields = [column_info[0] for column_info in self._get_connection().introspection.get_table_description(cursor, dst)]
-        new_to_old = {}
-        for old, new in field_renames.items():
-            new_to_old[new] = old
-        q_fields_new = []
-        for field in q_fields:
-            if field in new_to_old:
-                # Make sure renames are done correctly
-                q_fields_new.append("%s AS %s" % (self.quote_name(new_to_old[field]), self.quote_name(field)))
+        src_fields = [column_info[0] for column_info in self._get_connection().introspection.get_table_description(cursor, src)]
+        dst_fields = [column_info[0] for column_info in self._get_connection().introspection.get_table_description(cursor, dst)]
+        src_fields_new = []
+        dst_fields_new = []
+        for field in src_fields:
+            if field in field_renames:
+                dst_fields_new.append(self.quote_name(field_renames[field]))
+            elif field in dst_fields:
+                dst_fields_new.append(self.quote_name(field))
             else:
-                q_fields_new.append(self.quote_name(field))
-        q_fields = q_fields_new
+                continue
+            src_fields_new.append(self.quote_name(field))
         # Copy over the data
-        self.execute("INSERT INTO %s SELECT %s FROM %s;" % (
+        self.execute("INSERT INTO %s (%s) SELECT %s FROM %s;" % (
             self.quote_name(dst),
-            ', '.join(q_fields),
+            ', '.join(dst_fields_new),
+            ', '.join(src_fields_new),
             self.quote_name(src),
         ))
     
