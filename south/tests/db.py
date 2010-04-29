@@ -245,6 +245,8 @@ class TestOperations(unittest.TestCase):
         # Add a FK with keep_default=False (#69)
         User = db.mock_model(model_name='User', db_table='auth_user', db_tablespace='', pk_field_name='id', pk_field_type=models.AutoField, pk_field_args=[], pk_field_kwargs={})
         db.add_column("test_addc", "user", models.ForeignKey(User, null=True), keep_default=False)
+        # try selecting from the user_id column to make sure it was actually created
+        db.execute("SELECT user_id FROM test_addc")
         db.delete_column("test_addc", "add1")
         db.delete_table("test_addc")
     
