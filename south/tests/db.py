@@ -244,9 +244,12 @@ class TestOperations(unittest.TestCase):
         db.add_column("test_addc", "add1", models.IntegerField(default=3), keep_default=False)
         # Add a FK with keep_default=False (#69)
         User = db.mock_model(model_name='User', db_table='auth_user', db_tablespace='', pk_field_name='id', pk_field_type=models.AutoField, pk_field_args=[], pk_field_kwargs={})
+        # insert some data so we can test the default value of the added fkey
+        db.execute("INSERT INTO test_addc (eggs, add1) VALUES (1, 2)")
         db.add_column("test_addc", "user", models.ForeignKey(User, null=True), keep_default=False)
         # try selecting from the user_id column to make sure it was actually created
-        db.execute("SELECT user_id FROM test_addc")
+        val = db.execute("SELECT user_id FROM test_addc")[0][0]
+        self.assertEquals(val, None)
         db.delete_column("test_addc", "add1")
         db.delete_table("test_addc")
     
