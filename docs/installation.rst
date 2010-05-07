@@ -124,5 +124,9 @@ If Django doesn't seem to pick this up, check that you're not overriding
 ``INSTALLED_APPS`` elsewhere, and that you can run ``import south`` from inside
 ``./manage.py shell`` with no errors.
 
+Once South is added in, you'll need to run ``./manage.py syncdb`` to make the
+South migration-tracking tables (South doesn't use migrations for
+its own models, for various reasons).
+
 Now South is loaded into your project and ready to go, you'll probably want to
 take a look at our :ref:`tutorial`.
