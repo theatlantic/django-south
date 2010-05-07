@@ -290,7 +290,7 @@ class Migration(object):
             migration = sys.modules[full_name]
         except KeyError:
             try:
-                migration = __import__(full_name, '', '', ['Migration'])
+                migration = __import__(full_name, {}, {}, ['Migration'])
             except ImportError, e:
                 raise exceptions.UnknownMigration(self, sys.exc_info())
             except Exception, e:
