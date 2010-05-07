@@ -72,7 +72,7 @@ So, let's create our first migration::
  Created 0001_initial.py. You can now apply this migration with: ./manage.py migrate southtut
  
 (If this fails complaining that ``south_migrationhistory`` does not exist, you
-forgot to run syncdb :ref:`after you installed South <installation-configure>`.
+forgot to run syncdb :ref:`after you installed South <installation-configure>`.)
  
 As you can see, that's created a migrations directory for us, and made a new
 migration inside it. All we need to do now is apply our new migration::
