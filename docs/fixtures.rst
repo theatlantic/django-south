@@ -31,6 +31,6 @@ so it looks like this::
         call_command("loaddata", "my_fixture.json")
  
 (you'll have to leave backwards() empty,
-as there's no much you can do to reverse this).
+as there's not much you can do to reverse this).
 
 Then, when this migration is run, it will load the given fixture.
