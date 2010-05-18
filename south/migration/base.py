@@ -131,10 +131,11 @@ class Migrations(list):
     
     def migrations_module(self):
         "Returns the module name of the migrations module for this"
+        app_label = application_to_app_label(self.application)
         if hasattr(settings, "SOUTH_MIGRATION_MODULES"):
-            if self.application.__name__ in settings.SOUTH_MIGRATION_MODULES:
+            if app_label in settings.SOUTH_MIGRATION_MODULES:
                 # There's an override.
-                return settings.SOUTH_MIGRATION_MODULES[self.application.__name__]
+                return settings.SOUTH_MIGRATION_MODULES[app_label]
         return self._application.__name__ + '.migrations'
 
     def get_application(self):
