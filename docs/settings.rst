@@ -82,6 +82,10 @@ A dictionary of alternative migration modules for apps. By default, apps look
 for their migrations in "<appname>.migrations", but you can override this here,
 if you have project-specific migrations sets.
 
+Note that the keys in this dictionary are 'app labels', not the full paths to apps;
+for example, were I to provide a migrations directory for ``django.contrib.auth``,
+I'd want to use ``auth`` as the key here.
+
 Example::
 
  SOUTH_MIGRATION_MODULES = {
