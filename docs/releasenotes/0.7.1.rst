@@ -5,7 +5,8 @@
 South 0.7.1
 ===========
 
-This is a minor new release of South.
+This is a minor new release of South, and the first bugfix release for the 0.7
+series.
 
 
 Backwards incompatible changes
@@ -14,7 +15,7 @@ Backwards incompatible changes
 None.
 
 
-Major changes
+Changes
 =============
 
 South tests
@@ -27,3 +28,34 @@ to be run in isolation (the test framework continually changes
 was causing compatability problems with other applications.
 
 If you wish to run the tests still, simply set ``SKIP_SOUTH_TESTS = False``.
+
+Data Migrations
+---------------
+
+There was an annoying issue that caused failing data migrations under MySQL
+to suddenly run their backwards() method and produce an error completely
+unrelated to the original problem. This has been fixed.
+
+Commands
+--------
+
+``./manage.py migrate`` has gained a new ``--ignore-ghost-migrations``, which
+will temporarily silence South's complaining about missing migrations on disk
+if you really know what you're doing (i.e. temporary branch switching).
+
+In addition, --noinput is now correctly respected for the "./manage.py migrate"
+command.
+
+Dependencies
+------------
+
+A bug and some nondeterminism in the new dependency engine has been fixed
+(previously, dependencies were sometimes calculated wrongly, and the
+non-determinism meant that this only happened on certain architectures).
+
+Other changes
+-------------
+
+A whole assortment of minor bugs has been fixed; for the complete list, see
+the `milestone in our Trac <http://south.aeracode.org/query?group=status&milestone=0.7.1`_.
+
