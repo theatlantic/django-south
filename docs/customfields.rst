@@ -79,7 +79,7 @@ Rules
 Rules are what make up the core logic of the introspector; you'll need to pass
 South a (possibly empty) list of them. They consist of a tuple, containing:
 
- - A class or tuple of classes to which the rules apply (remember, the rules
+ - A tuple or list of one or more classes to which the rules apply (remember, the rules
    apply to the specified classes and all subclasses of them).
    
  - Rules for recovering positional arguments, in order of the arguments (you are
