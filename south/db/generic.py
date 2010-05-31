@@ -504,30 +504,31 @@ class DatabaseOperations(object):
             sqlparams = ()
             # if the field is "NOT NULL" and a default value is provided, create the column with it
             # this allows the addition of a NOT NULL field to a table with existing rows
-            if not field.null and not getattr(field, '_suppress_default', False) and field.has_default():
-                default = field.get_default()
-                # If the default is actually None, don't add a default term
-                if default is not None:
-                    # If the default is a callable, then call it!
-                    if callable(default):
-                        default = default()
-                    # Now do some very cheap quoting. TODO: Redesign return values to avoid this.
-                    if isinstance(default, basestring):
-                        default = "'%s'" % default.replace("'", "''")
-                    elif isinstance(default, (datetime.date, datetime.time, datetime.datetime)):
-                        default = "'%s'" % default
-                    # Escape any % signs in the output (bug #317)
-                    if isinstance(default, basestring):
-                        default = default.replace("%", "%%")
-                    # Add it in
-                    sql += " DEFAULT %s"
-                    sqlparams = (default)
-            elif (not field.null and field.blank) or ((field.get_default() == '') and (not getattr(field, '_suppress_default', False))):
-                if field.empty_strings_allowed and self._get_connection().features.interprets_empty_strings_as_nulls:
-                    sql += " DEFAULT ''"
-                # Error here would be nice, but doesn't seem to play fair.
-                #else:
-                #    raise ValueError("Attempting to add a non null column that isn't character based without an explicit default value.")
+            if not getattr(field, '_suppress_default', False):
+                if not field.null and not getattr(field, '_suppress_default', False) and field.has_default():
+                    default = field.get_default()
+                    # If the default is actually None, don't add a default term
+                    if default is not None:
+                        # If the default is a callable, then call it!
+                        if callable(default):
+                            default = default()
+                        # Now do some very cheap quoting. TODO: Redesign return values to avoid this.
+                        if isinstance(default, basestring):
+                            default = "'%s'" % default.replace("'", "''")
+                        elif isinstance(default, (datetime.date, datetime.time, datetime.datetime)):
+                            default = "'%s'" % default
+                        # Escape any % signs in the output (bug #317)
+                        if isinstance(default, basestring):
+                            default = default.replace("%", "%%")
+                        # Add it in
+                        sql += " DEFAULT %s"
+                        sqlparams = (default)
+                elif (not field.null and field.blank) or (field.get_default() == ''):
+                    if field.empty_strings_allowed and self._get_connection().features.interprets_empty_strings_as_nulls:
+                        sql += " DEFAULT ''"
+                    # Error here would be nice, but doesn't seem to play fair.
+                    #else:
+                    #    raise ValueError("Attempting to add a non null column that isn't character based without an explicit default value.")
 
             if field.rel and self.supports_foreign_keys:
                 self.add_deferred_sql(
