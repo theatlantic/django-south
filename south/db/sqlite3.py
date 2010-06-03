@@ -33,7 +33,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             field.column: self._column_sql_for_create(table_name, name, field, False),
         })
     
-    def _remake_table(self, table_name, added={}, renames={}, deleted=[], altered={}):
+    def _remake_table(self, table_name, added={}, renames={}, deleted=[], altered={}, primary_key_override=None):
         """
         Given a table and three sets of changes (renames, deletes, alters),
         recreates it with the modified schema.
@@ -58,7 +58,8 @@ class DatabaseOperations(generic.DatabaseOperations):
             # Add on unique or primary key if needed.
             if indexes[name]['unique']:
                 type += " UNIQUE"
-            if indexes[name]['primary_key']:
+            if (primary_key_override and primary_key_override == name) or \
+               (not primary_key_override and indexes[name]['primary_key']):
                 type += " PRIMARY KEY"
             # Deal with a rename
             if name in renames:
@@ -152,10 +153,17 @@ class DatabaseOperations(generic.DatabaseOperations):
         Not supported under SQLite.
         """
         print "   ! WARNING: SQLite does not support removing unique constraints. Ignored."
+    
+    def create_primary_key(self, table_name, columns):
+        if not isinstance(columns, (list, tuple)):
+            columns = [columns]
+        assert len(columns) == 1, "SQLite backend does not support multi-column primary keys"
+        self._remake_table(table_name, primary_key_override=columns[0])
 
     # Not implemented this yet.
     def delete_primary_key(self, table_name):
-        raise NotImplementedError()
+        # By passing True in, we make sure we wipe all existing PKs.
+        self._remake_table(table_name, primary_key_override=True)
     
     # No cascades on deletes
     def delete_table(self, table_name, cascade=True):
