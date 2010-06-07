@@ -303,6 +303,9 @@ class DatabaseOperations(object):
         @param name: The name of the column to alter
         @param field: The new field definition to use
         """
+        
+        if self.dry_run:
+            return
 
         # hook for the field to do any resolution prior to it's attributes being queried
         if hasattr(field, 'south_init'):
