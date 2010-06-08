@@ -508,7 +508,7 @@ class DatabaseOperations(object):
             # if the field is "NOT NULL" and a default value is provided, create the column with it
             # this allows the addition of a NOT NULL field to a table with existing rows
             if not getattr(field, '_suppress_default', False):
-                if not field.null and not getattr(field, '_suppress_default', False) and field.has_default():
+                if field.has_default():
                     default = field.get_default()
                     # If the default is actually None, don't add a default term
                     if default is not None:
