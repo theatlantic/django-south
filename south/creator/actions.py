@@ -142,47 +142,56 @@ class AddField(Action):
         default = (self.field.default is not None) and (self.field.default is not NOT_PROVIDED)
         
         if not is_null and not default:
-            # Oh dear. Ask them what to do.
-            print " ? The field '%s.%s' does not have a default specified, yet is NOT NULL." % (
-                self.model._meta.object_name,
-                self.field.name,
-            )
-            print " ? Since you are adding or removing this field, you MUST specify a default"
-            print " ? value to use for existing rows. Would you like to:"
-            print " ?  1. Quit now, and add a default to the field in models.py"
-            print " ?  2. Specify a one-off value to use for existing columns now"
-            while True: 
-                choice = raw_input(" ? Please select a choice: ")
-                if choice == "1":
-                    sys.exit(1)
-                elif choice == "2":
+            self.deal_with_not_null_no_default()
+
+    def deal_with_not_null_no_default(self):
+        # Oh dear. Ask them what to do.
+        print " ? The field '%s.%s' does not have a default specified, yet is NOT NULL." % (
+            self.model._meta.object_name,
+            self.field.name,
+        )
+        print " ? Since you are adding this field, you MUST specify a default"
+        print " ? value to use for existing rows. Would you like to:"
+        print " ?  1. Quit now, and add a default to the field in models.py"
+        print " ?  2. Specify a one-off value to use for existing columns now"
+        while True:
+            choice = raw_input(" ? Please select a choice: ")
+            if choice == "1":
+                sys.exit(1)
+            elif choice == "2":
+                break
+            else:
+                print " ! Invalid choice."
+
+
+        if choice == "2":
+            self.add_one_time_default()
+
+    def add_one_time_default(self):
+        # OK, they want to pick their own one-time default. Who are we to refuse?
+        print " ? Please enter Python code for your one-off default value."
+        print " ? The datetime module is available, so you can do e.g. datetime.date.today()"
+        while True:
+            code = raw_input(" >>> ")
+            if not code:
+                print " ! Please enter some code, or 'exit' (with no quotes) to exit."
+            elif code == "exit":
+                sys.exit(1)
+            else:
+                try:
+                    result = eval(code, {}, {"datetime": datetime})
+                except (SyntaxError, NameError), e:
+                    print " ! Invalid input: %s" % e
+                else:
                     break
-                else:
-                    print " ! Invalid choice."
-            # OK, they want to pick their own one-time default. Who are we to refuse?
-            print " ? Please enter Python code for your one-off default value."
-            print " ? The datetime module is available, so you can do e.g. datetime.date.today()"
-            while True:
-                code = raw_input(" >>> ")
-                if not code:
-                    print " ! Please enter some code, or 'exit' (with no quotes) to exit."
-                elif code == "exit":
-                    sys.exit(1)
-                else:
-                    try:
-                        result = eval(code, {}, {"datetime": datetime})
-                    except (SyntaxError, NameError), e:
-                        print " ! Invalid input: %s" % e
-                    else:
-                        break
-            # Right, add the default in.
-            self.field_def[2]['default'] = repr(result)
+        # Right, add the default in.
+        self.field_def[2]['default'] = repr(result)
     
     def console_line(self):
         "Returns the string to print on the console, e.g. ' + Added field foo'"
         return " + Added field %s on %s.%s" % (
             self.field.name,
-            self.model._meta.app_label, 
+            self.model._meta.app_label,
             self.model._meta.object_name,
         )
     
@@ -209,6 +218,38 @@ class DeleteField(AddField):
     """
     Removes a field from a model. Takes a Model class and the field name.
     """
+    irreversible = False
+
+    IRREVERSIBLE_TEMPLATE = '''
+        # We cannot add back in field '%(model_name)s.%(field_name)s'
+        raise RuntimeError(
+            "Cannot reverse this migration. '%(model_name)s.%(field_name)s' and its values cannot be restored.")'''
+
+    def deal_with_not_null_no_default(self):
+        # Oh dear. Ask them what to do.
+        print " ? The field '%s.%s' does not have a default specified, yet is NOT NULL." % (
+            self.model._meta.object_name,
+            self.field.name,
+        )
+        print " ? Since you are removing this field, you MUST specify a default"
+        print " ? value to use for existing rows when reversing. Would you like to:"
+        print " ?  1. Quit now, and add a default to the field in models.py"
+        print " ?  2. Specify a one-off value to use for existing columns for backwards migrations"
+        print " ?  3. Disable the backwards migration by raising an exception."
+        while True:
+            choice = raw_input(" ? Please select a choice: ")
+            if choice == "1":
+                sys.exit(1)
+            elif choice in ("2", "3"):
+                break
+            else:
+                print " ! Invalid choice."
+
+
+        if choice == "2":
+            self.add_one_time_default()
+        elif choice == "3":
+            self.irreversible = True
     
     def console_line(self):
         "Returns the string to print on the console, e.g. ' + Added field foo'"
@@ -222,7 +263,15 @@ class DeleteField(AddField):
         return AddField.backwards_code(self)
 
     def backwards_code(self):
-        return AddField.forwards_code(self)
+        if not self.irreversible:
+            return AddField.forwards_code(self)
+        else:
+            return self.IRREVERSIBLE_TEMPLATE % {
+                "model_name": self.model._meta.object_name,
+                "table_name": self.model._meta.db_table,
+                "field_name": self.field.name,
+                "field_column": self.field.column,
+            }
 
 
 
