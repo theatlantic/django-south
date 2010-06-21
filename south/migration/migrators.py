@@ -149,8 +149,9 @@ class DryRunMigrator(MigratorWrapper):
         self._ignore_fail = ignore_fail
 
     def _run_migration(self, migration):
-        if migration.no_dry_run() and self.verbosity:
-            print " - Migration '%s' is marked for no-dry-run." % migration
+        if migration.no_dry_run():
+            if self.verbosity:
+                print " - Migration '%s' is marked for no-dry-run." % migration
             return
         south.db.db.dry_run = True
         if self._ignore_fail:
