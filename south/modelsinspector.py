@@ -16,6 +16,7 @@ from django.conf import settings
 from django.utils.functional import Promise
 from django.contrib.contenttypes import generic
 from django.utils.datastructures import SortedDict
+from django.utils import datetime_safe
 
 NOISY = False
 
@@ -257,6 +258,11 @@ def get_value(field, descriptor):
     # Make sure Decimal is converted down into a string
     if isinstance(value, decimal.Decimal):
         value = str(value)
+    # datetime_safe has an improper repr value
+    if isinstance(value, datetime_safe.datetime):
+        value = datetime.datetime(*value.utctimetuple()[:7])
+    if isinstance(value, datetime_safe.date):
+        value = datetime.date(*value.timetuple()[:3])
     # Now, apply the converter func if there is one
     if "converter" in options:
         value = options['converter'](value)
