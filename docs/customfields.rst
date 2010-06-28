@@ -60,7 +60,7 @@ main ``Field`` class (which all fields inherit from), while specific options
 (in this case, ``CharField``).
 
 If your custom field inherits from a core Django field, or another field for
-whcih there are already introspection rules, and it doesn't add any new
+which there are already introspection rules, and it doesn't add any new
 attributes, then you probably won't have to add any rules for it, as it will
 inherit all those from its parents. In this case, a call like this should work::
 
