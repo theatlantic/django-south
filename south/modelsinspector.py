@@ -132,6 +132,7 @@ meta_details = {
     "db_table": ["db_table", {"default_attr_concat": ["%s_%s", "app_label", "module_name"]}],
     "db_tablespace": ["db_tablespace", {"default": settings.DEFAULT_TABLESPACE}],
     "unique_together": ["unique_together", {"default": []}],
+    "ordering": ["ordering", {"default": []}],
 }
 
 # 2.4 compatability
