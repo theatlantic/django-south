@@ -345,8 +345,12 @@ class DatabaseOperations(object):
         }
 
         # SQLs is a list of (SQL, values) pairs.
-        sqls = [(self.alter_string_set_type % params, [])]
-
+        sqls = []
+        
+        # Only alter the column if it has a type (Geometry ones sometimes don't)
+        if params["type"] is not None:
+            sqls.append((self.alter_string_set_type % params, []))
+        
         # Next, nullity
         if field.null:
             sqls.append((self.alter_string_set_null % params, []))
