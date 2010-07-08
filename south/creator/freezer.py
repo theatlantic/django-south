@@ -142,7 +142,7 @@ def pprint_fields(fields):
 
 ### Output sanitisers
 
-USELESS_KEYWORDS = ["choices", "help_text", "upload_to", "verbose_name", "storage"]
+USELESS_KEYWORDS = ["choices", "help_text", "verbose_name"]
 USELESS_DB_KEYWORDS = ["related_name", "default"] # Important for ORM, not for DB.
 INDEX_KEYWORDS = ["db_index"]
 
