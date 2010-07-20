@@ -78,14 +78,14 @@ migration up to 0004 to make sure her local copy is up-to-date, and then updates
 her code from (say) Subversion. In the meantime, her coworker Bob has written a
 migration 0003_baz, which gets pulled in.
 
-Now, there's a problem. 0003_phou should have been applied before 0004_bar,
+Now, there's a problem. 0003_baz should have been applied before 0004_bar,
 but it hasn't been; in this situation, South will helpfully say something like::
 
   Running migrations for aeblog:
    - Current migration: 5 (after 0004_bar)
    - Target migration: 5 (after 0004_bar)
    ! These migrations should have been applied already, but aren't:
-     - 0003_phou
+     - 0003_baz
    ! Please re-run migrate with one of these switches:
      --skip: Ignore this migration mismatch and keep going
      --merge: Just apply the missing migrations out of order
