@@ -9,7 +9,6 @@ from django.core.management.base import NoArgsCommand, BaseCommand
 from django.core.management.color import no_style
 from django.utils.datastructures import SortedDict
 from django.core.management.commands import syncdb
-from django.utils.importlib import import_module
 from django.conf import settings
 from django.db import models
 from django.db.models.loading import cache
@@ -42,13 +41,18 @@ class Command(NoArgsCommand):
         # Import the 'management' module within each installed app, to register
         # dispatcher events.
         # This is copied from Django, to fix bug #511.
-        for app_name in settings.INSTALLED_APPS:
-            try:
-                import_module('.management', app_name)
-            except ImportError, exc:
-                msg = exc.args[0]
-                if not msg.startswith('No module named') or 'management' not in msg:
-                    raise
+        try:
+            from django.utils.importlib import import_module
+        except ImportError:
+            pass # TODO: Remove, only for Django1.0
+        else:
+            for app_name in settings.INSTALLED_APPS:
+                try:
+                    import_module('.management', app_name)
+                except ImportError, exc:
+                    msg = exc.args[0]
+                    if not msg.startswith('No module named') or 'management' not in msg:
+                        raise
         
         # Work out what uses migrations and so doesn't need syncing
         apps_needing_sync = []
