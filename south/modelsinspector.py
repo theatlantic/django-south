@@ -134,6 +134,7 @@ meta_details = {
     "db_tablespace": ["db_tablespace", {"default": settings.DEFAULT_TABLESPACE}],
     "unique_together": ["unique_together", {"default": []}],
     "ordering": ["ordering", {"default": []}],
+    "proxy": ["proxy", {"default": False, "ignore_missing": True}],
 }
 
 # 2.4 compatability
@@ -208,7 +209,13 @@ def get_value(field, descriptor):
     if options.get('is_value', False):
         value = attrname
     else:
-        value = get_attribute(field, attrname)
+        try:
+            value = get_attribute(field, attrname)
+        except AttributeError:
+            if options.get("ignore_missing", False):
+                raise IsDefault
+            else:
+                raise
     # Lazy-eval functions get eval'd.
     if isinstance(value, Promise):
         value = unicode(value)
