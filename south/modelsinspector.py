@@ -90,6 +90,7 @@ introspection_details = [
         [],
         {
             "default": ["default", {"default": NOT_PROVIDED, "converter": bool}],
+            "blank": ["blank", {"default": True, "ignore_if":"primary_key"}],
         },
     ),
     (
