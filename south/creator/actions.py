@@ -8,7 +8,7 @@ import sys
 import datetime
 
 from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
-from django.db.models.fields import FieldDoesNotExist, NOT_PROVIDED
+from django.db.models.fields import FieldDoesNotExist, NOT_PROVIDED, CharField, TextField
 
 from south import modelsinspector
 from south.creator.freezer import remove_useless_attributes, model_key
@@ -154,6 +154,10 @@ class AddField(Action):
             self.deal_with_not_null_no_default()
 
     def deal_with_not_null_no_default(self):
+        # If it's a CharField or TextField that's blank, skip this step.
+        if isinstance(self.field, (CharField, TextField)) and self.field.blank:
+            self.field_def[2]['default'] = repr("")
+            return
         # Oh dear. Ask them what to do.
         print " ? The field '%s.%s' does not have a default specified, yet is NOT NULL." % (
             self.model._meta.object_name,
