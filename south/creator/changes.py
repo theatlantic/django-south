@@ -116,7 +116,12 @@ class AutoChanges(BaseChanges):
                 # We shouldn't delete it if it was managed=False
                 old_fields, old_meta, old_m2ms = self.split_model_def(self.old_orm[key], self.old_defs[key])
                 if old_meta.get("managed", "True") != "False":
-                    # Make sure we delete any M2Ms it had.
+                    # Alright, delete it.
+                    yield ("DeleteModel", {
+                        "model": self.old_orm[key], 
+                        "model_def": old_fields,
+                    })
+                    # Also make sure we delete any M2Ms it had.
                     for fieldname in old_m2ms:
                         # Only delete its stuff if it wasn't a through=.
                         field = self.old_orm[key + ":" + fieldname]
@@ -134,11 +139,6 @@ class AutoChanges(BaseChanges):
                                 "model": self.old_orm[key],
                                 "fields": [self.old_orm[key]._meta.get_field_by_name(x)[0] for x in fields],
                             })
-                    # Finally, delete it.
-                    yield ("DeleteModel", {
-                        "model": self.old_orm[key], 
-                        "model_def": old_fields,
-                    })
                 # We always add it in here so we ignore it later
                 deleted_models.add(key)
         
