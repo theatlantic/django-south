@@ -640,8 +640,8 @@ class DatabaseOperations(object):
             return ''
 
         connection = self._get_connection()
-        if db_tablespace and self._get_connection().features.supports_tablespaces:
-            tablespace_sql = ' ' + self._get_connection().ops.tablespace_sql(db_tablespace)
+        if db_tablespace and connection.features.supports_tablespaces:
+            tablespace_sql = ' ' + connection.ops.tablespace_sql(db_tablespace)
         else:
             tablespace_sql = ''
 

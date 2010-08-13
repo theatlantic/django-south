@@ -473,7 +473,6 @@ class TestMigrations(Monkeypatcher):
     def test_guess_migration(self):
         # Can't use vanilla import, modules beginning with numbers aren't in grammar
         M1 = __import__("fakeapp.migrations.0001_spam", {}, {}, ['Migration']).Migration
-        M2 = __import__("fakeapp.migrations.0002_eggs", {}, {}, ['Migration']).Migration
         migration = Migrations('fakeapp')
         self.assertEqual(M1, migration.guess_migration("0001_spam").migration().Migration)
         self.assertEqual(M1, migration.guess_migration("0001_spa").migration().Migration)

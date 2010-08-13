@@ -36,17 +36,6 @@ def problems(pending, done):
         if last and migration not in done:
             yield last, migration
 
-def problems(pending, done):
-    last = None
-    if not pending:
-        raise StopIteration()
-    for migration in pending:
-        if migration in done:
-            last = migration
-            continue
-        if last and migration not in done:
-            yield last, migration
-
 def forwards_problems(pending, done, verbosity):
     """
     Takes the list of linearised pending migrations, and the set of done ones,
