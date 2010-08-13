@@ -39,7 +39,6 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     def _find_indexes_for_column(self, table_name, name):
         "Find the indexes that apply to a column, needed when deleting"
-        q_table_name, q_name = (self.quote_name(table_name), self.quote_name(name))
 
         sql = """
         SELECT si.name, si.id, sik.colid, sc.name
@@ -59,7 +58,6 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     def _find_constraints_for_column(self, table_name, name):
         "Find the constraints that apply to a column, needed when deleting"
-        q_table_name, q_name = (self.quote_name(table_name), self.quote_name(name))
 
         sql = """
         SELECT  

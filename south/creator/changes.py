@@ -175,8 +175,6 @@ class AutoChanges(BaseChanges):
         for key in self.old_defs:
             if key not in deleted_models:
                 
-                still_there = set()
-                
                 old_fields, old_meta, old_m2ms = self.split_model_def(self.old_orm[key], self.old_defs[key])
                 new_fields, new_meta, new_m2ms = self.split_model_def(self.current_model_from_key(key), self.new_defs[key])
                 
