@@ -335,6 +335,9 @@ def get_model_fields(model, m2m=False):
             field_class = field.__class__.__module__ + "." + field.__class__.__name__
             # Run this field through the introspector
             args, kwargs = introspector(field)
+            # Workaround for Django bug #13987
+            if model._meta.pk.column == field.column and 'primary_key' not in kwargs:
+                kwargs['primary_key'] = True
             # That's our definition!
             field_defs[field.name] = (field_class, args, kwargs)
         # Shucks, no definition!
