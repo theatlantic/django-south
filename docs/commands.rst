@@ -219,8 +219,8 @@ This command can be particularly helpful to examine complex dependency sets
 between lots of different apps [#]_.
 
  .. [#] This command was written and used for the first time while helping the
-        debug the rather complex set of dependencies in django-cms; it's quite
-        a sight to behold.
+        debug the rather complex set of dependencies in django-cms; it's
+        `quite a sight to behold <http://i.imgur.com/nrmoR.png>`_.
 
 Options
 ^^^^^^^
