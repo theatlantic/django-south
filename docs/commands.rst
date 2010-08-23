@@ -60,7 +60,7 @@ Options
  - ``--no-initial-data``: Doesn't load in any initial data fixtures after a
    full upwards migration, if there are any.
  - ``--fake``: Records the migration sequence as having been applied, but
-   doesn't actually run it. Useful for ConvertingAnApp.
+   doesn't actually run it. Useful for :ref:`converting-an-app`.
  - ``--db-dry-run``: Loads and runs the migration, but doesn't actually
    access the database (the SQL generated is thrown away at the last minute).
    The migration is also not recorded as being run; this is useful for
@@ -245,3 +245,15 @@ Options
 ^^^^^^^
 
  - ``--all``: Makes syncdb operate on all apps, not just unmigrated ones.
+ 
+
+convert_to_south
+----------------
+
+An alias command that both creates an initial migration for an app and then
+fake-applies it. Takes one argument, the app label of the app to convert::
+ 
+ ./manage.py convert_to_south myapp
+
+There's more documentation on how to use this in the :ref:`converting-an-app`
+section.
