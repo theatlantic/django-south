@@ -617,13 +617,15 @@ class DatabaseOperations(object):
         """
         Generate a unique name for the index
         """
+
+        table_name = table_name.replace('"', '').replace('.', '_')
         index_unique_name = ''
 
         if len(column_names) > 1:
             index_unique_name = '_%x' % abs(hash((table_name, ','.join(column_names))))
 
         # If the index name is too long, truncate it
-        index_name = ('%s_%s%s%s' % (table_name, column_names[0], index_unique_name, suffix))
+        index_name = ('%s_%s%s%s' % (table_name, column_names[0], index_unique_name, suffix)).replace('"', '').replace('.', '_')
         if len(index_name) > self.max_index_name_length:
             part = ('_%s%s%s' % (column_names[0], index_unique_name, suffix))
             index_name = '%s%s' % (table_name[:(self.max_index_name_length-len(part))], part)
