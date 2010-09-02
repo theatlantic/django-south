@@ -134,7 +134,7 @@ you; if you like, you can ignore it and write everything youself, in which
 case we wish you good luck, and happy typing.
 
 However, if you have a sense of reason, you'll realise that having the large
-majority of your migrations written for you in undoubtedly a good thing.
+majority of your migrations written for you is undoubtedly a good thing.
 
 The main use of schemamigration is when you've just finished your shiny new
 models.py and want to load up your database. In vanilla Django, you'd just run
