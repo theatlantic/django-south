@@ -73,28 +73,35 @@ class DatabaseOperations(generic.DatabaseOperations):
     
     def delete_column(self, table_name, name):
         db_name = self._get_setting('NAME')
-        
+
         # See if there is a foreign key on this column
         cursor = self._get_connection().cursor()
-        get_fkeyname_query = "SELECT tc.constraint_name FROM \
-                              information_schema.table_constraints tc, \
-                              information_schema.key_column_usage kcu \
-                              WHERE tc.table_name=kcu.table_name \
-                              AND tc.table_schema=kcu.table_schema \
-                              AND tc.constraint_name=kcu.constraint_name \
-                              AND tc.constraint_type='FOREIGN KEY' \
-                              AND tc.table_schema='%s' \
-                              AND tc.table_name='%s' \
-                              AND kcu.column_name='%s'"
 
-        result = cursor.execute(get_fkeyname_query % (db_name, table_name, name))
-        
-        # If a foreign key exists, we need to delete it first
-        if result > 0:
-            assert result == 1 # We should only have one result, otherwise there's Issues
-            fkey_name = cursor.fetchone()[0]
-            drop_query = "ALTER TABLE %s DROP FOREIGN KEY %s"
-            cursor.execute(drop_query % (self.quote_name(table_name), self.quote_name(fkey_name)))
+        constraint_query = """ SELECT tc.constraint_name FROM \
+                               information_schema.table_constraints tc \
+                               WHERE tc.constraint_type='FOREIGN KEY' \
+                               AND tc.table_schema='%s' \
+                               AND tc.table_name='%s'
+                           """
+        column_query = """SELECT kcu.column_name FROM \
+                          information_schema.key_column_usage kcu \
+                          WHERE kcu.constraint_name IN(%s) \
+                          AND kcu.table_schema='%s' \
+                          AND kcu.table_name='%s' \
+                          AND kcu.column_name='%s'
+                       """
+
+        has_fk = cursor.execute(constraint_query % (db_name, table_name))
+        if has_fk:
+            cnames = ','.join("'%s'" % row[0] for row in cursor.fetchall())
+            matching_column = cursor.execute(column_query % (cnames, db_name, table_name, name))
+
+            # If a foreign key exists, we need to delete it first
+            if matching_column > 0:
+                assert matching_column == 1 # We should only have one result, otherwise there's Issues
+                fkey_name = cursor.fetchone()[0]
+                drop_query = "ALTER TABLE %s DROP FOREIGN KEY %s"
+                cursor.execute(drop_query % (self.quote_name(table_name), self.quote_name(fkey_name)))
 
         super(DatabaseOperations, self).delete_column(table_name, name)
 
@@ -125,20 +132,25 @@ class DatabaseOperations(generic.DatabaseOperations):
         db_name = self._get_setting('NAME')
         
         # First, load all constraint->col mappings for this table.
-        rows = self.execute("""
-            SELECT kc.constraint_name, kc.column_name
-            FROM information_schema.key_column_usage AS kc
-            JOIN information_schema.table_constraints AS c ON
-                kc.table_schema = c.table_schema AND
-                kc.table_name = c.table_name AND
-                kc.constraint_name = c.constraint_name
-            WHERE
-                kc.table_schema = %s AND
-                kc.table_catalog IS NULL AND
-                kc.table_name = %s AND
-                c.constraint_type = %s
-        """, [db_name, table_name, type])
-        
+        con_query = """SELECT tc.constraint_name FROM \
+                       information_schema.table_constraints tc \
+                       WHERE tc.constraint_type=%s AND \
+                             tc.table_schema=%s AND \
+                             tc.table_name=%s
+                    """
+        rows = self.execute(con_query, [type, db_name, table_name])
+        if not rows:
+            return
+        con_names = ','.join("'%s'" % row[0] for row in rows)
+        column_query = """SELECT kc.constraint_name, kc.column_name
+                          FROM information_schema.key_column_usage AS kc
+                          WHERE kc.table_schema = %%s AND
+                                kc.table_catalog IS NULL AND
+                                kc.table_name = %%s AND
+                                kc.constraint_name IN (%s)
+                       """ % con_names
+        rows = self.execute(column_query, [db_name, table_name])
+
         # Load into a dict
         mapping = {}
         for constraint, column in rows:
