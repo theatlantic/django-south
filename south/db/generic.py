@@ -51,7 +51,6 @@ class DatabaseOperations(object):
     create_primary_key_string = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s PRIMARY KEY (%(columns)s)"
     delete_primary_key_sql = "ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s"
     backend_name = None
-    default_schema_name = "public"
 
     def __init__(self, db_alias):
         self.debug = False
@@ -60,7 +59,7 @@ class DatabaseOperations(object):
         self.pending_transactions = 0
         self.pending_create_signals = []
         self.db_alias = db_alias
-        self._initialised = False
+        self.connection_init()
     
     def _is_multidb(self):
         try: 
@@ -105,18 +104,6 @@ class DatabaseOperations(object):
         else:
             return True
 
-    def _get_schema_name(self):
-        try:
-            return self._get_setting('schema')
-        except (KeyError, AttributeError):
-            return self.default_schema_name
-
-    
-    def _possibly_initialise(self):
-        if not self._initialised:
-            self.connection_init()
-            self._initialised = True
-
     def connection_init(self):
         """
         Run before any SQL to let database-specific config be sent as a command,
@@ -135,9 +122,6 @@ class DatabaseOperations(object):
         Executes the given SQL statement, with optional parameters.
         If the instance's debug attribute is True, prints out what it executes.
         """
-        
-        self._possibly_initialise()
-        
         cursor = self._get_connection().cursor()
         if self.debug:
             print "   = %s" % sql, params
@@ -354,8 +338,7 @@ class DatabaseOperations(object):
         # First, change the type
         params = {
             "column": self.quote_name(name),
-            "type": self._db_type_for_alter_column(field),            
-            "table_name": table_name
+            "type": self._db_type_for_alter_column(field)            
         }
 
         # SQLs is a list of (SQL, values) pairs.
@@ -415,8 +398,11 @@ class DatabaseOperations(object):
             ifsc_table = "constraint_column_usage"
         else:
             ifsc_table = "key_column_usage"
-
-        schema = self._get_schema_name()            
+            
+        if self._has_setting("SCHEMA"):
+            schema = self._get_setting("SCHEMA")
+        else:
+            schema = "public"
 
         # First, load all constraint->col mappings for this table.
         rows = self.execute("""

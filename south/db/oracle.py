@@ -1,5 +1,4 @@
 import os.path
-import sys
 import re
 import cx_Oracle
 
@@ -10,8 +9,8 @@ from django.db.backends.oracle.base import get_sequence_name
 from django.db.models.fields import NOT_PROVIDED
 from south.db import generic
 
-print >> sys.stderr, " ! WARNING: South's Oracle support is still alpha."
-print >> sys.stderr, " !          Be wary of posible bugs."
+print " ! WARNING: South's Oracle support is still alpha."
+print " !          Be wary of posible bugs."
 
 class DatabaseOperations(generic.DatabaseOperations):    
     """

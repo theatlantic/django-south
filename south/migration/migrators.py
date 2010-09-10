@@ -70,7 +70,7 @@ class Migrator(object):
             '%s\n'
             ' ! The South developers regret this has happened, and would\n'
             ' ! like to gently persuade you to consider a slightly\n'
-            ' ! easier-to-deal-with DBMS (one that supports DDL transactions)\n'
+            ' ! easier-to-deal-with DBMS.\n'
             ' ! NOTE: The error which caused the migration to fail is further up.'
         ) % extra_info
 
@@ -84,7 +84,6 @@ class Migrator(object):
             south.db.db.rollback_transaction()
             if not south.db.db.has_ddl_transactions:
                 print self.run_migration_error(migration)
-            print "Error in migration: %s" % migration
             raise
         else:
             south.db.db.commit_transaction()
