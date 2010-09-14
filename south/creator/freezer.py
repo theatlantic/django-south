@@ -29,15 +29,20 @@ def freeze_apps(apps):
         frozen_models.update(model_dependencies(model))
     # Serialise!
     model_defs = {}
+    model_classes = {}
     for model in frozen_models:
         model_defs[model_key(model)] = prep_for_freeze(model)
+        model_classes[model_key(model)] = model
     # Check for any custom fields that failed to freeze.
     missing_fields = False
     for key, fields in model_defs.items():
         for field_name, value in fields.items():
             if value is None:
                 missing_fields = True
+                model_class = model_classes[key]
+                field_class = model_class._meta.get_field_by_name(field_name)[0]
                 print " ! Cannot freeze field '%s.%s'" % (key, field_name)
+                print " ! (this field has class %s.%s)" % (field_class.__class__.__module__, field_class.__class__.__name__)
     if missing_fields:
         print ""
         print " ! South cannot introspect some fields; this is probably because they are custom"
