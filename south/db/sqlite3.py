@@ -27,6 +27,8 @@ class DatabaseOperations(generic.DatabaseOperations):
             (not field.has_default() or field.get_default() is None) and
             not field.empty_strings_allowed):
             raise ValueError("You cannot add a null=False column without a default value.")
+        # Initialise the field.
+        field.set_attributes_from_name(name)
         # We add columns by remaking the table; even though SQLite supports 
         # adding columns, it doesn't support adding PRIMARY KEY or UNIQUE cols.
         self._remake_table(table_name, added={
