@@ -24,6 +24,28 @@ def alias(attrname):
         return getattr(self, attrname)(*args, **kwds)
     return func
 
+def invalidate_table_constraints(func):
+    def _cache_clear(self, table, *args, **opts):
+        self._set_cache(table, value=INVALID)
+        return func(self, table, *args, **opts)
+    return _cache_clear
+
+def delete_column_constraints(func):
+    def _column_rm(self, table, column, *args, **opts):
+        self._set_cache(table, column, value=[])
+        return func(self, table, column, *args, **opts)
+    return _column_rm
+
+def copy_column_constraints(func):
+    def _column_cp(self, table, column_old, column_new, *args, **opts):
+        db_name = self._get_setting('NAME')
+        self._set_cache(table, column_new, value=self.lookup_constraint(db_name, table, column_old))
+        return func(self, table, column_old, column_new, *args, **opts)
+    return _column_cp
+
+class INVALID(Exception):
+    def __repr__(self):
+        return 'INVALID'
 
 class DatabaseOperations(object):
 
@@ -59,8 +81,50 @@ class DatabaseOperations(object):
         self.pending_transactions = 0
         self.pending_create_signals = []
         self.db_alias = db_alias
+        self._constraint_cache = {}
         self.connection_init()
-    
+
+    def lookup_constraint(self, db_name, table_name, column_name=None):
+        """ return a set() of constraints for db_name.table_name.column_name """
+        def _lookup():
+            table = self._constraint_cache[db_name][table_name]
+            if table is INVALID:
+                raise INVALID
+            elif column_name is None:
+                return table.items()
+            else:
+                return table[column_name]
+
+        try:
+            ret = _lookup()
+            return ret
+        except INVALID as e:
+            del self._constraint_cache[db_name][table_name]
+            self._fill_constraint_cache(db_name, table_name)
+        except KeyError as e:
+            if self._is_valid_cache(db_name, table_name):
+                return []
+            self._fill_constraint_cache(db_name, table_name)
+
+        return self.lookup_constraint(db_name, table_name, column_name)
+
+    def _set_cache(self, table_name, column_name=None, value=INVALID):
+        db_name = self._get_setting('NAME')
+        try:
+            if column_name is not None:
+                self._constraint_cache[db_name][table_name][column_name] = value
+            else:
+                self._constraint_cache[db_name][table_name] = value
+        except (LookupError, TypeError):
+            pass
+
+    def _is_valid_cache(self, db_name, table_name):
+        # we cache per-table so if the table is there it is valid
+        try:
+            return self._constraint_cache[db_name][table_name] is not INVALID
+        except KeyError:
+            return False
+
     def _is_multidb(self):
         try: 
             from django.db import connections
@@ -190,6 +254,7 @@ class DatabaseOperations(object):
         return self.pending_create_signals
 
 
+    @invalidate_table_constraints
     def create_table(self, table_name, fields):
         """
         Creates the table 'table_name'. 'fields' is a tuple of fields,
@@ -213,6 +278,7 @@ class DatabaseOperations(object):
     add_table = alias('create_table') # Alias for consistency's sake
 
 
+    @invalidate_table_constraints
     def rename_table(self, old_table_name, table_name):
         """
         Renames the table 'old_table_name' to 'table_name'.
@@ -224,6 +290,7 @@ class DatabaseOperations(object):
         self.execute('ALTER TABLE %s RENAME TO %s;' % params)
 
 
+    @invalidate_table_constraints
     def delete_table(self, table_name, cascade=True):
         """
         Deletes the table 'table_name'.
@@ -237,6 +304,7 @@ class DatabaseOperations(object):
     drop_table = alias('delete_table')
 
 
+    @invalidate_table_constraints
     def clear_table(self, table_name):
         """
         Deletes all rows from 'table_name'.
@@ -246,6 +314,7 @@ class DatabaseOperations(object):
 
 
 
+    @invalidate_table_constraints
     def add_column(self, table_name, name, field, keep_default=True):
         """
         Adds the column 'name' to the table 'table_name'.
@@ -292,6 +361,7 @@ class DatabaseOperations(object):
         else:
             sqls.append(('ALTER COLUMN %s DROP DEFAULT' % (self.quote_name(name),), []))
 
+    @invalidate_table_constraints
     def alter_column(self, table_name, name, field, explicit_name=True, ignore_constraints=False):
         """
         Alters the given column name so it will match the given field.
@@ -381,55 +451,58 @@ class DatabaseOperations(object):
                     )
                 )
 
+    def _fill_constraint_cache(self, db_name, table_name):
+        if self._has_setting("SCHEMA"):
+            schema = self._get_setting("SCHEMA")
+        else:
+            schema = "public"
+        ifsc_tables = ["constraint_column_usage", "key_column_usage"]
+
+        self._constraint_cache.setdefault(db_name, {})
+        self._constraint_cache[db_name][table_name] = {}
+
+        for ifsc_table in ifsc_tables:
+            rows = self.execute("""
+                SELECT kc.constraint_name, kc.column_name, c.contraint_type
+                FROM information_schema.%s AS kc
+                JOIN information_schema.table_constraints AS c ON
+                    kc.table_schema = c.table_schema AND
+                    kc.table_name = c.table_name AND
+                    kc.constraint_name = c.constraint_name
+                WHERE
+                    kc.table_schema = %%s AND
+                    kc.table_name = %%s AND
+            """ % ifsc_table, [schema, table_name, type])
+            for constraint, column, kind in rows:
+                self._constraint_cache[db_name][table].setdefault(column, set())
+                self._constraint_cache[db_name][table][column].add((kind, constraint))
+        return
 
     def _constraints_affecting_columns(self, table_name, columns, type="UNIQUE"):
         """
         Gets the names of the constraints affecting the given columns.
         If columns is None, returns all constraints of the type on the table.
         """
-
         if self.dry_run:
             raise ValueError("Cannot get constraints for columns during a dry run.")
 
         if columns is not None:
             columns = set(columns)
 
-        if type == "CHECK":
-            ifsc_table = "constraint_column_usage"
-        else:
-            ifsc_table = "key_column_usage"
-            
-        if self._has_setting("SCHEMA"):
-            schema = self._get_setting("SCHEMA")
-        else:
-            schema = "public"
+        db_name = self._get_setting('NAME')
 
-        # First, load all constraint->col mappings for this table.
-        rows = self.execute("""
-            SELECT kc.constraint_name, kc.column_name
-            FROM information_schema.%s AS kc
-            JOIN information_schema.table_constraints AS c ON
-                kc.table_schema = c.table_schema AND
-                kc.table_name = c.table_name AND
-                kc.constraint_name = c.constraint_name
-            WHERE
-                kc.table_schema = %%s AND
-                kc.table_name = %%s AND
-                c.constraint_type = %%s
-        """ % ifsc_table, [schema, table_name, type])
-        
-        # Load into a dict
-        mapping = {}
-        for constraint, column in rows:
-            mapping.setdefault(constraint, set())
-            mapping[constraint].add(column)
-        
-        # Find ones affecting these columns
-        for constraint, itscols in mapping.items():
-            # If columns is None we definitely want this field! (see docstring)
-            if itscols == columns or columns is None:
-                yield constraint
+        cnames = {}
+        for col, constraints in self.lookup_constraint(db_name, table_name):
+            for kind, cname in constraints:
+                if kind == type:
+                    cnames.setdefault(cname, set())
+                    cnames[cname].add(col)
 
+        for cname, cols in cnames.items():
+            if cols == columns or columns is None:
+                yield cname
+
+    @invalidate_table_constraints
     def create_unique(self, table_name, columns):
         """
         Creates a UNIQUE constraint on the columns on the given table.
@@ -448,6 +521,7 @@ class DatabaseOperations(object):
         ))
         return name
 
+    @invalidate_table_constraints
     def delete_unique(self, table_name, columns):
         """
         Deletes a UNIQUE constraint on precisely the columns on the given table.
@@ -594,6 +668,7 @@ class DatabaseOperations(object):
         )
     
 
+    @invalidate_table_constraints
     def delete_foreign_key(self, table_name, column):
         "Drop a foreign key constraint"
         if self.dry_run:
@@ -653,12 +728,14 @@ class DatabaseOperations(object):
             tablespace_sql
         )
 
+    @invalidate_table_constraints
     def create_index(self, table_name, column_names, unique=False, db_tablespace=''):
         """ Executes a create index statement """
         sql = self.create_index_sql(table_name, column_names, unique, db_tablespace)
         self.execute(sql)
 
 
+    @invalidate_table_constraints
     def delete_index(self, table_name, column_names, db_tablespace=''):
         """
         Deletes an index created with create_index.
@@ -677,10 +754,16 @@ class DatabaseOperations(object):
     drop_index = alias('delete_index')
 
 
+    @delete_column_constraints
     def delete_column(self, table_name, name):
         """
         Deletes the column 'column_name' from the table 'table_name'.
         """
+        db_name = self._get_setting('NAME')
+        try:
+            self._constraint_cache[db_name][table_name][name] = []
+        except KeyError:
+            pass
         params = (self.quote_name(table_name), self.quote_name(name))
         self.execute(self.delete_column_string % params, [])
 
@@ -694,6 +777,7 @@ class DatabaseOperations(object):
         raise NotImplementedError("rename_column has no generic SQL syntax")
 
 
+    @invalidate_table_constraints
     def delete_primary_key(self, table_name):
         """
         Drops the old primary key.
@@ -715,6 +799,7 @@ class DatabaseOperations(object):
     drop_primary_key = alias('delete_primary_key')
 
 
+    @invalidate_table_constraints
     def create_primary_key(self, table_name, columns):
         """
         Creates a new primary key on the specified columns.

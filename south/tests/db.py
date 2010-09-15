@@ -1,6 +1,6 @@
 import unittest
 
-from south.db import db
+from south.db import db, generic
 from django.db import connection, models
 
 # Create a list of error classes from the various database libraries
@@ -11,6 +11,11 @@ try:
 except ImportError:
     pass
 errors = tuple(errors)
+
+try:
+    from south.db import mysql
+except ImportError:
+    mysql = None
 
 class TestOperations(unittest.TestCase):
 
@@ -435,3 +440,142 @@ class TestOperations(unittest.TestCase):
         db.add_column("test_add_unique_fk", "mock2", models.OneToOneField(db.mock_model('Mock', 'mock'), null=True))
         
         db.delete_table("test_add_unique_fk")
+
+class TestCacheGeneric(unittest.TestCase):
+    base_ops_cls = generic.DatabaseOperations
+    def setUp(self):
+        class CacheOps(self.base_ops_cls):
+            def __init__(self):
+                self._constraint_cache = {}
+                self.cache_filled = 0
+                self.settings = {'NAME' : 'db'}
+
+            def _fill_constraint_cache(self, db, table):
+                self.cache_filled += 1
+                self._constraint_cache.setdefault(db, {})
+                self._constraint_cache[db].setdefault(table, {})
+
+            @generic.invalidate_table_constraints
+            def clear_con(self, table):
+                pass
+
+            @generic.copy_column_constraints
+            def cp_column(self, table, column_old, column_new):
+                pass
+
+            @generic.delete_column_constraints
+            def rm_column(self, table, column):
+                pass
+
+            @generic.copy_column_constraints
+            @generic.delete_column_constraints
+            def mv_column(self, table, column_old, column_new):
+                pass
+
+            def _get_setting(self, attr):
+                return self.settings[attr]
+        self.CacheOps = CacheOps
+
+    def test_cache(self):
+        ops = self.CacheOps()
+        self.assertEqual(0, ops.cache_filled)
+        self.assertFalse(ops.lookup_constraint('db', 'table'))
+        self.assertEqual(1, ops.cache_filled)
+        self.assertFalse(ops.lookup_constraint('db', 'table'))
+        self.assertEqual(1, ops.cache_filled)
+        ops.clear_con('table')
+        self.assertEqual(1, ops.cache_filled)
+        self.assertFalse(ops.lookup_constraint('db', 'table'))
+        self.assertEqual(2, ops.cache_filled)
+        self.assertFalse(ops.lookup_constraint('db', 'table', 'column'))
+        self.assertEqual(2, ops.cache_filled)
+
+        cache = ops._constraint_cache
+        cache['db']['table']['column'] = 'constraint'
+        self.assertEqual('constraint', ops.lookup_constraint('db', 'table', 'column'))
+        self.assertEqual([('column', 'constraint')], ops.lookup_constraint('db', 'table'))
+        self.assertEqual(2, ops.cache_filled)
+
+        # invalidate_table_constraints
+        ops.clear_con('new_table')
+        self.assertEqual('constraint', ops.lookup_constraint('db', 'table', 'column'))
+        self.assertEqual(2, ops.cache_filled)
+
+        self.assertFalse(ops.lookup_constraint('db', 'new_table'))
+        self.assertEqual(3, ops.cache_filled)
+
+        # delete_column_constraints
+        cache['db']['table']['column'] = 'constraint'
+        self.assertEqual('constraint', ops.lookup_constraint('db', 'table', 'column'))
+        ops.rm_column('table', 'column')
+        self.assertEqual([], ops.lookup_constraint('db', 'table', 'column'))
+        self.assertEqual([], ops.lookup_constraint('db', 'table', 'noexist_column'))
+
+        # copy_column_constraints
+        cache['db']['table']['column'] = 'constraint'
+        self.assertEqual('constraint', ops.lookup_constraint('db', 'table', 'column'))
+        import sys
+        ops.cp_column('table', 'column', 'column_new')
+        self.assertEqual('constraint', ops.lookup_constraint('db', 'table', 'column_new'))
+        self.assertEqual('constraint', ops.lookup_constraint('db', 'table', 'column'))
+
+        # copy + delete
+        cache['db']['table']['column'] = 'constraint'
+        self.assertEqual('constraint', ops.lookup_constraint('db', 'table', 'column'))
+        ops.mv_column('table', 'column', 'column_new')
+        self.assertEqual('constraint', ops.lookup_constraint('db', 'table', 'column_new'))
+        self.assertEqual([], ops.lookup_constraint('db', 'table', 'column'))
+        return
+
+    def test_valid(self):
+        ops = self.CacheOps()
+        # none of these should vivify a table into a valid state
+        self.assertFalse(ops._is_valid_cache('db', 'table'))
+        self.assertFalse(ops._is_valid_cache('db', 'table'))
+        ops.clear_con('table')
+        self.assertFalse(ops._is_valid_cache('db', 'table'))
+        ops.rm_column('table', 'column')
+        self.assertFalse(ops._is_valid_cache('db', 'table'))
+
+        # these should change the cache state
+        ops.lookup_constraint('db', 'table')
+        self.assertTrue(ops._is_valid_cache('db', 'table'))
+        ops.lookup_constraint('db', 'table', 'column')
+        self.assertTrue(ops._is_valid_cache('db', 'table'))
+        ops.clear_con('table')
+        self.assertFalse(ops._is_valid_cache('db', 'table'))
+
+    def test_valid_implementation(self):
+        # generic fills the cache on a per-table basis
+        ops = self.CacheOps()
+        self.assertFalse(ops._is_valid_cache('db', 'table'))
+        self.assertFalse(ops._is_valid_cache('db', 'other_table'))
+        ops.lookup_constraint('db', 'table')
+        self.assertTrue(ops._is_valid_cache('db', 'table'))
+        self.assertFalse(ops._is_valid_cache('db', 'other_table'))
+        ops.lookup_constraint('db', 'other_table')
+        self.assertTrue(ops._is_valid_cache('db', 'table'))
+        self.assertTrue(ops._is_valid_cache('db', 'other_table'))
+        ops.clear_con('table')
+        self.assertFalse(ops._is_valid_cache('db', 'table'))
+        self.assertTrue(ops._is_valid_cache('db', 'other_table'))
+
+if mysql:
+    class TestCacheMysql(TestCacheGeneric):
+        base_ops_cls = mysql.DatabaseOperations
+
+        def test_valid_implementation(self):
+            # mysql fills the cache on a per-db basis
+            ops = self.CacheOps()
+            self.assertFalse(ops._is_valid_cache('db', 'table'))
+            self.assertFalse(ops._is_valid_cache('db', 'other_table'))
+            ops.lookup_constraint('db', 'table')
+            cache = ops._constraint_cache
+            self.assertTrue(ops._is_valid_cache('db', 'table'))
+            self.assertTrue(ops._is_valid_cache('db', 'other_table'))
+            ops.lookup_constraint('db', 'other_table')
+            self.assertTrue(ops._is_valid_cache('db', 'table'))
+            self.assertTrue(ops._is_valid_cache('db', 'other_table'))
+            ops.clear_con('table')
+            self.assertFalse(ops._is_valid_cache('db', 'table'))
+            self.assertTrue(ops._is_valid_cache('db', 'other_table'))
