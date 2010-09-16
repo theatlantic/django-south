@@ -47,6 +47,8 @@ class DatabaseOperations(generic.DatabaseOperations):
                 kc.table_catalog IS NULL
         """
         rows = self.execute(name_query, [db_name])
+        if not rows:
+            return
         cnames = {}
         for constraint, column, table in rows:
             key = (table, constraint)
