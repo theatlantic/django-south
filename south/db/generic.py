@@ -59,7 +59,7 @@ class DatabaseOperations(object):
         self.pending_transactions = 0
         self.pending_create_signals = []
         self.db_alias = db_alias
-        self.connection_init()
+        self._initialised = False
     
     def _is_multidb(self):
         try: 
@@ -103,6 +103,10 @@ class DatabaseOperations(object):
             return False
         else:
             return True
+    
+    def _possibly_initialise(self):
+        if not self._initialised:
+            self.connection_init()
 
     def connection_init(self):
         """
@@ -122,6 +126,9 @@ class DatabaseOperations(object):
         Executes the given SQL statement, with optional parameters.
         If the instance's debug attribute is True, prints out what it executes.
         """
+        
+        self._possibly_initialise()
+        
         cursor = self._get_connection().cursor()
         if self.debug:
             print "   = %s" % sql, params
