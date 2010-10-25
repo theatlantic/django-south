@@ -702,6 +702,13 @@ class TestMigrationLogic(Monkeypatcher):
             ],
             otherfakeapp['0003_third'].forwards_plan(),
         )
+    
+    def test_rebase(self):
+        """
+        Tests that the rebase logic correctly starts at a rebase migration,
+        but only if we're doing a fresh install.
+        """
+        pass
 
 
 class TestMigrationUtils(Monkeypatcher):

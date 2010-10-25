@@ -108,7 +108,7 @@ def get_direction(target, applied, migrations, verbosity, interactive):
     forwards, backwards = get_dependencies(target, migrations)
     # Is the whole forward branch applied?
     problems = None
-    forwards = forwards()
+    forwards = forwards(allow_rebase=not applied)
     workplan = to_apply(forwards, applied)
     if not workplan:
         # If they're all applied, we only know it's not backwards
