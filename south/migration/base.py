@@ -327,15 +327,15 @@ class Migration(object):
         return self.migrations[index]
     next = memoize(next)
     
-    def is_base(self):
+    def is_rebase(self):
         """
-        Returns whether this migration is a 'base' migration - one which is
-        a safe place for the migrator to stop.
+        Returns whether this migration is a 'rebase' migration - one which is
+        a safe place for the migrator to stop before it gets to the start.
         This is true if it's an initial migration, or if it's been created by
         rebase.
         """
-        return (self.previous() is None) or getattr(self.migration_class(), "rebase", False) 
-    is_base = memoize(is_base)
+        return getattr(self.migration_class(), "rebase", False) 
+    is_rebase = memoize(is_rebase)
     
     def _get_dependency_objects(self, attrname):
         """
@@ -400,10 +400,10 @@ class Migration(object):
         for item in reversed(base_plan):
             if allow_rebase:
                 new_plan.insert(0, item)
-                if item.is_base():
+                if item.is_rebase():
                     break
             else:
-                if not item.is_base():
+                if not item.is_rebase():
                     new_plan.insert(0, item)
         return new_plan
 

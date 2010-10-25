@@ -89,7 +89,7 @@ def check_migration_histories(histories, delete_ghosts=False, ignore_ghosts=Fals
     return exists
 
 def get_dependencies(target, migrations):
-    forwards = list
+    forwards = lambda allow_rebase=False: list()
     backwards = list
     if target is None:
         backwards = migrations[0].backwards_plan

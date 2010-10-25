@@ -508,7 +508,11 @@ class TestMigrationLogic(Monkeypatcher):
     Tests if the various logic functions in migration actually work.
     """
     
-    installed_apps = ["fakeapp", "otherfakeapp"]
+    installed_apps = ["fakeapp", "otherfakeapp", "rebasedapp"]
+
+    def setUp(self):
+        super(TestMigrationLogic, self).setUp()
+        Migrations.calculate_dependencies(force=True)
 
     def assertListEqual(self, list1, list2):
         list1 = list(list1)
@@ -708,8 +712,27 @@ class TestMigrationLogic(Monkeypatcher):
         Tests that the rebase logic correctly starts at a rebase migration,
         but only if we're doing a fresh install.
         """
-        pass
-
+        
+        rebasedapp = Migrations("rebasedapp")
+        
+        # Test with no rebase
+        self.assertEqual(
+            [
+                rebasedapp['0001_bottom'],
+                rebasedapp['0002_mid'],
+                rebasedapp['0004_top'],
+            ],
+            rebasedapp['0004_top'].forwards_plan(allow_rebase=False),
+        )
+        
+        # Test with rebase
+        self.assertEqual(
+            [
+                rebasedapp['0003_rebase'],
+                rebasedapp['0004_top'],
+            ],
+            rebasedapp['0004_top'].forwards_plan(allow_rebase=True),
+        )
 
 class TestMigrationUtils(Monkeypatcher):
     installed_apps = ["fakeapp", "otherfakeapp"]
