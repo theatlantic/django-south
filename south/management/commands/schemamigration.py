@@ -35,6 +35,8 @@ class Command(DataCommand):
             help='Generate an Add Index migration for the specified modelname.fieldname - you can use this multiple times to add more than one column.'),
         make_option('--initial', action='store_true', dest='initial', default=False,
             help='Generate the initial schema for the app.'),
+        make_option('--rebase', action='store_true', dest='rebase', default=False,
+            help='Create a "rebase" migration (implies --initial).'),
         make_option('--auto', action='store_true', dest='auto', default=False,
             help='Attempt to automatically detect differences from the last migration.'),
         make_option('--empty', action='store_true', dest='empty', default=False,
@@ -43,7 +45,7 @@ class Command(DataCommand):
     help = "Creates a new template schema migration for the given app"
     usage_str = "Usage: ./manage.py schemamigration appname migrationname [--empty] [--initial] [--auto] [--add-model ModelName] [--add-field ModelName.field_name] [--stdout]"
     
-    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, freeze_list=None, initial=False, auto=False, stdout=False, added_index_list=None, verbosity=1, empty=False, **options):
+    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, freeze_list=None, initial=False, auto=False, stdout=False, added_index_list=None, verbosity=1, empty=False, rebase=False, **options):
         
         # Any supposed lists that are None become empty lists
         added_model_list = added_model_list or []
@@ -54,6 +56,10 @@ class Command(DataCommand):
         # --stdout means name = -
         if stdout:
             name = "-"
+        
+        # Rebase implies initial
+        if rebase:
+            initial = True
 	
         # Only allow valid names
         if re.search('[^_\w]', name) and name != "-":
@@ -114,7 +120,7 @@ class Command(DataCommand):
             elif empty:
                 change_source = None
             else:
-                print >>sys.stderr, "You have not passed any of --initial, --auto, --empty, --add-model, --add-field or --add-index."
+                print >>sys.stderr, "You have not passed any of --initial, --rebase, --auto, --empty, --add-model, --add-field or --add-index."
                 sys.exit(1)
         
         # if not name, there's an error
@@ -155,7 +161,8 @@ class Command(DataCommand):
             "forwards": "\n".join(forwards_actions or ["pass"]), 
             "backwards": "\n".join(backwards_actions or ["pass"]), 
             "frozen_models":  freezer.freeze_apps_to_string(apps_to_freeze),
-            "complete_apps": apps_to_freeze and "complete_apps = [%s]" % (", ".join(map(repr, apps_to_freeze))) or ""
+            "complete_apps": apps_to_freeze and "complete_apps = [%s]" % (", ".join(map(repr, apps_to_freeze))) or "",
+            "rebase": rebase and "\n\n    rebase = True" or "",
         }
         
         # - is a special name which means 'print to stdout'
@@ -168,6 +175,8 @@ class Command(DataCommand):
             fp.close()
             if empty:
                 print >>sys.stderr, "Created %s. You must now edit this migration and add the code for each direction." % new_filename
+            elif rebase:
+                print >>sys.stderr, "Created rebase migration %s. There is no need to apply this migration." % new_filename
             else:
                 print >>sys.stderr, "Created %s. You can now apply this migration with: ./manage.py migrate %s" % (new_filename, app)
 
@@ -178,7 +187,7 @@ from south.db import db
 from south.v2 import SchemaMigration
 from django.db import models
 
-class Migration(SchemaMigration):
+class Migration(SchemaMigration):%(rebase)s
 
     def forwards(self, orm):
         %(forwards)s

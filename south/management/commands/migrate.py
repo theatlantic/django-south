@@ -125,13 +125,15 @@ def list_migrations(apps, database = DEFAULT_DB_ALIAS):
         # Get the migrations object
         for migration in app:
             if migration.app_label() + "." + migration.name() in applied_migrations:
-                print format_migration_list_item(migration.name())
+                print format_migration_list_item(migration)
             else:
-                print format_migration_list_item(migration.name(), applied=False)
+                print format_migration_list_item(migration, applied=False)
         print
 
 
-def format_migration_list_item(name, applied=True):
+def format_migration_list_item(migration, applied=True):
     if applied:
-        return '  (*) %s' % name
-    return '  ( ) %s' % name
+        return '  (*) %s' % migration.name()
+    elif migration.is_rebase:
+        return '  (R) %s' % migration.name()
+    return '  ( ) %s' % migration.name()
