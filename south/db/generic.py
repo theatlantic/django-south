@@ -107,6 +107,7 @@ class DatabaseOperations(object):
     def _possibly_initialise(self):
         if not self._initialised:
             self.connection_init()
+            self._initialised = True
 
     def connection_init(self):
         """
