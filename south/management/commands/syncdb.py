@@ -107,5 +107,5 @@ class Command(NoArgsCommand):
                 print "\nMigrated:\n - %s" % "\n - ".join(apps_migrated)
         else:
             if verbosity:
-                print "\nNot synced (use migrations):\n - %s" % "\n - ".join(apps_migrated)
+                print "\nManaged by South (not synced yet):\n - %s" % "\n - ".join(apps_migrated)
                 print "(use ./manage.py migrate to migrate these)"
