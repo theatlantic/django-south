@@ -21,6 +21,9 @@ check the version before using the packages.
 South should work with versions of Django from 0.97-pre through to 1.2, although
 some features (such as multi-db) may not be available for older Django versions.
 
+Note that there's a known bug with PRAGMA with the SQLite module bundled with Python 2.5 - please upgrade to the
+version from the Python SQLite website if you're encountering issues.
+
 
 .. _installation-easy-install:
  
