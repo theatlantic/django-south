@@ -386,7 +386,7 @@ class ManualChanges(BaseChanges):
             bits.append('add_field_%s' % field_name)
         for index_name in self.added_indexes:
             bits.append('add_index_%s' % index_name)
-        return '_'.join(bits)
+        return '_'.join(bits).replace('.', '_')
     
     def get_changes(self):
         # Get the model defs so we can use them for the yield later

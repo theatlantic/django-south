@@ -9,6 +9,7 @@ import StringIO
 from south import exceptions
 from south.migration import migrate_app
 from south.migration.base import all_migrations, Migration, Migrations
+from south.creator.changes import ManualChanges
 from south.migration.utils import depends, dfs, flatten, get_app_label
 from south.models import MigrationHistory
 from south.tests import Monkeypatcher
@@ -870,3 +871,21 @@ class TestUtils(unittest.TestCase):
             graph,
         )
 
+class TestManualChanges(Monkeypatcher):
+    installed_apps = ["fakeapp", "otherfakeapp"]
+
+    def test_suggest_name(self):
+        migrations = Migrations('fakeapp')
+        change = ManualChanges(migrations,
+                               [],
+                               ['fakeapp.slug'],
+                               [])
+        self.assertEquals(change.suggest_name(), 
+                          'add_field_fakeapp_slug')
+
+        change = ManualChanges(migrations,
+                               [],
+                               [],
+                               ['fakeapp.slug'])
+        self.assertEquals(change.suggest_name(), 
+                          'add_index_fakeapp_slug')
