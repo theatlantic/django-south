@@ -89,7 +89,7 @@ def check_migration_histories(histories, delete_ghosts=False, ignore_ghosts=Fals
     return exists
 
 def get_dependencies(target, migrations):
-    forwards = lambda allow_rebase=False: list()
+    forwards = list
     backwards = list
     if target is None:
         backwards = migrations[0].backwards_plan
@@ -108,7 +108,7 @@ def get_direction(target, applied, migrations, verbosity, interactive):
     forwards, backwards = get_dependencies(target, migrations)
     # Is the whole forward branch applied?
     problems = None
-    forwards = forwards(allow_rebase=not applied)
+    forwards = forwards()
     workplan = to_apply(forwards, applied)
     if not workplan:
         # If they're all applied, we only know it's not backwards

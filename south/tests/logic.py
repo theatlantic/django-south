@@ -9,6 +9,7 @@ import StringIO
 from south import exceptions
 from south.migration import migrate_app
 from south.migration.base import all_migrations, Migration, Migrations
+from south.creator.changes import ManualChanges
 from south.migration.utils import depends, dfs, flatten, get_app_label
 from south.models import MigrationHistory
 from south.tests import Monkeypatcher
@@ -508,11 +509,7 @@ class TestMigrationLogic(Monkeypatcher):
     Tests if the various logic functions in migration actually work.
     """
     
-    installed_apps = ["fakeapp", "otherfakeapp", "rebasedapp"]
-
-    def setUp(self):
-        super(TestMigrationLogic, self).setUp()
-        Migrations.calculate_dependencies(force=True)
+    installed_apps = ["fakeapp", "otherfakeapp"]
 
     def assertListEqual(self, list1, list2):
         list1 = list(list1)
@@ -706,33 +703,7 @@ class TestMigrationLogic(Monkeypatcher):
             ],
             otherfakeapp['0003_third'].forwards_plan(),
         )
-    
-    def test_rebase(self):
-        """
-        Tests that the rebase logic correctly starts at a rebase migration,
-        but only if we're doing a fresh install.
-        """
-        
-        rebasedapp = Migrations("rebasedapp")
-        
-        # Test with no rebase
-        self.assertEqual(
-            [
-                rebasedapp['0001_bottom'],
-                rebasedapp['0002_mid'],
-                rebasedapp['0004_top'],
-            ],
-            rebasedapp['0004_top'].forwards_plan(allow_rebase=False),
-        )
-        
-        # Test with rebase
-        self.assertEqual(
-            [
-                rebasedapp['0003_rebase'],
-                rebasedapp['0004_top'],
-            ],
-            rebasedapp['0004_top'].forwards_plan(allow_rebase=True),
-        )
+
 
 class TestMigrationUtils(Monkeypatcher):
     installed_apps = ["fakeapp", "otherfakeapp"]
@@ -900,3 +871,21 @@ class TestUtils(unittest.TestCase):
             graph,
         )
 
+class TestManualChanges(Monkeypatcher):
+    installed_apps = ["fakeapp", "otherfakeapp"]
+
+    def test_suggest_name(self):
+        migrations = Migrations('fakeapp')
+        change = ManualChanges(migrations,
+                               [],
+                               ['fakeapp.slug'],
+                               [])
+        self.assertEquals(change.suggest_name(), 
+                          'add_field_fakeapp_slug')
+
+        change = ManualChanges(migrations,
+                               [],
+                               [],
+                               ['fakeapp.slug'])
+        self.assertEquals(change.suggest_name(), 
+                          'add_index_fakeapp_slug')
