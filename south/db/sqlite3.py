@@ -116,9 +116,9 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     def _create_unique(self, table_name, columns):
         self.execute("CREATE UNIQUE INDEX %s ON %s(%s);" % (
-                self.quote_name('%s_%s' % (table_name, '__'.join(columns))),
-                self.quote_name(table_name),
-                ', '.join(columns)
+            self.quote_name('%s_%s' % (table_name, '__'.join(columns))),
+            self.quote_name(table_name),
+            ', '.join(self.quote_name(c) for c in columns),
         ))
 
     def _get_multi_indexes(self, table_name):
