@@ -7,6 +7,8 @@ dist/*
 South.egg-info/*
 # Ignore test log
 south/tests/test.log
+# Vim swap files
+*.swp
 
 # Also ignore Sphinx files
 syntax: regexp
