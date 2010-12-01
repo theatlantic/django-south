@@ -1,16 +1,12 @@
 import unittest
 
-from collections import deque
 import datetime
-import sys
-import os
-import StringIO
 
 from south import exceptions
 from south.migration import migrate_app
-from south.migration.base import all_migrations, Migration, Migrations
+from south.migration.base import all_migrations, Migrations
 from south.creator.changes import ManualChanges
-from south.migration.utils import depends, dfs, flatten, get_app_label
+from south.migration.utils import depends, flatten, get_app_label
 from south.models import MigrationHistory
 from south.tests import Monkeypatcher
 from south.db import db
@@ -817,7 +813,7 @@ class TestUtils(unittest.TestCase):
                  'A2': ['A1', 'A2'],
                  'A3': ['A2']}
         self.assertCircularDependency(
-            ['A1', 'A2', 'A1'],
+            ['A2', 'A2'],
             'A3',
             graph,
         )
@@ -826,7 +822,7 @@ class TestUtils(unittest.TestCase):
                  'A3': ['A2', 'A3'],
                  'A4': ['A3']}
         self.assertCircularDependency(
-            ['A3', 'A2', 'A1', 'A3'],
+            ['A3', 'A3'],
             'A4',
             graph,
         )
@@ -844,7 +840,7 @@ class TestUtils(unittest.TestCase):
                  'B2': ['B1', 'A2'],
                  'B3': ['B2']}
         self.assertCircularDependency(
-            ['A2', 'A1', 'B2', 'A2'],
+            ['A2', 'B2', 'A2'],
             'A3',
             graph,
         )
@@ -855,7 +851,7 @@ class TestUtils(unittest.TestCase):
                  'B2': ['B1', 'A2'],
                  'B3': ['B2']}
         self.assertCircularDependency(
-            ['B2', 'A2', 'A1', 'B3', 'B2'],
+            ['A2', 'B3', 'B2', 'A2'],
             'A3',
             graph,
         )
@@ -866,7 +862,7 @@ class TestUtils(unittest.TestCase):
                  'B1': ['A3'],
                  'B2': ['B1']}
         self.assertCircularDependency(
-            ['A1', 'B2', 'B1', 'A3', 'A2', 'A1'],
+            ['A3', 'B2', 'B1', 'A3'],
             'A4',
             graph,
         )
