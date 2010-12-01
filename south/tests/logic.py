@@ -1,16 +1,12 @@
 import unittest
 
-from collections import deque
 import datetime
-import sys
-import os
-import StringIO
 
 from south import exceptions
 from south.migration import migrate_app
-from south.migration.base import all_migrations, Migration, Migrations
+from south.migration.base import all_migrations, Migrations
 from south.creator.changes import ManualChanges
-from south.migration.utils import depends, dfs, flatten, get_app_label
+from south.migration.utils import depends, flatten, get_app_label
 from south.models import MigrationHistory
 from south.tests import Monkeypatcher
 from south.db import db
