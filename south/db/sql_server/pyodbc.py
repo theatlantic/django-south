@@ -1,3 +1,4 @@
+from datetime import date, datetime, time
 from django.db import models
 from django.db.models import fields
 from south.db import generic
@@ -89,6 +90,11 @@ class DatabaseOperations(generic.DatabaseOperations):
         cons = self.execute(sql, [db_name, schema_name, table_name, name])
         return [c[0] for c in cons]
 
+    
+    def alter_column(self, table_name, name, field, explicit_name=True, ignore_constraints=False):
+        self._fix_field_definition(field)
+        return super(DatabaseOperations, self).alter_column(table_name, name, field, explicit_name, ignore_constraints)
+    
     def _alter_set_defaults(self, field, name, params, sqls): 
         "Subcommand of alter_column that sets default values (overrideable)"
         # First drop the current default if one exists
@@ -99,11 +105,27 @@ class DatabaseOperations(generic.DatabaseOperations):
             
         # Next, set any default
         
-        if field.has_default(): # was: and not field.null
+        if field.has_default():
             default = field.get_default()
-            sqls.append(('ADD DEFAULT %%s for %s' % (self.quote_name(name),), [default]))
-        #else:
-        #    sqls.append(('ALTER COLUMN %s DROP DEFAULT' % (self.quote_name(name),), []))
+            literal = self._value_to_unquoted_literal(field, default)
+            sqls.append(('ADD DEFAULT %s for %s' % (self._quote_string(literal), self.quote_name(name),), []))
+
+    def _value_to_unquoted_literal(self, field, value):
+        # Start with the field's own translation
+        conn = self._get_connection()
+        value = field.get_db_prep_save(value, connection=conn)
+        # This is still a Python object -- nobody expects to need a literal.
+        if isinstance(value, basestring):
+            return smart_unicode(value)
+        elif isinstance(value, (date,time,datetime)):
+            return value.isoformat()
+        else:
+            #TODO: Anybody else needs special translations?
+            return str(value) 
+
+    def _quote_string(self, s):
+        return "'" + s.replace("'","''") + "'"
+    
 
     def drop_column_default_sql(self, table_name, name, q_name=None):
         "MSSQL specific drop default, which is a pain"
@@ -216,3 +238,25 @@ class DatabaseOperations(generic.DatabaseOperations):
             return super_result.split(" ")[0]
         return super_result
 
+    def delete_foreign_key(self, table_name, column):
+        super(DatabaseOperations, self).delete_foreign_key(table_name, column)
+        # A FK also implies a non-unique index
+        find_index_sql = """
+            SELECT i.name -- s.name, t.name,  c.name
+            FROM sys.tables t
+            INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+            INNER JOIN sys.indexes i ON i.object_id = t.object_id
+            INNER JOIN sys.index_columns ic ON ic.object_id = t.object_id
+            INNER JOIN sys.columns c ON c.object_id = t.object_id 
+                                     AND ic.column_id = c.column_id
+            WHERE i.is_unique=0 AND i.is_primary_key=0 AND i.is_unique_constraint=0
+              AND s.name = %s
+              AND t.name = %s
+              AND c.name = %s
+            """
+        schema = self._get_schema_name()
+        indexes = self.execute(find_index_sql, [schema, table_name, column])
+        qn = self.quote_name
+        for index in (i[0] for i in indexes):
+            self.execute("DROP INDEX %s on %s.%s" % (qn(index), qn(schema), qn(table_name) ))
+            
