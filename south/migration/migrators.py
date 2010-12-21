@@ -70,7 +70,7 @@ class Migrator(object):
             '%s\n'
             ' ! The South developers regret this has happened, and would\n'
             ' ! like to gently persuade you to consider a slightly\n'
-            ' ! easier-to-deal-with DBMS.\n'
+            ' ! easier-to-deal-with DBMS (one that supports DDL transactions)\n'
             ' ! NOTE: The error which caused the migration to fail is further up.'
         ) % extra_info
 
