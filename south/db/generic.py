@@ -463,7 +463,7 @@ class DatabaseOperations(object):
 
         for ifsc_table in ifsc_tables:
             rows = self.execute("""
-                SELECT kc.constraint_name, kc.column_name, c.contraint_type
+                SELECT kc.constraint_name, kc.column_name, c.constraint_type
                 FROM information_schema.%s AS kc
                 JOIN information_schema.table_constraints AS c ON
                     kc.table_schema = c.table_schema AND
@@ -471,11 +471,11 @@ class DatabaseOperations(object):
                     kc.constraint_name = c.constraint_name
                 WHERE
                     kc.table_schema = %%s AND
-                    kc.table_name = %%s AND
-            """ % ifsc_table, [schema, table_name, type])
+                    kc.table_name = %%s
+            """ % ifsc_table, [schema, table_name])
             for constraint, column, kind in rows:
-                self._constraint_cache[db_name][table].setdefault(column, set())
-                self._constraint_cache[db_name][table][column].add((kind, constraint))
+                self._constraint_cache[db_name][table_name].setdefault(column, set())
+                self._constraint_cache[db_name][table_name][column].add((kind, constraint))
         return
 
     def _constraints_affecting_columns(self, table_name, columns, type="UNIQUE"):
@@ -760,10 +760,6 @@ class DatabaseOperations(object):
         Deletes the column 'column_name' from the table 'table_name'.
         """
         db_name = self._get_setting('NAME')
-        try:
-            self._constraint_cache[db_name][table_name][name] = []
-        except KeyError:
-            pass
         params = (self.quote_name(table_name), self.quote_name(name))
         self.execute(self.delete_column_string % params, [])
 
