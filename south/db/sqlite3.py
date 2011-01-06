@@ -32,7 +32,8 @@ class DatabaseOperations(generic.DatabaseOperations):
         self._remake_table(table_name, added={
             field.column: self._column_sql_for_create(table_name, name, field, False),
         })
-    
+
+    @generic.invalidate_table_constraints
     def _remake_table(self, table_name, added={}, renames={}, deleted=[], altered={}, primary_key_override=None):
         """
         Given a table and three sets of changes (renames, deletes, alters),

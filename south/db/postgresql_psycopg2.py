@@ -10,6 +10,8 @@ class DatabaseOperations(generic.DatabaseOperations):
     
     backend_name = "postgres"
 
+    @generic.copy_column_constraints
+    @generic.delete_column_constraints
     def rename_column(self, table_name, old, new):
         if old == new:
             # Short-circuit out
@@ -19,7 +21,8 @@ class DatabaseOperations(generic.DatabaseOperations):
             self.quote_name(old),
             self.quote_name(new),
         ))
-    
+
+    @generic.invalidate_table_constraints
     def rename_table(self, old_table_name, table_name):
         "will rename the table and an associated ID sequence and primary key index"
         # First, rename the table
