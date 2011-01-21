@@ -28,8 +28,52 @@ class DatabaseOperations(generic.DatabaseOperations):
     has_ddl_transactions = False
     has_check_constraints = False
     delete_unique_sql = "ALTER TABLE %s DROP INDEX %s"
-    
-    
+
+    def _is_valid_cache(self, db_name, table_name):
+        cache = self._constraint_cache
+        # we cache the whole db so if there are any tables table_name is valid
+        return db_name in cache and cache[db_name].get(table_name, None) is not generic.INVALID
+
+    def _fill_constraint_cache(self, db_name, table_name):
+        # for MySQL grab all constraints for this database.  It's just as cheap as a single column.
+        self._constraint_cache[db_name] = {}
+        self._constraint_cache[db_name][table_name] = {}
+
+        name_query = """
+            SELECT kc.constraint_name, kc.column_name, kc.table_name
+            FROM information_schema.key_column_usage AS kc
+            WHERE
+                kc.table_schema = %s AND
+                kc.table_catalog IS NULL
+        """
+        rows = self.execute(name_query, [db_name])
+        if not rows:
+            return
+        cnames = {}
+        for constraint, column, table in rows:
+            key = (table, constraint)
+            cnames.setdefault(key, set())
+            cnames[key].add(column)
+
+        type_query = """
+            SELECT c.constraint_name, c.table_name, c.constraint_type
+            FROM information_schema.table_constraints AS c
+            WHERE
+                c.table_schema = %s
+        """
+        rows = self.execute(type_query, [db_name])
+        for constraint, table, kind in rows:
+            key = (table, constraint)
+            self._constraint_cache[db_name].setdefault(table, {})
+            try:
+                cols = cnames[key]
+            except KeyError:
+                cols = set()
+            for column in cols:
+                self._constraint_cache[db_name][table].setdefault(column, set())
+                self._constraint_cache[db_name][table][column].add((kind, constraint))
+
+
     def connection_init(self):
         """
         Run before any SQL to let database-specific config be sent as a command,
@@ -42,7 +86,8 @@ class DatabaseOperations(generic.DatabaseOperations):
         cursor.execute("SET FOREIGN_KEY_CHECKS=0;")
         self.deferred_sql.append("SET FOREIGN_KEY_CHECKS=1;")
 
-    
+    @generic.copy_column_constraints
+    @generic.delete_column_constraints
     def rename_column(self, table_name, old, new):
         if old == new or self.dry_run:
             return []
@@ -69,36 +114,26 @@ class DatabaseOperations(generic.DatabaseOperations):
             self.execute(sql, (rows[0][4],))
         else:
             self.execute(sql)
-    
-    
+
+    @generic.delete_column_constraints
     def delete_column(self, table_name, name):
         db_name = self._get_setting('NAME')
-        
-        # See if there is a foreign key on this column
-        cursor = self._get_connection().cursor()
-        get_fkeyname_query = "SELECT tc.constraint_name FROM \
-                              information_schema.table_constraints tc, \
-                              information_schema.key_column_usage kcu \
-                              WHERE tc.table_name=kcu.table_name \
-                              AND tc.table_schema=kcu.table_schema \
-                              AND tc.constraint_name=kcu.constraint_name \
-                              AND tc.constraint_type='FOREIGN KEY' \
-                              AND tc.table_schema='%s' \
-                              AND tc.table_name='%s' \
-                              AND kcu.column_name='%s'"
 
-        result = cursor.execute(get_fkeyname_query % (db_name, table_name, name))
-        
-        # If a foreign key exists, we need to delete it first
-        if result > 0:
+        # See if there is a foreign key on this column
+        result = 0
+        for kind, cname in self.lookup_constraint(db_name, table_name, name):
+            if kind == 'FOREIGN_KEY':
+                result += 1
+                fkey_name = cname
+        if result:
             assert result == 1 # We should only have one result, otherwise there's Issues
-            fkey_name = cursor.fetchone()[0]
+            cursor = self._get_connection().cursor()
             drop_query = "ALTER TABLE %s DROP FOREIGN KEY %s"
             cursor.execute(drop_query % (self.quote_name(table_name), self.quote_name(fkey_name)))
 
         super(DatabaseOperations, self).delete_column(table_name, name)
 
-    
+    @generic.invalidate_table_constraints
     def rename_table(self, old_table_name, table_name):
         """
         Renames the table 'old_table_name' to 'table_name'.
@@ -108,49 +143,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             return
         params = (self.quote_name(old_table_name), self.quote_name(table_name))
         self.execute('RENAME TABLE %s TO %s;' % params)
-    
-    
-    def _constraints_affecting_columns(self, table_name, columns, type="UNIQUE"):
-        """
-        Gets the names of the constraints affecting the given columns.
-        If columns is None, returns all constraints of the type on the table.
-        """
-        
-        if self.dry_run:
-            raise ValueError("Cannot get constraints for columns during a dry run.")
-        
-        if columns is not None:
-            columns = set(columns)
-        
-        db_name = self._get_setting('NAME')
-        
-        # First, load all constraint->col mappings for this table.
-        rows = self.execute("""
-            SELECT kc.constraint_name, kc.column_name
-            FROM information_schema.key_column_usage AS kc
-            JOIN information_schema.table_constraints AS c ON
-                kc.table_schema = c.table_schema AND
-                kc.table_name = c.table_name AND
-                kc.constraint_name = c.constraint_name
-            WHERE
-                kc.table_schema = %s AND
-                kc.table_catalog IS NULL AND
-                kc.table_name = %s AND
-                c.constraint_type = %s
-        """, [db_name, table_name, type])
-        
-        # Load into a dict
-        mapping = {}
-        for constraint, column in rows:
-            mapping.setdefault(constraint, set())
-            mapping[constraint].add(column)
-        
-        # Find ones affecting these columns
-        for constraint, itscols in mapping.items():
-            if itscols == columns or columns is None:
-                yield constraint
-    
-    
+
     def _field_sanity(self, field):
         """
         This particular override stops us sending DEFAULTs for BLOB/TEXT columns.

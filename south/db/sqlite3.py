@@ -34,9 +34,9 @@ class DatabaseOperations(generic.DatabaseOperations):
         self._remake_table(table_name, added={
             field.column: self._column_sql_for_create(table_name, name, field, False),
         })
-    
-    def _remake_table(self, table_name, added={}, renames={}, deleted=[], altered={},
-                      primary_key_override=None, uniques_deleted=[]):
+
+    @generic.invalidate_table_constraints
+    def _remake_table(self, table_name, added={}, renames={}, deleted=[], altered={}, primary_key_override=None, uniques_deleted=[]):
         """
         Given a table and three sets of changes (renames, deletes, alters),
         recreates it with the modified schema.
