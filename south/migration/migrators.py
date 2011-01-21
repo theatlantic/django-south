@@ -84,6 +84,7 @@ class Migrator(object):
             south.db.db.rollback_transaction()
             if not south.db.db.has_ddl_transactions:
                 print self.run_migration_error(migration)
+            print "Error in migration: %s" % migration
             raise
         else:
             south.db.db.commit_transaction()
