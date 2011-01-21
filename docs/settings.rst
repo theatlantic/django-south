@@ -91,3 +91,15 @@ Example::
  SOUTH_MIGRATION_MODULES = {
      'books': 'myproject.migrations.books',
  }
+
+Additionally, you can use this setting to turn off migrations for certain apps,
+by saying their migrations are in some nonexistent module; for example::
+
+ SOUTH_MIGRATION_MODULES = {
+     'books': 'ignore',
+ }
+
+SOUTH_USE_PYC
+-------------
+
+If set to ``True``, South will also use .pyc files for migrations. Useful if you distribute your code only in .pyc format.
