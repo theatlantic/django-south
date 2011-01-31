@@ -142,7 +142,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         return None
 
     def _fix_field_definition(self, field):
-        if isinstance(field, fields.BooleanField):
+        if isinstance(field, (fields.BooleanField, fields.NullBooleanField)):
             if field.default == True:
                 field.default = 1
             if field.default == False:
