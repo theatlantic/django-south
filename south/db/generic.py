@@ -366,7 +366,8 @@ class DatabaseOperations(object):
                         table_name,
                         field.column,
                         field.rel.to._meta.db_table,
-                        field.rel.get_related_field().column                    )
+                        field.rel.get_related_field().column
+                    )
                 )
 
 
