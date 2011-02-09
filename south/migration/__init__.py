@@ -200,6 +200,6 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
         # Note: We use a fake Forwards() migrator here. It's never used really.
         if load_initial_data:
             migrator = LoadInitialDataMigrator(migrator=Forwards(verbosity=verbosity))
-            migrator.load_initial_data(target)
+            migrator.load_initial_data(target, db=database)
         # Send signal.
         post_migrate.send(None, app=app_label)
