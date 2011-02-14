@@ -20,10 +20,20 @@ from south.signals import pre_migrate, post_migrate
 
 
 def to_apply(forwards, done):
-    return [m for m in forwards if m not in done]
+    return [m for m in forwards if not is_done(m, done)]
 
 def to_unapply(backwards, done):
-    return [m for m in backwards if m in done]
+    return [m for m in backwards if is_done(m, done)]
+    
+def is_done(migration, done):
+    """
+    Returns True if migration is done, i.e. applied.
+    Otherwise returns False.
+    
+    Compares migrations by name because different instances of the 
+    same migration class do not compare as equal.
+    """
+    return migration.name() in [m.name() for m in done]
 
 def problems(pending, done):
     last = None
