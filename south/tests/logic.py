@@ -636,6 +636,8 @@ class TestMigrationLogic(Monkeypatcher):
                 now_func = "NOW()"
             
             try:
+                if db.backend_name == "pyodbc":
+                    cursor.execute("SET IDENTITY_INSERT southtest_spam ON;")
                 cursor.execute("INSERT INTO southtest_spam (id, weight, expires, name) VALUES (100, 10.1, %s, NULL);" % now_func)
             except:
                 if eat_exception:
