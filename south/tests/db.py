@@ -364,14 +364,20 @@ class TestOperations(unittest.TestCase):
         db.create_unique("test_unique", ["spam"])
         db.commit_transaction()
         db.start_transaction()
+
+        # Special preparations for Sql Server
+        if db.backend_name == "pyodbc":
+            db.execute("SET IDENTITY_INSERT test_unique2 ON;")
         
         # Test it works
+        TRUE = (True,)
+        FALSE = (False,)
         db.execute("INSERT INTO test_unique2 (id) VALUES (1)")
         db.execute("INSERT INTO test_unique2 (id) VALUES (2)")
-        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1)")
-        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (false, 1, 2)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (%s, 0, 1)", TRUE)
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (%s, 1, 2)", FALSE)
         try:
-            db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 2, 1)")
+            db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (%s, 2, 1)", FALSE)
         except:
             db.rollback_transaction()
         else:
@@ -384,10 +390,10 @@ class TestOperations(unittest.TestCase):
         db.start_transaction()
         
         # Test similarly
-        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1)")
-        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (false, 1, 2)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (%s, 0, 1)", TRUE)
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (%s, 1, 2)", FALSE)
         try:
-            db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 1, 1)")
+            db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (%s, 1, 1)", TRUE)
         except:
             db.rollback_transaction()
         else:
@@ -399,10 +405,10 @@ class TestOperations(unittest.TestCase):
         db.create_unique("test_unique", ["spam", "eggs", "ham_id"])
         db.start_transaction()
         # Test similarly
-        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1)")
-        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (false, 1, 1)")
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (%s, 0, 1)", TRUE)
+        db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (%s, 1, 1)", FALSE)
         try:
-            db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (true, 0, 1)")
+            db.execute("INSERT INTO test_unique (spam, eggs, ham_id) VALUES (%s, 0, 1)", TRUE)
         except:
             db.rollback_transaction()
         else:
@@ -412,7 +418,7 @@ class TestOperations(unittest.TestCase):
     
     def test_capitalised_constraints(self):
         """
-        Under PostgreSQL at least, capitalised constrains must be quoted.
+        Under PostgreSQL at least, capitalised constraints must be quoted.
         """
         db.create_table("test_capconst", [
             ('SOMECOL', models.PositiveIntegerField(primary_key=True)),
