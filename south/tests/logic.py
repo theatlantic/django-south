@@ -1,7 +1,6 @@
 import unittest
 
 import datetime
-import sys
 
 from south import exceptions
 from south.migration import migrate_app
@@ -621,7 +620,7 @@ class TestMigrationLogic(Monkeypatcher):
     
     def test_alter_column_null(self):
         
-        def null_ok(eat_exception=True):
+        def null_ok():
             from django.db import connection, transaction
             # the DBAPI introspection module fails on postgres NULLs.
             cursor = connection.cursor()
@@ -629,22 +628,14 @@ class TestMigrationLogic(Monkeypatcher):
             # SQLite has weird now()
             if db.backend_name == "sqlite3":
                 now_func = "DATETIME('NOW')"
-            # So does SQLServer... should we be using a backend attribute?
-            elif db.backend_name == "pyodbc":
-                now_func = "GETDATE()"
             else:
                 now_func = "NOW()"
             
             try:
-                if db.backend_name == "pyodbc":
-                    cursor.execute("SET IDENTITY_INSERT southtest_spam ON;")
                 cursor.execute("INSERT INTO southtest_spam (id, weight, expires, name) VALUES (100, 10.1, %s, NULL);" % now_func)
             except:
-                if eat_exception:
-                    transaction.rollback()
-                    return False
-                else:
-                    raise
+                transaction.rollback()
+                return False
             else:
                 cursor.execute("DELETE FROM southtest_spam")
                 transaction.commit()
@@ -664,7 +655,7 @@ class TestMigrationLogic(Monkeypatcher):
         
         # after 0003, it should be NULL
         migrate_app(migrations, target_name="0003", fake=False)
-        self.assert_(null_ok(False))
+        self.assert_(null_ok())
         self.assertListEqual(
             ((u"fakeapp", u"0001_spam"),
              (u"fakeapp", u"0002_eggs"),
