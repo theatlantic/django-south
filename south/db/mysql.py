@@ -43,8 +43,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             SELECT kc.constraint_name, kc.column_name, kc.table_name
             FROM information_schema.key_column_usage AS kc
             WHERE
-                kc.table_schema = %s AND
-                kc.table_catalog IS NULL
+                kc.table_schema = %s
         """
         rows = self.execute(name_query, [db_name])
         if not rows:
