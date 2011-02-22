@@ -88,6 +88,31 @@ def check_migration_histories(histories, delete_ghosts=False, ignore_ghosts=Fals
             raise exceptions.GhostMigrations(ghosts)
     return exists
 
+def app_has_migrations(app_label, applied):
+    """Return True if the application described by app_label has applied
+    migrations. If not, return False.
+
+    """
+    for migration in applied:
+        if migration.app_label() == app_label:
+            return True
+    return False
+
+def introspection__migration_has_tables(migration, database):
+    """Return True if there exist tables in the database for the given
+    migration. If not, return False.
+
+    """
+    # Get a list of installed tables:
+    conn = south.db.dbs[database]._get_connection()
+    tables = conn.introspection.table_names()
+
+    # Find out if the migration has tables:
+    for model in migration.orm().models.values():
+        if model._meta.db_table in tables:
+            return True
+    return False
+
 def get_dependencies(target, migrations):
     forwards = list
     backwards = list
@@ -142,7 +167,7 @@ def get_migrator(direction, db_dry_run, fake, load_initial_data):
         direction = LoadInitialDataMigrator(migrator=direction)
     return direction
 
-def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False, database=DEFAULT_DB_ALIAS, delete_ghosts=False, ignore_ghosts=False, interactive=False):
+def migrate_app(migrations, target_name=None, merge=False, fake=False, autofake_first=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False, database=DEFAULT_DB_ALIAS, delete_ghosts=False, ignore_ghosts=False, interactive=False):
     app_label = migrations.app_label()
 
     verbosity = int(verbosity)
@@ -178,20 +203,38 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
                                                            target.name())
         print "Running migrations for %s:" % app_label
     
+    # Autofake first migration if the autofake_first option is given, there is
+    # no previous migrations and tables exist in the database for this app:
+    fake_migrator = None
+    if autofake_first and not app_has_migrations(app_label, applied) and\
+            introspection__migration_has_tables(migrations[0], database):
+        fake_target = migrations[0]
+        fake_applied = applied.copy()
+        fake_direction, fake_problems, fake_workplan = get_direction(fake_target,
+                fake_applied, migrations, verbosity, interactive)
+        fake_migrator = get_migrator(fake_direction, db_dry_run, True, False)
+        applied.add(fake_target)
+    
     # Get the forwards and reverse dependencies for this target
     direction, problems, workplan = get_direction(target, applied, migrations,
                                                   verbosity, interactive)
     if problems and not (merge or skip):
         raise exceptions.InconsistentMigrationHistory(problems)
     
+    # Preform a fake first migration
+    success = False
+    if fake_migrator:
+        success = fake_migrator.migrate_many(fake_target, fake_workplan, database)
+    
     # Perform the migration
     migrator = get_migrator(direction, db_dry_run, fake, load_initial_data)
     if migrator:
         migrator.print_title(target)
         success = migrator.migrate_many(target, workplan, database)
-        # Finally, fire off the post-migrate signal
-        if success:
-            post_migrate.send(None, app=app_label)
+    
+    # Finally, fire off the post-migrate signal
+    if success:
+        post_migrate.send(None, app=app_label)
     elif verbosity:
         # Say there's nothing.
         print '- Nothing to migrate.'
