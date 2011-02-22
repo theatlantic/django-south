@@ -1,8 +1,10 @@
 from datetime import date, datetime, time
+from warnings import warn
 from django.db import models
 from django.db.models import fields
 from south.db import generic
 from south.db.generic import delete_column_constraints, invalidate_table_constraints, copy_column_constraints
+from south.exceptions import ConstraintDropped
 
 class DatabaseOperations(generic.DatabaseOperations):
     """
@@ -191,6 +193,7 @@ class DatabaseOperations(generic.DatabaseOperations):
                     #params.update(column = qn(name), target = target)
                     #sql = self.create_foreign_key_sql % params
                 elif ctype=='CHECK':
+                    warn(ConstraintDropped("CHECK "+ args, table_name, name))
                     continue
                     #TODO: Some check constraints should be restored; but not before the generic
                     #      backend restores them.
