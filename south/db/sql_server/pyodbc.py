@@ -189,11 +189,13 @@ class DatabaseOperations(generic.DatabaseOperations):
                     # Foreign keys taken care of below 
                     #target = "%s.%s(%s)" % tuple(map(qn,args))
                     #params.update(column = qn(name), target = target)
-                    sql = self.create_foreign_key_sql % params
+                    #sql = self.create_foreign_key_sql % params
                 elif ctype=='CHECK':
-                    #TODO: Some check constraints should be removed...
-                    params['check'] = args
-                    sql = self.create_check_constraint_sql % params
+                    continue
+                    #TODO: Some check constraints should be restored; but not before the generic
+                    #      backend restores them.
+                    #params['check'] = args
+                    #sql = self.create_check_constraint_sql % params
                 else:
                     raise NotImplementedError("Don't know how to handle constraints of type "+ type)                    
                 self.execute(sql, [])
