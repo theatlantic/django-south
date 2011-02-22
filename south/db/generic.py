@@ -99,10 +99,10 @@ class DatabaseOperations(object):
         try:
             ret = _lookup()
             return ret
-        except INVALID as e:
+        except INVALID, e:
             del self._constraint_cache[db_name][table_name]
             self._fill_constraint_cache(db_name, table_name)
-        except KeyError as e:
+        except KeyError, e:
             if self._is_valid_cache(db_name, table_name):
                 return []
             self._fill_constraint_cache(db_name, table_name)
