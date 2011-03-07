@@ -183,10 +183,8 @@ class Migration(SchemaMigration):
     def forwards(self, orm):
         %(forwards)s
 
-
     def backwards(self, orm):
         %(backwards)s
-
 
     models = %(frozen_models)s
 
