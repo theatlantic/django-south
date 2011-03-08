@@ -86,6 +86,13 @@ introspection_details = [
         },
     ),
     (
+        (models.SlugField, ),
+        [],
+        {
+            "db_index": ["db_index", {"default": True}],
+        },
+    ),
+    (
         (models.BooleanField, ),
         [],
         {
