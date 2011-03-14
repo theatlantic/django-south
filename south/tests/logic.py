@@ -1,15 +1,13 @@
 import unittest
 
-from collections import deque
 import datetime
 import sys
-import os
-import StringIO
 
 from south import exceptions
 from south.migration import migrate_app
-from south.migration.base import all_migrations, Migration, Migrations
-from south.migration.utils import depends, dfs, flatten, get_app_label
+from south.migration.base import all_migrations, Migrations
+from south.creator.changes import ManualChanges
+from south.migration.utils import depends, flatten, get_app_label
 from south.models import MigrationHistory
 from south.tests import Monkeypatcher
 from south.db import db
@@ -508,11 +506,7 @@ class TestMigrationLogic(Monkeypatcher):
     Tests if the various logic functions in migration actually work.
     """
     
-    installed_apps = ["fakeapp", "otherfakeapp", "rebasedapp"]
-
-    def setUp(self):
-        super(TestMigrationLogic, self).setUp()
-        Migrations.calculate_dependencies(force=True)
+    installed_apps = ["fakeapp", "otherfakeapp"]
 
     def assertListEqual(self, list1, list2):
         list1 = list(list1)
@@ -627,7 +621,7 @@ class TestMigrationLogic(Monkeypatcher):
     
     def test_alter_column_null(self):
         
-        def null_ok():
+        def null_ok(eat_exception=True):
             from django.db import connection, transaction
             # the DBAPI introspection module fails on postgres NULLs.
             cursor = connection.cursor()
@@ -635,14 +629,22 @@ class TestMigrationLogic(Monkeypatcher):
             # SQLite has weird now()
             if db.backend_name == "sqlite3":
                 now_func = "DATETIME('NOW')"
+            # So does SQLServer... should we be using a backend attribute?
+            elif db.backend_name == "pyodbc":
+                now_func = "GETDATE()"
             else:
                 now_func = "NOW()"
             
             try:
+                if db.backend_name == "pyodbc":
+                    cursor.execute("SET IDENTITY_INSERT southtest_spam ON;")
                 cursor.execute("INSERT INTO southtest_spam (id, weight, expires, name) VALUES (100, 10.1, %s, NULL);" % now_func)
             except:
-                transaction.rollback()
-                return False
+                if eat_exception:
+                    transaction.rollback()
+                    return False
+                else:
+                    raise
             else:
                 cursor.execute("DELETE FROM southtest_spam")
                 transaction.commit()
@@ -662,7 +664,7 @@ class TestMigrationLogic(Monkeypatcher):
         
         # after 0003, it should be NULL
         migrate_app(migrations, target_name="0003", fake=False)
-        self.assert_(null_ok())
+        self.assert_(null_ok(False))
         self.assertListEqual(
             ((u"fakeapp", u"0001_spam"),
              (u"fakeapp", u"0002_eggs"),
@@ -706,33 +708,7 @@ class TestMigrationLogic(Monkeypatcher):
             ],
             otherfakeapp['0003_third'].forwards_plan(),
         )
-    
-    def test_rebase(self):
-        """
-        Tests that the rebase logic correctly starts at a rebase migration,
-        but only if we're doing a fresh install.
-        """
-        
-        rebasedapp = Migrations("rebasedapp")
-        
-        # Test with no rebase
-        self.assertEqual(
-            [
-                rebasedapp['0001_bottom'],
-                rebasedapp['0002_mid'],
-                rebasedapp['0004_top'],
-            ],
-            rebasedapp['0004_top'].forwards_plan(allow_rebase=False),
-        )
-        
-        # Test with rebase
-        self.assertEqual(
-            [
-                rebasedapp['0003_rebase'],
-                rebasedapp['0004_top'],
-            ],
-            rebasedapp['0004_top'].forwards_plan(allow_rebase=True),
-        )
+
 
 class TestMigrationUtils(Monkeypatcher):
     installed_apps = ["fakeapp", "otherfakeapp"]
@@ -846,7 +822,7 @@ class TestUtils(unittest.TestCase):
                  'A2': ['A1', 'A2'],
                  'A3': ['A2']}
         self.assertCircularDependency(
-            ['A1', 'A2', 'A1'],
+            ['A2', 'A2'],
             'A3',
             graph,
         )
@@ -855,7 +831,7 @@ class TestUtils(unittest.TestCase):
                  'A3': ['A2', 'A3'],
                  'A4': ['A3']}
         self.assertCircularDependency(
-            ['A3', 'A2', 'A1', 'A3'],
+            ['A3', 'A3'],
             'A4',
             graph,
         )
@@ -873,7 +849,7 @@ class TestUtils(unittest.TestCase):
                  'B2': ['B1', 'A2'],
                  'B3': ['B2']}
         self.assertCircularDependency(
-            ['A2', 'A1', 'B2', 'A2'],
+            ['A2', 'B2', 'A2'],
             'A3',
             graph,
         )
@@ -884,7 +860,7 @@ class TestUtils(unittest.TestCase):
                  'B2': ['B1', 'A2'],
                  'B3': ['B2']}
         self.assertCircularDependency(
-            ['B2', 'A2', 'A1', 'B3', 'B2'],
+            ['A2', 'B3', 'B2', 'A2'],
             'A3',
             graph,
         )
@@ -895,8 +871,26 @@ class TestUtils(unittest.TestCase):
                  'B1': ['A3'],
                  'B2': ['B1']}
         self.assertCircularDependency(
-            ['A1', 'B2', 'B1', 'A3', 'A2', 'A1'],
+            ['A3', 'B2', 'B1', 'A3'],
             'A4',
             graph,
         )
 
+class TestManualChanges(Monkeypatcher):
+    installed_apps = ["fakeapp", "otherfakeapp"]
+
+    def test_suggest_name(self):
+        migrations = Migrations('fakeapp')
+        change = ManualChanges(migrations,
+                               [],
+                               ['fakeapp.slug'],
+                               [])
+        self.assertEquals(change.suggest_name(), 
+                          'add_field_fakeapp_slug')
+
+        change = ManualChanges(migrations,
+                               [],
+                               [],
+                               ['fakeapp.slug'])
+        self.assertEquals(change.suggest_name(), 
+                          'add_index_fakeapp_slug')

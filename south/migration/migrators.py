@@ -70,7 +70,7 @@ class Migrator(object):
             '%s\n'
             ' ! The South developers regret this has happened, and would\n'
             ' ! like to gently persuade you to consider a slightly\n'
-            ' ! easier-to-deal-with DBMS.\n'
+            ' ! easier-to-deal-with DBMS (one that supports DDL transactions)\n'
             ' ! NOTE: The error which caused the migration to fail is further up.'
         ) % extra_info
 
@@ -84,6 +84,7 @@ class Migrator(object):
             south.db.db.rollback_transaction()
             if not south.db.db.has_ddl_transactions:
                 print self.run_migration_error(migration)
+            print "Error in migration: %s" % migration
             raise
         else:
             south.db.db.commit_transaction()
@@ -332,10 +333,6 @@ class Backwards(Migrator):
             else:
                 # Django 1.1 always goes down here
                 record.delete()
-        # If this is a rebase migration, delete all remaining records for
-        # this app, too.
-        if migration.is_rebase():
-            MigrationHistory.objects.filter(app_label = record.app_label).delete()
 
     def migrate_many(self, target, migrations, database):
         for migration in migrations:

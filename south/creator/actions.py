@@ -126,12 +126,86 @@ class DeleteModel(AddModel):
 
     def backwards_code(self):
         return AddModel.forwards_code(self)
+
+
+class _NullIssuesField(object):
+    """
+    A field that might need to ask a question about rogue NULL values.
+    """
+
+    allow_third_null_option = False
+    irreversible = False
+
+    IRREVERSIBLE_TEMPLATE = '''
+        # User chose to not deal with backwards NULL issues for '%(model_name)s.%(field_name)s'
+        raise RuntimeError("Cannot reverse this migration. '%(model_name)s.%(field_name)s' and its values cannot be restored.")'''
+
+    def deal_with_not_null_no_default(self, field, field_def):
+        # If it's a CharField or TextField that's blank, skip this step.
+        if isinstance(field, (CharField, TextField)) and field.blank:
+            field_def[2]['default'] = repr("")
+            return
+        # Oh dear. Ask them what to do.
+        print " ? The field '%s.%s' does not have a default specified, yet is NOT NULL." % (
+            self.model._meta.object_name,
+            field.name,
+        )
+        print " ? Since you are %s, you MUST specify a default" % self.null_reason
+        print " ? value to use for existing rows. Would you like to:"
+        print " ?  1. Quit now, and add a default to the field in models.py"
+        print " ?  2. Specify a one-off value to use for existing columns now"
+        if self.allow_third_null_option:
+            print " ?  3. Disable the backwards migration by raising an exception."
+        while True:
+            choice = raw_input(" ? Please select a choice: ")
+            if choice == "1":
+                sys.exit(1)
+            elif choice == "2":
+                break
+            elif choice == "3" and self.allow_third_null_option:
+                break
+            else:
+                print " ! Invalid choice."
+        if choice == "2":
+            self.add_one_time_default(field, field_def)
+        elif choice == "3":
+            self.irreversible = True
+
+    def add_one_time_default(self, field, field_def):
+        # OK, they want to pick their own one-time default. Who are we to refuse?
+        print " ? Please enter Python code for your one-off default value."
+        print " ? The datetime module is available, so you can do e.g. datetime.date.today()"
+        while True:
+            code = raw_input(" >>> ")
+            if not code:
+                print " ! Please enter some code, or 'exit' (with no quotes) to exit."
+            elif code == "exit":
+                sys.exit(1)
+            else:
+                try:
+                    result = eval(code, {}, {"datetime": datetime})
+                except (SyntaxError, NameError), e:
+                    print " ! Invalid input: %s" % e
+                else:
+                    break
+        # Right, add the default in.
+        field_def[2]['default'] = repr(result)
+
+    def irreversable_code(self, field):
+        return self.IRREVERSIBLE_TEMPLATE % {
+            "model_name": self.model._meta.object_name,
+            "table_name": self.model._meta.db_table,
+            "field_name": field.name,
+            "field_column": field.column,
+        }
     
     
-class AddField(Action):
+class AddField(Action, _NullIssuesField):
     """
     Adds a field to a model. Takes a Model class and the field name.
     """
+
+    null_reason = "adding this field"
     
     FORWARDS_TEMPLATE = '''
         # Adding field '%(model_name)s.%(field_name)s'
@@ -151,55 +225,8 @@ class AddField(Action):
         default = (self.field.default is not None) and (self.field.default is not NOT_PROVIDED)
         
         if not is_null and not default:
-            self.deal_with_not_null_no_default()
+            self.deal_with_not_null_no_default(self.field, self.field_def)
 
-    def deal_with_not_null_no_default(self):
-        # If it's a CharField or TextField that's blank, skip this step.
-        if isinstance(self.field, (CharField, TextField)) and self.field.blank:
-            self.field_def[2]['default'] = repr("")
-            return
-        # Oh dear. Ask them what to do.
-        print " ? The field '%s.%s' does not have a default specified, yet is NOT NULL." % (
-            self.model._meta.object_name,
-            self.field.name,
-        )
-        print " ? Since you are adding this field, you MUST specify a default"
-        print " ? value to use for existing rows. Would you like to:"
-        print " ?  1. Quit now, and add a default to the field in models.py"
-        print " ?  2. Specify a one-off value to use for existing columns now"
-        while True:
-            choice = raw_input(" ? Please select a choice: ")
-            if choice == "1":
-                sys.exit(1)
-            elif choice == "2":
-                break
-            else:
-                print " ! Invalid choice."
-
-
-        if choice == "2":
-            self.add_one_time_default()
-
-    def add_one_time_default(self):
-        # OK, they want to pick their own one-time default. Who are we to refuse?
-        print " ? Please enter Python code for your one-off default value."
-        print " ? The datetime module is available, so you can do e.g. datetime.date.today()"
-        while True:
-            code = raw_input(" >>> ")
-            if not code:
-                print " ! Please enter some code, or 'exit' (with no quotes) to exit."
-            elif code == "exit":
-                sys.exit(1)
-            else:
-                try:
-                    result = eval(code, {}, {"datetime": datetime})
-                except (SyntaxError, NameError), e:
-                    print " ! Invalid input: %s" % e
-                else:
-                    break
-        # Right, add the default in.
-        self.field_def[2]['default'] = repr(result)
-    
     def console_line(self):
         "Returns the string to print on the console, e.g. ' + Added field foo'"
         return " + Added field %s on %s.%s" % (
@@ -231,39 +258,10 @@ class DeleteField(AddField):
     """
     Removes a field from a model. Takes a Model class and the field name.
     """
-    irreversible = False
 
-    IRREVERSIBLE_TEMPLATE = '''
-        # We cannot add back in field '%(model_name)s.%(field_name)s'
-        raise RuntimeError(
-            "Cannot reverse this migration. '%(model_name)s.%(field_name)s' and its values cannot be restored.")'''
+    null_reason = "removing this field"
+    allow_third_null_option = True
 
-    def deal_with_not_null_no_default(self):
-        # Oh dear. Ask them what to do.
-        print " ? The field '%s.%s' does not have a default specified, yet is NOT NULL." % (
-            self.model._meta.object_name,
-            self.field.name,
-        )
-        print " ? Since you are removing this field, you MUST specify a default"
-        print " ? value to use for existing rows when reversing. Would you like to:"
-        print " ?  1. Quit now, and add a default to the field in models.py"
-        print " ?  2. Specify a one-off value to use for existing columns for backwards migrations"
-        print " ?  3. Disable the backwards migration by raising an exception."
-        while True:
-            choice = raw_input(" ? Please select a choice: ")
-            if choice == "1":
-                sys.exit(1)
-            elif choice in ("2", "3"):
-                break
-            else:
-                print " ! Invalid choice."
-
-
-        if choice == "2":
-            self.add_one_time_default()
-        elif choice == "3":
-            self.irreversible = True
-    
     def console_line(self):
         "Returns the string to print on the console, e.g. ' + Added field foo'"
         return " - Deleted field %s on %s.%s" % (
@@ -279,19 +277,15 @@ class DeleteField(AddField):
         if not self.irreversible:
             return AddField.forwards_code(self)
         else:
-            return self.IRREVERSIBLE_TEMPLATE % {
-                "model_name": self.model._meta.object_name,
-                "table_name": self.model._meta.db_table,
-                "field_name": self.field.name,
-                "field_column": self.field.column,
-            }
+            return self.irreversable_code(self.field)
 
 
-
-class ChangeField(Action):
+class ChangeField(Action, _NullIssuesField):
     """
     Changes a field's type/options on a model.
     """
+
+    null_reason = "making this field non-nullable"
     
     FORWARDS_TEMPLATE = BACKWARDS_TEMPLATE = '''
         # Changing field '%(model_name)s.%(field_name)s'
@@ -307,6 +301,16 @@ class ChangeField(Action):
         self.new_field = new_field
         self.old_def = old_def
         self.new_def = new_def
+
+        # See if they've changed a not-null field to be null
+        new_default = (self.new_field.default is not None) and (self.new_field.default is not NOT_PROVIDED)
+        old_default = (self.old_field.default is not None) and (self.old_field.default is not NOT_PROVIDED)
+        if self.old_field.null and not self.new_field.null and not new_default:
+            self.deal_with_not_null_no_default(self.new_field, self.new_def)
+        if not self.old_field.null and self.new_field.null and not old_default:
+            self.null_reason = "making this field nullable"
+            self.allow_third_null_option = True
+            self.deal_with_not_null_no_default(self.old_field, self.old_def)
     
     def console_line(self):
         "Returns the string to print on the console, e.g. ' + Added field foo'"
@@ -343,7 +347,10 @@ class ChangeField(Action):
         return self._code(self.old_field, self.new_field, self.new_def)
 
     def backwards_code(self):
-        return self._code(self.new_field, self.old_field, self.old_def)
+        if not self.irreversible:
+            return self._code(self.new_field, self.old_field, self.old_def)
+        else:
+            return self.irreversable_code(self.old_field)
 
 
 class AddUnique(Action):

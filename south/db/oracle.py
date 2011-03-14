@@ -3,6 +3,7 @@ import sys
 import re
 import cx_Oracle
 
+
 from django.db import connection, models
 from django.db.backends.util import truncate_name
 from django.core.management.color import no_style
@@ -79,6 +80,7 @@ class DatabaseOperations(generic.DatabaseOperations):
 
         return upper and tn.upper() or tn.lower()
 
+    @generic.invalidate_table_constraints
     def create_table(self, table_name, fields): 
         qn = self.quote_name(table_name, upper = False)
         qn_upper = qn.upper()
@@ -101,6 +103,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             self.execute(autoinc_sql[0])
             self.execute(autoinc_sql[1])
 
+    @generic.invalidate_table_constraints
     def delete_table(self, table_name, cascade=True):
         qn = self.quote_name(table_name, upper = False)
 
@@ -110,6 +113,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             self.execute('DROP TABLE %s;' % qn.upper())
         self.execute('DROP SEQUENCE %s;'%get_sequence_name(qn))
 
+    @generic.invalidate_table_constraints
     def alter_column(self, table_name, name, field, explicit_name=True):
         qn = self.quote_name(table_name)
 
@@ -158,6 +162,7 @@ class DatabaseOperations(generic.DatabaseOperations):
                 if str(exc).find('ORA-01442') == -1:
                     raise
 
+    @generic.invalidate_table_constraints
     def add_column(self, table_name, name, field, keep_default=True):
         qn = self.quote_name(table_name, upper = False)
         sql = self.column_sql(qn, name, field)
@@ -187,30 +192,23 @@ class DatabaseOperations(generic.DatabaseOperations):
             field.default = int(field.to_python(field.get_default()))
         return field
 
-    def _constraints_affecting_columns(self, table_name, columns, type='UNIQUE'):
-        """
-        Gets the names of the constraints affecting the given columns.
-        """
+
+
+    def _fill_constraint_cache(self, db_name, table_name):
         qn = self.quote_name
 
-        if self.dry_run:
-            raise ValueError("Cannot get constraints for columns during a dry run.")
-        columns = set(columns)
         rows = self.execute("""
-            SELECT user_cons_columns.constraint_name, user_cons_columns.column_name
+            SELECT user_cons_columns.constraint_name,
+                   user_cons_columns.column_name,
+                   user_constraints.constraint_type
             FROM user_constraints
             JOIN user_cons_columns ON
                  user_constraints.table_name = user_cons_columns.table_name AND 
                  user_constraints.constraint_name = user_cons_columns.constraint_name
-            WHERE user_constraints.table_name = '%s' AND
-                  user_constraints.constraint_type = '%s'
-        """ % (qn(table_name), self.constraits_dict[type]))
-        # Load into a dict
-        mapping = {}
-        for constraint, column in rows:
-            mapping.setdefault(constraint, set())
-            mapping[constraint].add(column)
-        # Find ones affecting these columns
-        for constraint, itscols in mapping.items():
-            if itscols == columns:
-                yield constraint
+            WHERE user_constraints.table_name = '%s'
+        """ % (qn(table_name)))
+
+        for constraint, column, kind in rows:
+            self._constraint_cache[db_name][table_name].setdefault(column, set())
+            self._constraint_cache[db_name][table_name][column].add((kind, constraint))
+        return

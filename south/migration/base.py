@@ -271,6 +271,9 @@ class Migration(object):
     def __repr__(self):
         return u'<Migration: %s>' % unicode(self)
 
+    def __eq__(self, other):
+        return self.app_label() == other.app_label() and self.name() == other.name()
+
     def app_label(self):
         return self.migrations.app_label()
 
@@ -327,16 +330,6 @@ class Migration(object):
         return self.migrations[index]
     next = memoize(next)
     
-    def is_rebase(self):
-        """
-        Returns whether this migration is a 'rebase' migration - one which is
-        a safe place for the migrator to stop before it gets to the start.
-        This is true if it's an initial migration, or if it's been created by
-        rebase.
-        """
-        return getattr(self.migration_class(), "rebase", False) 
-    is_rebase = memoize(is_rebase)
-    
     def _get_dependency_objects(self, attrname):
         """
         Given the name of an attribute (depends_on or needed_by), either yields
@@ -389,42 +382,24 @@ class Migration(object):
     def backwards(self):
         return self.migration_instance().backwards
 
-    def forwards_plan(self, allow_rebase=False):
+    def forwards_plan(self):
         """
         Returns a list of Migration objects to be applied, in order.
 
         This list includes `self`, which will be applied last.
         """
-        base_plan = depends(self, lambda x: x.dependencies)
-        new_plan = []
-        for item in reversed(base_plan):
-            if allow_rebase:
-                new_plan.insert(0, item)
-                if item.is_rebase():
-                    break
-            else:
-                if not item.is_rebase():
-                    new_plan.insert(0, item)
-        return new_plan
+        return depends(self, lambda x: x.dependencies)
 
-    def backwards_plan(self, allow_rebase=False):
+    def _backwards_plan(self):
+        return depends(self, lambda x: x.dependents)
+
+    def backwards_plan(self):
         """
         Returns a list of Migration objects to be unapplied, in order.
 
         This list includes `self`, which will be unapplied last.
         """
-        base_plan = depends(self, lambda x: x.dependents)
-        new_plan = []
-        for item in base_plan:
-            if allow_rebase:
-                new_plan.append(item)
-                if item.is_rebase():
-                    break
-            else:
-                if not item.is_rebase():
-                    new_plan.append(item)
-        return new_plan
-        
+        return list(self._backwards_plan())
 
     def is_before(self, other):
         if self.migrations == other.migrations:
