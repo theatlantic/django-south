@@ -23,7 +23,7 @@ def to_apply(forwards, done):
     return [m for m in forwards if m not in done]
 
 def to_unapply(backwards, done):
-    return [m for m in backwards if m in done]
+    return [m for m in backwards if (m in done) or m.is_rebase()]
 
 def problems(pending, done):
     last = None
@@ -89,8 +89,8 @@ def check_migration_histories(histories, delete_ghosts=False, ignore_ghosts=Fals
     return exists
 
 def get_dependencies(target, migrations):
-    forwards = list
-    backwards = list
+    forwards = lambda allow_rebase=False: list()
+    backwards = lambda allow_rebase=False: list()
     if target is None:
         backwards = migrations[0].backwards_plan
     else:
@@ -108,8 +108,12 @@ def get_direction(target, applied, migrations, verbosity, interactive):
     forwards, backwards = get_dependencies(target, migrations)
     # Is the whole forward branch applied?
     problems = None
-    forwards = forwards()
-    workplan = to_apply(forwards, applied)
+    if target is not None:
+        forwards = forwards(allow_rebase = not [x for x in applied if x.migrations is target.migrations])
+        workplan = to_apply(forwards, applied)
+    else:
+        workplan = None
+    # See if there's some forward work to be done.
     if not workplan:
         # If they're all applied, we only know it's not backwards
         direction = None
@@ -121,13 +125,17 @@ def get_direction(target, applied, migrations, verbosity, interactive):
         direction = Forwards(verbosity=verbosity, interactive=interactive)
     if not problems:
         # What about the whole backward trace then?
-        backwards = backwards()
+        backwards = backwards(allow_rebase=target is None)
         missing_backwards = to_apply(backwards, applied)
         if missing_backwards != backwards:
             # If what's missing is a strict left segment of backwards (i.e.
             # all the higher migrations) then we need to go backwards
             workplan = to_unapply(backwards, applied)
-            problems = backwards_problems(backwards, applied, verbosity)
+            problems = backwards_problems(
+                [x for x in backwards if not x.is_rebase()],
+                applied,
+                verbosity,
+            )
             direction = Backwards(verbosity=verbosity, interactive=interactive)
     return direction, problems, workplan
 
@@ -200,6 +208,6 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
         # Note: We use a fake Forwards() migrator here. It's never used really.
         if load_initial_data:
             migrator = LoadInitialDataMigrator(migrator=Forwards(verbosity=verbosity))
-            migrator.load_initial_data(target, db=database)
+            migrator.load_initial_data(target)
         # Send signal.
         post_migrate.send(None, app=app_label)

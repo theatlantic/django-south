@@ -386,7 +386,7 @@ class ManualChanges(BaseChanges):
             bits.append('add_field_%s' % field_name)
         for index_name in self.added_indexes:
             bits.append('add_index_%s' % index_name)
-        return '_'.join(bits).replace('.', '_')
+        return '_'.join(bits)
     
     def get_changes(self):
         # Get the model defs so we can use them for the yield later
@@ -404,7 +404,7 @@ class ManualChanges(BaseChanges):
             try:
                 model_name, field_name = field_desc.split(".")
             except (TypeError, ValueError):
-                raise ValueError("%r is not a valid field description." % field_desc)
+                print "%r is not a valid field description." % field_desc
             model = models.get_model(self.migrations.app_label(), model_name)
             real_fields, meta, m2m_fields = self.split_model_def(model, model_defs[model_key(model)])
             yield ("AddField", {
