@@ -196,6 +196,8 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     def _fill_constraint_cache(self, db_name, table_name):
         qn = self.quote_name
+        self._constraint_cache.setdefault(db_name, {}) 
+        self._constraint_cache[db_name][table_name] = {} 
 
         rows = self.execute("""
             SELECT user_cons_columns.constraint_name,
