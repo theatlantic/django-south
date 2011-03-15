@@ -38,8 +38,8 @@ class DatabaseOperations(generic.DatabaseOperations):
     def adj_column_sql(self, col):
         col = re.sub('(?P<constr>CHECK \(.*\))(?P<any>.*)(?P<default>DEFAULT [0|1])', 
                      lambda mo: '%s %s%s'%(mo.group('default'), mo.group('constr'), mo.group('any')), col) #syntax fix for boolean field only
-        col = re.sub('(?P<not_null>NOT NULL) (?P<default>DEFAULT.+)',
-                     lambda mo: '%s %s'%(mo.group('default'), mo.group('not_null')), col) #fix order  of DEFAULT and NOT NULL
+        col = re.sub('(?P<not_null>(NOT )?NULL) (?P<misc>(.* )?)(?P<default>DEFAULT.+)',
+                     lambda mo: '%s %s %s'%(mo.group('default'),mo.group('not_null'),mo.group('misc') or ''), col) #fix order  o
         return col
 
     def check_m2m(self, table_name):
