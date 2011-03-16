@@ -29,6 +29,9 @@ class DatabaseOperations(generic.DatabaseOperations):
     has_check_constraints = False
     delete_unique_sql = "ALTER TABLE %s DROP INDEX %s"
 
+    geom_types = ['geometry', 'point', 'linestring', 'polygon']
+    text_types = ['text', 'blob',]
+
     def _is_valid_cache(self, db_name, table_name):
         cache = self._constraint_cache
         # we cache the whole db so if there are any tables table_name is valid
@@ -147,7 +150,12 @@ class DatabaseOperations(generic.DatabaseOperations):
         """
         This particular override stops us sending DEFAULTs for BLOB/TEXT columns.
         """
-        if self._db_type_for_alter_column(field).upper() in ["BLOB", "TEXT", "LONGTEXT"]:
+        #  MySQL does not support defaults for geometry columns also
+        type = self._db_type_for_alter_column(field).lower()
+        is_geom = True in [ type.find(t) > -1 for t in self.geom_types ]
+        is_text = True in [ type.find(t) > -1 for t in self.text_types ]
+
+        if is_geom or is_text:
             field._suppress_default = True
         return field
     
@@ -157,5 +165,8 @@ class DatabaseOperations(generic.DatabaseOperations):
         MySQL does not support defaults on text or blob columns.
         """
         type = params['type']
-        if not (type.endswith('text') or type.endswith('blob')):
+        #  MySQL does not support defaults for geometry columns also
+        is_geom = True in [ type.find(t) > -1 for t in self.geom_types ]
+        is_text = True in [ type.find(t) > -1 for t in self.text_types ]
+        if not is_geom and not is_text:
             super(DatabaseOperations, self)._alter_set_defaults(field, name, params, sqls)
