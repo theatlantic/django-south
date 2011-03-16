@@ -162,6 +162,18 @@ class DatabaseOperations(generic.DatabaseOperations):
                 if str(exc).find('ORA-01442') == -1:
                     raise
 
+    @generic.copy_column_constraints
+    @generic.delete_column_constraints
+    def rename_column(self, table_name, old, new):
+        if old == new:
+            # Short-circuit out
+            return []
+        self.execute('ALTER TABLE %s RENAME COLUMN %s TO %s;' % (
+            self.quote_name(table_name),
+            self.quote_name(old),
+            self.quote_name(new),
+        ))
+
     @generic.invalidate_table_constraints
     def add_column(self, table_name, name, field, keep_default=True):
         qn = self.quote_name(table_name, upper = False)
