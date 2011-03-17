@@ -9,6 +9,7 @@ from django.db.backends.util import truncate_name
 from django.core.management.color import no_style
 from django.db.backends.oracle.base import get_sequence_name
 from django.db.models.fields import NOT_PROVIDED
+from django.db.utils import DatabaseError
 from south.db import generic
 
 print >> sys.stderr, " ! WARNING: South's Oracle support is still alpha."
@@ -100,7 +101,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             'default': 'NULL'
         }
         if field.null:
-            params['nullity'] = ''
+            params['nullity'] = 'NULL'
         sqls = [self.alter_string_set_type % params]
 
         if not field.null and field.has_default():
@@ -121,8 +122,9 @@ class DatabaseOperations(generic.DatabaseOperations):
         for sql in sqls:
             try:
                 self.execute(sql)
-            except cx_Oracle.DatabaseError, exc:
-                if str(exc).find('ORA-01442') == -1:
+            except DatabaseError, exc:
+                # Oracle complains if a column is already NULL/NOT NULL 
+                if str(exc).find('ORA-01442') == -1 and str(exc).find('ORA-01451') == -1:
                     raise
 
     @generic.copy_column_constraints
