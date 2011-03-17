@@ -75,7 +75,20 @@ class DatabaseOperations(generic.DatabaseOperations):
             self.execute('DROP TABLE %s CASCADE CONSTRAINTS PURGE;' % qn)
         else:
             self.execute('DROP TABLE %s;' % qn)
-        self.execute('DROP SEQUENCE %s;' % self.quote_name(get_sequence_name(table_name)))
+        
+        # If the table has an AutoField a sequence was created.
+        sequence_sql = """
+DECLARE
+    i INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO i FROM USER_CATALOG
+        WHERE TABLE_NAME = '%(sq_name)s' AND TABLE_TYPE = 'SEQUENCE';
+    IF i = 1 THEN
+        EXECUTE IMMEDIATE 'DROP SEQUENCE "%(sq_name)s"';
+    END IF;
+END;
+/""" % {'sq_name': get_sequence_name(table_name)}
+        self.execute(sequence_sql)
 
     @generic.invalidate_table_constraints
     def alter_column(self, table_name, name, field, explicit_name=True):
