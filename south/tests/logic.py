@@ -632,13 +632,15 @@ class TestMigrationLogic(Monkeypatcher):
             # So does SQLServer... should we be using a backend attribute?
             elif db.backend_name == "pyodbc":
                 now_func = "GETDATE()"
+            elif db.backend_name == "oracle":
+                now_func = "SYSDATE"
             else:
                 now_func = "NOW()"
             
             try:
                 if db.backend_name == "pyodbc":
                     cursor.execute("SET IDENTITY_INSERT southtest_spam ON;")
-                cursor.execute("INSERT INTO southtest_spam (id, weight, expires, name) VALUES (100, 10.1, %s, NULL);" % now_func)
+                cursor.execute("INSERT INTO southtest_spam (id, weight, expires, name) VALUES (100, NULL, %s, 'whatever');" % now_func)
             except:
                 if eat_exception:
                     transaction.rollback()
@@ -674,7 +676,7 @@ class TestMigrationLogic(Monkeypatcher):
 
         # make sure it is NOT NULL again
         migrate_app(migrations, target_name="0002", fake=False)
-        self.failIf(null_ok(), 'name not null after migration')
+        self.failIf(null_ok(), 'weight not null after migration')
         self.assertListEqual(
             ((u"fakeapp", u"0001_spam"),
              (u"fakeapp", u"0002_eggs"),),
