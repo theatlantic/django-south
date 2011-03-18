@@ -44,6 +44,15 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     def check_meta(self, table_name):
         return table_name in [ m._meta.db_table for m in models.get_models() ] #caching provided by Django
+    
+    def normalize_name(self, name):
+        """
+        Get the properly shortened and uppercased identifier as returned by quote_name(), but without the actual quotes.
+        """
+        nn = self.quote_name(name)
+        if nn[0] == '"' and nn[-1] == '"':
+            nn = nn[1:-1]
+        return nn
 
     @generic.invalidate_table_constraints
     def create_table(self, table_name, fields): 
@@ -123,12 +132,11 @@ END;
         sqls.append(self.alter_string_set_default % params)
 
         #UNIQUE constraint
-        unique_constraint = list(self._constraints_affecting_columns(table_name, [name]))
-
+        unique_constraint = list(self._constraints_affecting_columns(table_name, [name], 'UNIQUE'))
         if field.unique and not unique_constraint:
-            self.create_unique(qn, [qn_col])
+            self.create_unique(table_name, [name])
         elif not field.unique and unique_constraint:
-            self.delete_unique(qn, [qn_col])
+            self.delete_unique(table_name, [name])
 
         #CHECK constraint is not handled
 
@@ -173,6 +181,19 @@ END;
     def delete_column(self, table_name, name):
         return super(DatabaseOperations, self).delete_column(self.quote_name(table_name), name)
 
+    def lookup_constraint(self, db_name, table_name, column_name=None):
+        if column_name:
+            # Column names in the constraint cache come from the database,
+            # make sure we use the properly shortened/uppercased version
+            # for lookup.
+            column_name = self.normalize_name(column_name)
+        return super(DatabaseOperations, self).lookup_constraint(db_name, table_name, column_name)
+
+    def _constraints_affecting_columns(self, table_name, columns, type="UNIQUE"):
+        if columns:
+            columns = [self.normalize_name(c) for c in columns]
+        return super(DatabaseOperations, self)._constraints_affecting_columns(table_name, columns, type)
+
     def _field_sanity(self, field):
         """
         This particular override stops us sending DEFAULTs for BooleanField.
@@ -181,14 +202,7 @@ END;
             field.default = int(field.to_python(field.get_default()))
         return field
 
-
-
     def _fill_constraint_cache(self, db_name, table_name):
-        qn = self.quote_name(table_name)
-        # We actually need the shortened, uppercase name without the quotes
-        if qn[0] == '"' and qn[-1] == '"':
-            qn = qn[1:-1]
-            
         self._constraint_cache.setdefault(db_name, {}) 
         self._constraint_cache[db_name][table_name] = {} 
 
@@ -201,7 +215,7 @@ END;
                  user_constraints.table_name = user_cons_columns.table_name AND 
                  user_constraints.constraint_name = user_cons_columns.constraint_name
             WHERE user_constraints.table_name = '%s'
-        """ % qn)
+        """ % self.normalize_name(table_name))
 
         for constraint, column, kind in rows:
             self._constraint_cache[db_name][table_name].setdefault(column, set())
