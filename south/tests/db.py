@@ -231,7 +231,6 @@ class TestOperations(unittest.TestCase):
         db.execute("INSERT INTO test_pki (id, new_pkey, eggs) VALUES (1, 2, 3)")
         db.execute("INSERT INTO test_pki (id, new_pkey, eggs) VALUES (1, 3, 4)")
         db.delete_table("test_pki")
-        
     
     def test_add_columns(self):
         """
@@ -416,6 +415,47 @@ class TestOperations(unittest.TestCase):
         db.delete_unique("test_unique", ["spam", "eggs", "ham_id"])
         db.start_transaction()
     
+    def test_alter_unique(self):
+        """
+        Tests that unique constraints are properly created and deleted when
+        altering columns.
+        """
+        db.create_table("test_unique", [
+            ('spam', models.IntegerField()),
+            ('eggs', models.IntegerField(unique=True)),
+        ])
+        db.execute_deferred_sql()
+        
+        # Make sure the unique constraint is created
+        db.execute('INSERT INTO test_unique VALUES (0, 42)')
+        try:
+            db.execute("INSERT INTO test_unique VALUES (1, 42)")
+        except:
+            pass
+        else:
+            self.fail("Could insert the same integer twice into a field with unique=True.")
+        
+        # remove constraint
+        db.alter_column("test_unique", "eggs", models.IntegerField())
+        # make sure the insertion works now
+        db.execute('INSERT INTO test_unique VALUES (1, 42)')
+        
+        # add it back again
+        db.execute('DELETE FROM test_unique WHERE spam=1')
+        db.alter_column("test_unique", "eggs", models.IntegerField(unique=True))
+        # it should fail again
+        try:
+            db.execute("INSERT INTO test_unique VALUES (1, 42)")
+        except:
+            pass
+        else:
+            self.fail("Unique constraint not created during alter_column()")
+        
+        # Delete the unique index/constraint
+        if db.backend_name != "sqlite3":
+            db.delete_unique("test_unique", ["eggs"])
+        db.delete_table("test_unique")
+
     def test_capitalised_constraints(self):
         """
         Under PostgreSQL at least, capitalised constraints must be quoted.
