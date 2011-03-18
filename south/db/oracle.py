@@ -28,11 +28,11 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     allows_combined_alters = False
     
-    constraits_dict = {
-        'PRIMARY KEY': 'P',
-        'UNIQUE': 'U',
-        'CHECK': 'C',
-        'REFERENCES': 'R'
+    constraints_dict = {
+        'P': 'PRIMARY KEY',
+        'U': 'UNIQUE',
+        'C': 'CHECK',
+        'R': 'FOREIGN KEY'
     }
 
     def adj_column_sql(self, col):
@@ -123,7 +123,7 @@ END;
         sqls.append(self.alter_string_set_default % params)
 
         #UNIQUE constraint
-        unique_constraint = list(self._constraints_affecting_columns(qn, [qn_col]))
+        unique_constraint = list(self._constraints_affecting_columns(table_name, [name]))
 
         if field.unique and not unique_constraint:
             self.create_unique(qn, [qn_col])
@@ -184,7 +184,11 @@ END;
 
 
     def _fill_constraint_cache(self, db_name, table_name):
-        qn = self.quote_name
+        qn = self.quote_name(table_name)
+        # We actually need the shortened, uppercase name without the quotes
+        if qn[0] == '"' and qn[-1] == '"':
+            qn = qn[1:-1]
+            
         self._constraint_cache.setdefault(db_name, {}) 
         self._constraint_cache[db_name][table_name] = {} 
 
@@ -197,9 +201,9 @@ END;
                  user_constraints.table_name = user_cons_columns.table_name AND 
                  user_constraints.constraint_name = user_cons_columns.constraint_name
             WHERE user_constraints.table_name = '%s'
-        """ % (qn(table_name)))
+        """ % qn)
 
         for constraint, column, kind in rows:
             self._constraint_cache[db_name][table_name].setdefault(column, set())
-            self._constraint_cache[db_name][table_name][column].add((kind, constraint))
+            self._constraint_cache[db_name][table_name][column].add((self.constraints_dict[kind], constraint))
         return
