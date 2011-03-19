@@ -413,6 +413,13 @@ class DatabaseOperations(object):
                         'table': self.quote_name(table_name),
                         'constraint': self.quote_name(constraint),
                     })
+                    
+            # Drop or add UNIQUE constraint
+            unique_constraint = list(self._constraints_affecting_columns(table_name, [name], "UNIQUE"))
+            if field.unique and not unique_constraint:
+                self.create_unique(table_name, [name])
+            elif not field.unique and unique_constraint:
+                self.delete_unique(table_name, [name])
         
             # Drop all foreign key constraints
             try:
