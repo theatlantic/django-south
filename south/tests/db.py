@@ -490,7 +490,47 @@ class TestOperations(unittest.TestCase):
         db.add_column("test_add_unique_fk", "mock2", models.OneToOneField(db.mock_model('Mock', 'mock'), null=True))
         
         db.delete_table("test_add_unique_fk")
-
+        
+    def test_column_constraint(self):
+        """
+        Tests that the value constraint of PositiveIntegerField is enforced on
+        the database level.
+        """
+        db.create_table("test_column_constraint", [
+            ('spam', models.PositiveIntegerField()),
+        ])
+        db.execute_deferred_sql()
+        
+        # Make sure we can't insert negative values
+        db.commit_transaction()
+        db.start_transaction()
+        try:
+            db.execute("INSERT INTO test_column_constraint VALUES (-42)")
+            self.fail("Could insert a negative value into a PositiveIntegerField.")
+        except:
+            pass
+        db.rollback_transaction()
+        
+        # remove constraint
+        db.alter_column("test_column_constraint", "spam", models.IntegerField())
+        # make sure the insertion works now
+        db.execute('INSERT INTO test_column_constraint VALUES (-42)')
+        db.execute('DELETE FROM test_column_constraint')
+        
+        # add it back again
+        db.alter_column("test_column_constraint", "spam", models.PositiveIntegerField())
+        # it should fail again
+        db.start_transaction()
+        try:
+            db.execute("INSERT INTO test_column_constraint VALUES (-42)")
+            self.fail("Could insert a negative value after changing an IntegerField to a PositiveIntegerField.")
+        except:
+            pass
+        db.rollback_transaction()
+        
+        db.delete_table("test_column_constraint")
+        db.start_transaction()
+        
 class TestCacheGeneric(unittest.TestCase):
     base_ops_cls = generic.DatabaseOperations
     def setUp(self):

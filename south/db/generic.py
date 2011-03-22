@@ -405,7 +405,8 @@ class DatabaseOperations(object):
             field.column = name
 
         if not ignore_constraints:
-            # Drop all check constraints. TODO: Add the right ones back.
+            # Drop all check constraints. Note that constraints will be added back
+            # with self.alter_string_set_type and self.alter_string_drop_null.
             if self.has_check_constraints:
                 check_constraints = self._constraints_affecting_columns(table_name, [name], "CHECK")
                 for constraint in check_constraints:

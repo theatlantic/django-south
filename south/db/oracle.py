@@ -25,6 +25,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     alter_string_set_default =  'ALTER TABLE %(table_name)s MODIFY %(column)s DEFAULT %(default)s;'
     add_column_string =         'ALTER TABLE %s ADD %s;'
     delete_column_string =      'ALTER TABLE %s DROP COLUMN %s;'
+    add_constraint_string =     'ALTER TABLE %(table_name)s ADD CONSTRAINT %(constraint)s %(clause)s'
 
     allows_combined_alters = False
     
@@ -115,6 +116,8 @@ END;
         qn_col = self.quote_name(name)
 
         # First, change the type
+        # This will actually also add any CHECK constraints needed,
+        # since e.g. 'type' for a BooleanField is 'NUMBER(1) CHECK (%(qn_column)s IN (0,1))'
         params = {
             'table_name':qn,
             'column': qn_col,
@@ -131,14 +134,21 @@ END;
 
         sqls.append(self.alter_string_set_default % params)
 
-        #UNIQUE constraint
+        # UNIQUE constraint
         unique_constraint = list(self._constraints_affecting_columns(table_name, [name], 'UNIQUE'))
         if field.unique and not unique_constraint:
             self.create_unique(table_name, [name])
         elif not field.unique and unique_constraint:
             self.delete_unique(table_name, [name])
 
-        #CHECK constraint is not handled
+        # drop CHECK constraints. Make sure this is executed before the ALTER TABLE statements
+        # generated above, since those statements recreate the constraints we delete here.
+        check_constraints = self._constraints_affecting_columns(table_name, [name], "CHECK")
+        for constraint in check_constraints:
+            self.execute(self.delete_check_sql % {
+                'table': self.quote_name(table_name),
+                'constraint': self.quote_name(constraint),
+            })
 
         for sql in sqls:
             try:
