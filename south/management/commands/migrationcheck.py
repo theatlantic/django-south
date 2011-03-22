@@ -1,4 +1,4 @@
-from django.core.management import call_command
+from django.core.management import call_command, CommandError
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.db.models import loading
@@ -14,8 +14,9 @@ class Command(BaseCommand):
 
     def handle(self, **options):
         runner = simple.DjangoTestSuiteRunner(verbosity=0)
-        err_msg = "Failed to migrate %s; see output for hints at missing dependencies:"
+        err_msg = "Failed to migrate %s; see output for hints at missing dependencies:\n"
         hacks.patch_flush_during_test_db_creation()
+        failures = 0
         for app_name in settings.INSTALLED_APPS:
             app_label = app_name.split(".")[-1]
             if app_name == 'south':
@@ -26,7 +27,10 @@ class Command(BaseCommand):
             except NoMigrations:
                 continue
             app = loading.get_app(app_label)
-            print "processing %s" % app_name
+
+            verbosity = int(options.get('verbosity', 1))
+            if verbosity >= 1:
+                self.stderr.write("processing %s\n" % app_name)
 
             old_config = runner.setup_databases()
             try:
@@ -36,11 +40,14 @@ class Command(BaseCommand):
             except (KeyboardInterrupt, SystemExit):
                 raise
             except Exception, e:
-                print err_msg % app_name
-                print e
-
+                failures += 1
+                if verbosity >= 1:
+                    self.stderr.write(err_msg % app_name)
+                    self.stderr.write("%s\n" % e)
             finally:
                 runner.teardown_databases(old_config)
+        if failures > 0:
+            raise CommandError("Missing depends_on found in %s app(s)." % failures)
 #
 #for each app:
 #    start with blank db.
