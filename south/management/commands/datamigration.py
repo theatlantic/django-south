@@ -121,5 +121,4 @@ class Migration(DataMigration):
     models = %(frozen_models)s
 
     %(complete_apps)s
-    symmetrical = True
 """

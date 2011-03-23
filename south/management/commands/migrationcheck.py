@@ -34,7 +34,7 @@ class Command(BaseCommand):
 
             old_config = runner.setup_databases()
             try:
-                call_command('migrate', app_label, noinput=True, verbosity=0)
+                call_command('migrate', app_label, noinput=True, verbosity=verbosity)
                 for model in loading.get_models(app):
                     dummy = model._default_manager.exists()
             except (KeyboardInterrupt, SystemExit):
@@ -48,6 +48,7 @@ class Command(BaseCommand):
                 runner.teardown_databases(old_config)
         if failures > 0:
             raise CommandError("Missing depends_on found in %s app(s)." % failures)
+        self.stderr.write("No missing depends_on found.\n")
 #
 #for each app:
 #    start with blank db.
