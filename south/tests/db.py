@@ -55,6 +55,7 @@ class TestOperations(unittest.TestCase):
         """
         Test deletion of tables.
         """
+        cursor = connection.cursor()
         db.create_table("test_deltable", [('email_confirmed', models.BooleanField(default=False))])
         db.delete_table("test_deltable")
         # Make sure it went
