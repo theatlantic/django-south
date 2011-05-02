@@ -127,12 +127,14 @@ END;
         }
         if field.null:
             params['nullity'] = 'NULL'
-        sqls = [self.alter_string_set_type % params]
 
         if not field.null and field.has_default():
             params['default'] = field.get_default()
 
-        sqls.append(self.alter_string_set_default % params)
+        sql_templates = [
+            (self.alter_string_set_type, params),
+            (self.alter_string_set_default, params.copy()),
+        ]
 
         # UNIQUE constraint
         unique_constraint = list(self._constraints_affecting_columns(table_name, [name], 'UNIQUE'))
@@ -150,12 +152,18 @@ END;
                 'constraint': self.quote_name(constraint),
             })
 
-        for sql in sqls:
+        for sql_template, params in sql_templates:
             try:
-                self.execute(sql)
+                self.execute(sql_template % params)
             except DatabaseError, exc:
-                # Oracle complains if a column is already NULL/NOT NULL 
-                if str(exc).find('ORA-01442') == -1 and str(exc).find('ORA-01451') == -1:
+                description = str(exc)
+                # Oracle complains if a column is already NULL/NOT NULL
+                if 'ORA-01442' in description or 'ORA-01451' in description:
+                    # so we just drop NULL/NOT NULL part from target sql and retry
+                    params['nullity'] = ''
+                    sql = sql_template % params
+                    self.execute(sql)
+                else:
                     raise
 
     @generic.copy_column_constraints
