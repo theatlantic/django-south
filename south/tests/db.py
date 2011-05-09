@@ -47,9 +47,10 @@ class TestOperations(unittest.TestCase):
         # Make sure we can't do the same query on an empty table
         try:
             cursor.execute("SELECT * FROM nottheretest1")
-            self.fail("Non-existent table could be selected!")
         except:
             pass
+        else:
+            self.fail("Non-existent table could be selected!")
     
     def test_delete(self):
         """
@@ -61,9 +62,10 @@ class TestOperations(unittest.TestCase):
         # Make sure it went
         try:
             cursor.execute("SELECT * FROM test1")
-            self.fail("Just-deleted table could be selected!")
         except:
             pass
+        else:
+            self.fail("Just-deleted table could be selected!")
     
     def test_nonexistent_delete(self):
         """
@@ -71,9 +73,10 @@ class TestOperations(unittest.TestCase):
         """
         try:
             db.delete_table("test_nonexistdeltable")
-            self.fail("Non-existent table could be deleted!")
         except:
             pass
+        else:
+            self.fail("Non-existent table could be deleted!")
     
     def test_foreign_keys(self):
         """
@@ -104,9 +107,10 @@ class TestOperations(unittest.TestCase):
         db.start_transaction()
         try:
             cursor.execute("SELECT spam FROM test_rn")
-            self.fail("Just-renamed column could be selected!")
         except:
             pass
+        else:
+            self.fail("Just-renamed column could be selected!")
         db.rollback_transaction()
         db.delete_table("test_rn")
         db.start_transaction()
@@ -129,9 +133,10 @@ class TestOperations(unittest.TestCase):
         db.start_transaction()
         try:
             cursor.execute("SELECT eggs FROM test_drn")
-            self.fail("Dry-renamed new column could be selected!")
         except:
             pass
+        else:
+            self.fail("Dry-renamed new column could be selected!")
         db.rollback_transaction()
         db.delete_table("test_drn")
         db.start_transaction()
@@ -151,9 +156,10 @@ class TestOperations(unittest.TestCase):
         db.start_transaction()
         try:
             cursor.execute("SELECT spam FROM testtr")
-            self.fail("Just-renamed column could be selected!")
         except:
             pass
+        else:
+            self.fail("Just-renamed column could be selected!")
         db.rollback_transaction()
         db.delete_table("testtr2")
         db.start_transaction()
@@ -433,11 +439,12 @@ class TestOperations(unittest.TestCase):
         db.start_transaction()
         try:
             db.execute("INSERT INTO test_alter_unique VALUES (1, 42)")
-            self.fail("Could insert the same integer twice into a field with unique=True.")
         except:
             pass
+        else:
+            self.fail("Could insert the same integer twice into a field with unique=True.")
         db.rollback_transaction()
-        
+
         # remove constraint
         db.alter_column("test_alter_unique", "eggs", models.IntegerField())
         # make sure the insertion works now
@@ -450,9 +457,10 @@ class TestOperations(unittest.TestCase):
         db.start_transaction()
         try:
             db.execute("INSERT INTO test_alter_unique VALUES (1, 42)")
-            self.fail("Unique constraint not created during alter_column()")
         except:
             pass
+        else:
+            self.fail("Unique constraint not created during alter_column()")
         db.rollback_transaction()
         
         # Delete the unique index/constraint
@@ -507,9 +515,10 @@ class TestOperations(unittest.TestCase):
         db.start_transaction()
         try:
             db.execute("INSERT INTO test_column_constraint VALUES (-42)")
-            self.fail("Could insert a negative value into a PositiveIntegerField.")
         except:
             pass
+        else:
+            self.fail("Could insert a negative value into a PositiveIntegerField.")
         db.rollback_transaction()
         
         # remove constraint
@@ -524,9 +533,10 @@ class TestOperations(unittest.TestCase):
         db.start_transaction()
         try:
             db.execute("INSERT INTO test_column_constraint VALUES (-42)")
-            self.fail("Could insert a negative value after changing an IntegerField to a PositiveIntegerField.")
         except:
             pass
+        else:
+            self.fail("Could insert a negative value after changing an IntegerField to a PositiveIntegerField.")
         db.rollback_transaction()
         
         db.delete_table("test_column_constraint")
