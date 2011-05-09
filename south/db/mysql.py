@@ -124,7 +124,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         # See if there is a foreign key on this column
         result = 0
         for kind, cname in self.lookup_constraint(db_name, table_name, name):
-            if kind == 'FOREIGN_KEY':
+            if kind == 'FOREIGN KEY':
                 result += 1
                 fkey_name = cname
         if result:
