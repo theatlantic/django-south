@@ -604,7 +604,7 @@ class DatabaseOperations(object):
                 field_output.append('UNIQUE')
 
             tablespace = field.db_tablespace or tablespace
-            if tablespace and self._get_connection().features.supports_tablespaces and field.unique:
+            if tablespace and getattr(self._get_connection().features, "supports_tablespaces", False) and field.unique:
                 # We must specify the index tablespace inline, because we
                 # won't be generating a CREATE INDEX statement for this field.
                 field_output.append(self._get_connection().ops.tablespace_sql(tablespace, inline=True))
