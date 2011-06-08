@@ -171,9 +171,13 @@ class DatabaseOperations(generic.DatabaseOperations):
         #    sql += " UNIQUE"
         return sql
     
-    def alter_column(self, table_name, name, field, explicit_name=True):
+    def alter_column(self, table_name, name, field, explicit_name=True, ignore_constraints=False):
         """
-        Changes a column's SQL definition
+        Changes a column's SQL definition.
+
+        Note that this sqlite3 implementation ignores the ignore_constraints argument.
+        The argument is accepted for API compatibility with the generic
+        DatabaseOperations.alter_column() method.
         """
         # Remake the table correctly
         self._remake_table(table_name, altered={
