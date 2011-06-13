@@ -61,7 +61,7 @@ class TestOperations(unittest.TestCase):
         db.delete_table("test_deltable")
         # Make sure it went
         try:
-            cursor.execute("SELECT * FROM test1")
+            cursor.execute("SELECT * FROM test_deltable")
         except:
             pass
         else:
