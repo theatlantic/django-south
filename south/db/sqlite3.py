@@ -55,16 +55,19 @@ class DatabaseOperations(generic.DatabaseOperations):
         # Work out new column defs.
         for column_info in self._get_connection().introspection.get_table_description(cursor, table_name):
             name = column_info[0]
+            null_ok = column_info[6]
             if name in deleted:
                 continue
             # Get the type, ignoring PRIMARY KEY (we need to be consistent)
             type = column_info[1].replace("PRIMARY KEY", "")
-            # Add on unique or primary key if needed.
-            if indexes[name]['unique'] and name not in uniques_deleted:
-                type += " UNIQUE"
+            # Add on primary key, not null or unique if needed.
             if (primary_key_override and primary_key_override == name) or \
                (not primary_key_override and indexes[name]['primary_key']):
                 type += " PRIMARY KEY"
+            elif not null_ok:
+                type += " NOT NULL"
+            if indexes[name]['unique'] and name not in uniques_deleted:
+                type += " UNIQUE"
             # Deal with a rename
             if name in renames:
                 name = renames[name]
