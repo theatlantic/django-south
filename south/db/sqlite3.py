@@ -35,6 +35,16 @@ class DatabaseOperations(generic.DatabaseOperations):
             field.column: self._column_sql_for_create(table_name, name, field, False),
         })
 
+    def _get_full_table_description(self, connection, cursor, table_name):
+        cursor.execute('PRAGMA table_info(%s)' % connection.ops.quote_name(table_name))
+        # cid, name, type, notnull, dflt_value, pk
+        return [{'name': field[1],
+                 'type': field[2],
+                 'null_ok': not field[3],
+                 'dflt_value': field[4],
+                 'pk': field[5]     # undocumented
+                 } for field in cursor.fetchall()]
+
     @generic.invalidate_table_constraints
     def _remake_table(self, table_name, added={}, renames={}, deleted=[], altered={}, primary_key_override=None, uniques_deleted=[]):
         """
@@ -53,21 +63,24 @@ class DatabaseOperations(generic.DatabaseOperations):
         indexes = self._get_connection().introspection.get_indexes(cursor, table_name)
         multi_indexes = self._get_multi_indexes(table_name)
         # Work out new column defs.
-        for column_info in self._get_connection().introspection.get_table_description(cursor, table_name):
-            name = column_info[0]
-            null_ok = column_info[6]
+        for column_info in self._get_full_table_description(self._get_connection(), cursor, table_name):
+            name = column_info['name']
             if name in deleted:
                 continue
             # Get the type, ignoring PRIMARY KEY (we need to be consistent)
-            type = column_info[1].replace("PRIMARY KEY", "")
+            type = column_info['type'].replace("PRIMARY KEY", "")
             # Add on primary key, not null or unique if needed.
             if (primary_key_override and primary_key_override == name) or \
                (not primary_key_override and indexes[name]['primary_key']):
                 type += " PRIMARY KEY"
-            elif not null_ok:
+            elif not column_info['null_ok']:
                 type += " NOT NULL"
             if indexes[name]['unique'] and name not in uniques_deleted:
                 type += " UNIQUE"
+
+            if column_info['dflt_value'] is not None:
+                type += " DEFAULT " + column_info['dflt_value']
+
             # Deal with a rename
             if name in renames:
                 name = renames[name]
