@@ -317,7 +317,7 @@ def get_model_fields(model, m2m=False):
     
     # Go through all bases (that are themselves models, but not Model)
     for base in model.__bases__:
-        if base != models.Model and issubclass(base, models.Model):
+        if hasattr(base, '_meta') and issubclass(base, models.Model):
             if not base._meta.abstract:
                 # Looks like we need their fields, Ma.
                 inherited_fields.update(get_model_fields(base))
@@ -378,7 +378,7 @@ def get_model_meta(model):
     # This is called _ormbases as the _bases variable was previously used
     # for a list of full class paths to bases, so we can't conflict.
     for base in model.__bases__:
-        if base != models.Model and issubclass(base, models.Model):
+        if hasattr(base, '_meta') and issubclass(base, models.Model):
             if not base._meta.abstract:
                 # OK, that matches our terms.
                 if "_ormbases" not in meta_def:
