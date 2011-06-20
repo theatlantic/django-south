@@ -1,6 +1,7 @@
 import os.path
 import sys
 import re
+import warnings
 import cx_Oracle
 
 
@@ -21,8 +22,8 @@ except ImportError:
 
 from south.db import generic
 
-print >> sys.stderr, " ! WARNING: South's Oracle support is still alpha."
-print >> sys.stderr, " !          Be wary of possible bugs."
+warnings.warn("! WARNING: South's Oracle support is still alpha. "
+              "Be wary of possible bugs.")
 
 class DatabaseOperations(generic.DatabaseOperations):    
     """
