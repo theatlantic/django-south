@@ -59,13 +59,5 @@ class DatabaseOperations(generic.DatabaseOperations):
         "Rename an index individually"
         generic.DatabaseOperations.rename_table(self, old_index_name, index_name)
 
-    def _db_type_for_alter_column(self, field):
-        """
-        Returns a field's type suitable for ALTER COLUMN.
-        Strips CHECKs from PositiveSmallIntegerField) and PositiveIntegerField
-        @param field: The field to generate type for
-        """
-        super_result = super(DatabaseOperations, self)._db_type_for_alter_column(field)
-        if isinstance(field, models.PositiveSmallIntegerField) or isinstance(field, models.PositiveIntegerField):
-            return super_result.split(" ")[0]
-        return super_result
+    _db_type_for_alter_column = generic.alias("_db_positive_type_for_alter_column")
+    _alter_add_column_mods = generic.alias("_alter_add_positive_check")
