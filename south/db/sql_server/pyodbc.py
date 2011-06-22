@@ -24,8 +24,8 @@ class DatabaseOperations(generic.DatabaseOperations):
     drop_constraint_string = 'ALTER TABLE %(table_name)s DROP CONSTRAINT %(constraint_name)s'
     delete_column_string = 'ALTER TABLE %s DROP COLUMN %s'
 
-    add_check_constraint_sql = "ADD CONSTRAINT %(constraint)s CHECK (%(check)s)"
-    create_check_constraint_sql = "ALTER TABLE %(table)s " + add_check_constraint_sql 
+    #create_check_constraint_sql = "ALTER TABLE %(table)s " + \
+    #                              generic.DatabaseOperations.add_check_constraint_fragment 
     create_foreign_key_sql = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s " + \
                              "FOREIGN KEY (%(column)s) REFERENCES %(target)s"
     create_unique_sql = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s UNIQUE (%(columns)s)"
@@ -395,34 +395,9 @@ class DatabaseOperations(generic.DatabaseOperations):
         params = (self.quote_name(old_table_name), self.quote_name(table_name))
         self.execute('EXEC sp_rename %s, %s' % params)
 
-    # Copied from South's psycopg2 backend
-    def _db_type_for_alter_column(self, field):
-        """
-        Returns a field's type suitable for ALTER COLUMN.
-        Strips CHECKs from PositiveSmallIntegerField) and PositiveIntegerField
-        @param field: The field to generate type for
-        """
-        super_result = super(DatabaseOperations, self)._db_type_for_alter_column(field)
-        if isinstance(field, models.PositiveSmallIntegerField) or isinstance(field, models.PositiveIntegerField):
-            return super_result.split(" ")[0]
-        return super_result
+    _db_type_for_alter_column = generic.alias("_db_positive_type_for_alter_column")
+    _alter_add_column_mods = generic.alias("_alter_add_positive_check")
 
-    def _alter_add_column_mods(self, field, name, params, sqls):
-        """
-        Subcommand of alter_column that modifies column definitions beyond
-        the type string. Here, we need to add constraints for the Positive
-        fields as such constraints cannot be included in the type in an
-        alter-table-alter-column command.
-        """
-        super(DatabaseOperations, self)._alter_add_column_mods(field, name, params, sqls)
-        if isinstance(field, (models.PositiveSmallIntegerField, models.PositiveIntegerField)):
-            uniq_hash = abs(hash(tuple(params.values()))) 
-            d = dict(
-                     constraint = "CK_%s_PSTV_%s" % (name, hex(uniq_hash)[2:]),
-                     check = "%s > 0" % self.quote_name(name))
-            sqls.append((self.add_check_constraint_sql % d, []))
-        
-    
     @invalidate_table_constraints
     def delete_foreign_key(self, table_name, column):
         super(DatabaseOperations, self).delete_foreign_key(table_name, column)
