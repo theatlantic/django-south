@@ -368,6 +368,14 @@ class DatabaseOperations(object):
         except TypeError:
             return field.db_type()
         
+    def _alter_add_column_mods(self, field, name, params, sqls):
+        """
+        Subcommand of alter_column that modifies column definitions beyond
+        the type string -- e.g. adding constraints where they cannot be specified
+        as part of the type (overrideable)
+        """
+        pass
+    
     def _alter_set_defaults(self, field, name, params, sqls): 
         "Subcommand of alter_column that sets default values (overrideable)"
         # Next, set any default
@@ -443,6 +451,8 @@ class DatabaseOperations(object):
         if params["type"] is not None:
             sqls.append((self.alter_string_set_type % params, []))
         
+        # Add any field- and backend- specific modifications
+        self._alter_add_column_mods(field, name, params, sqls)
         # Next, nullity
         if field.null:
             sqls.append((self.alter_string_set_null % params, []))
