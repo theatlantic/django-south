@@ -1,19 +1,29 @@
 import os.path
 import sys
 import re
+import warnings
 import cx_Oracle
 
 
 from django.db import connection, models
 from django.db.backends.util import truncate_name
 from django.core.management.color import no_style
-from django.db.backends.oracle.base import get_sequence_name
 from django.db.models.fields import NOT_PROVIDED
 from django.db.utils import DatabaseError
+
+# In revision r16016 function get_sequence_name has been transformed into
+# method of DatabaseOperations class. To make code backward-compatible we
+# need to handle both situations.
+try:
+    from django.db.backends.oracle.base import get_sequence_name\
+        as original_get_sequence_name
+except ImportError:
+    original_get_sequence_name = None
+
 from south.db import generic
 
-print >> sys.stderr, " ! WARNING: South's Oracle support is still alpha."
-print >> sys.stderr, " !          Be wary of possible bugs."
+warnings.warn("! WARNING: South's Oracle support is still alpha. "
+              "Be wary of possible bugs.")
 
 class DatabaseOperations(generic.DatabaseOperations):    
     """
@@ -35,6 +45,12 @@ class DatabaseOperations(generic.DatabaseOperations):
         'C': 'CHECK',
         'R': 'FOREIGN KEY'
     }
+
+    def get_sequence_name(self, table_name):
+        if original_get_sequence_name is None:
+            return self._get_connection().ops._get_sequence_name(table_name)
+        else:
+            return original_get_sequence_name(table_name)
 
     def adj_column_sql(self, col):
         col = re.sub('(?P<constr>CHECK \(.*\))(?P<any>.*)(?P<default>DEFAULT \d+)', 
@@ -97,7 +113,7 @@ BEGIN
         EXECUTE IMMEDIATE 'DROP SEQUENCE "%(sq_name)s"';
     END IF;
 END;
-/""" % {'sq_name': get_sequence_name(table_name)}
+/""" % {'sq_name': self.get_sequence_name(table_name)}
         self.execute(sequence_sql)
 
     @generic.invalidate_table_constraints

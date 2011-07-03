@@ -24,7 +24,8 @@ class DatabaseOperations(generic.DatabaseOperations):
     drop_constraint_string = 'ALTER TABLE %(table_name)s DROP CONSTRAINT %(constraint_name)s'
     delete_column_string = 'ALTER TABLE %s DROP COLUMN %s'
 
-    create_check_constraint_sql = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s CHECK (%(check)s)"
+    #create_check_constraint_sql = "ALTER TABLE %(table)s " + \
+    #                              generic.DatabaseOperations.add_check_constraint_fragment 
     create_foreign_key_sql = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s " + \
                              "FOREIGN KEY (%(column)s) REFERENCES %(target)s"
     create_unique_sql = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s UNIQUE (%(columns)s)"
@@ -175,14 +176,18 @@ class DatabaseOperations(generic.DatabaseOperations):
         ret_val = super(DatabaseOperations, self).alter_column(table_name, name, field, explicit_name, ignore_constraints=True)
         
         if not ignore_constraints:
+            unique_field_handled = False
             for cname, (ctype,args) in constraints.items():
                 params = dict(table = table,
                               constraint = qn(cname))
                 if ctype=='UNIQUE':
-                    #TODO: This preserves UNIQUE constraints, but does not yet create them when necessary
+                    if len(args)==1:
+                        unique_field_handled = True # 
                     if len(args)>1 or field.unique:
                         params['columns'] = ", ".join(map(qn,args))
                         sql = self.create_unique_sql % params
+                    else:
+                        continue
                 elif ctype=='PRIMARY KEY':
                     params['columns'] = ", ".join(map(qn,args))
                     sql = self.create_primary_key_string % params
@@ -202,6 +207,9 @@ class DatabaseOperations(generic.DatabaseOperations):
                 else:
                     raise NotImplementedError("Don't know how to handle constraints of type "+ type)                    
                 self.execute(sql, [])
+            # Create unique constraint if necessary
+            if field.unique and not unique_field_handled:
+                self.create_unique(table_name, (name,))
             # Create foreign key if necessary
             if field.rel and self.supports_foreign_keys:
                 self.execute(
@@ -387,17 +395,8 @@ class DatabaseOperations(generic.DatabaseOperations):
         params = (self.quote_name(old_table_name), self.quote_name(table_name))
         self.execute('EXEC sp_rename %s, %s' % params)
 
-    # Copied from South's psycopg2 backend
-    def _db_type_for_alter_column(self, field):
-        """
-        Returns a field's type suitable for ALTER COLUMN.
-        Strips CHECKs from PositiveSmallIntegerField) and PositiveIntegerField
-        @param field: The field to generate type for
-        """
-        super_result = super(DatabaseOperations, self)._db_type_for_alter_column(field)
-        if isinstance(field, models.PositiveSmallIntegerField) or isinstance(field, models.PositiveIntegerField):
-            return super_result.split(" ")[0]
-        return super_result
+    _db_type_for_alter_column = generic.alias("_db_positive_type_for_alter_column")
+    _alter_add_column_mods = generic.alias("_alter_add_positive_check")
 
     @invalidate_table_constraints
     def delete_foreign_key(self, table_name, column):
