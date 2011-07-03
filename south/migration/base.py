@@ -414,6 +414,8 @@ class Migration(object):
             return False
 
     def prev_orm(self):
+        if getattr(self.migration_class(), 'symmetrical', False):
+            return self.orm()
         previous = self.previous()
         if previous is None:
             # First migration? The 'previous ORM' is empty.

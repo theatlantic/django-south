@@ -5,11 +5,10 @@ Handles freezing of models into FakeORMs.
 import sys
 
 from django.db import models
-from django.db.models.base import ModelBase, Model
 from django.contrib.contenttypes.generic import GenericRelation
 
 from south.orm import FakeORM
-from south.utils import get_attribute, auto_through
+from south.utils import auto_model
 from south import modelsinspector
 
 def freeze_apps(apps):
@@ -91,7 +90,7 @@ def model_dependencies(model, checked_models=None):
     checked_models = checked_models or set()
     # Get deps for each field
     for field in model._meta.fields + model._meta.many_to_many:
-        depends.update(field_dependencies(field, checked_models))
+        depends.update(field_dependencies(field))
     # Add in any non-abstract bases
     for base in model.__bases__:
         if issubclass(base, models.Model) and hasattr(base, '_meta') and not base._meta.abstract:
@@ -115,35 +114,21 @@ def model_dependencies(model, checked_models=None):
 def field_dependencies(field, checked_models=None):
     checked_models = checked_models or set()
     depends = set()
-    arg_defs, kwarg_defs = modelsinspector.matching_details(field)
-    for attrname, options in arg_defs + kwarg_defs.values():
-        if options.get("ignore_if_auto_through", False) and auto_through(field):
-            continue
-        if options.get("is_value", False):
-            value = attrname
-        elif attrname == 'rel.through' and hasattr(getattr(field, 'rel', None), 'through_model'):
-            # Hack for django 1.1 and below, where the through model is stored
-            # in rel.through_model while rel.through stores only the model name.
-            value = field.rel.through_model
-        else:
-            try:
-                value = get_attribute(field, attrname)
-            except AttributeError:
-                if options.get("ignore_missing", False):
-                    continue
-                raise
-        if isinstance(value, Model):
-            value = value.__class__
-        if not isinstance(value, ModelBase):
-            continue
-        if getattr(value._meta, "proxy", False):
-            value = value._meta.proxy_for_model
-        if value in checked_models:
-            continue
-        checked_models.add(value)
-        depends.add(value)
-        depends.update(model_dependencies(value, checked_models))
-
+    if isinstance(field, (models.OneToOneField, models.ForeignKey, models.ManyToManyField, GenericRelation)):
+        if field.rel.to in checked_models:
+            return depends
+        checked_models.add(field.rel.to)
+        depends.add(field.rel.to)
+        depends.update(field_dependencies(field.rel.to._meta.pk, checked_models))
+        # Also include M2M throughs
+        if isinstance(field, models.ManyToManyField):
+            if field.rel.through:
+                if hasattr(field.rel, "through_model"): # 1.1 and below
+                    depends.add(field.rel.through_model)
+                else:
+                    # Make sure it's not an automatic one
+                    if not auto_model(field.rel.through):
+                        depends.add(field.rel.through) # 1.2 and up
     return depends
 
 ### Prettyprinters

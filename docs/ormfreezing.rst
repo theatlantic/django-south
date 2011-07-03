@@ -65,6 +65,9 @@ includes anything that could be reaches via foreign keys or many-to-many
 relationships, but if you want to add other models in, simply pass ``--freeze appname``
 to the ``./manage.py datamigration`` command.
 
+Also note that the ``backwards()`` method gets the ORM as frozen by the previous
+migration except for migrations that define ``symmetrical = True`` (new in South 1.0)
+
 Frozen Meta Attributes
 ----------------------
 

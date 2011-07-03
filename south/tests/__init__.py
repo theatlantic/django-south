@@ -59,4 +59,3 @@ if not skiptest:
     from south.tests.autodetection import *
     from south.tests.logger import *
     from south.tests.inspector import *
-    from south.tests.freezer import *
