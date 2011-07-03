@@ -3,6 +3,8 @@
 from django.db import models
 from django.contrib.auth.models import User as UserAlias
 
+from south.modelsinspector import add_introspection_rules
+
 def default_func():
     return "yays"
 
@@ -53,3 +55,35 @@ and love the bomb"""
 class Other2(models.Model):
     # Try loading a field without a newline after it (inspect hates this)
     close_but_no_cigar = models.PositiveIntegerField(primary_key=True)
+
+class CustomField(models.IntegerField):
+    def __init__(self, an_other_model, **kwargs):
+        super(CustomField, self).__init__(**kwargs)
+        self.an_other_model = an_other_model
+
+add_introspection_rules([
+    (
+        [CustomField],
+        [],
+        {'an_other_model': ('an_other_model', {})},
+    ),
+], ['^south\.tests\.fakeapp\.models\.CustomField'])
+
+class BaseModel(models.Model):
+    pass
+
+class SubModel(BaseModel):
+    others = models.ManyToManyField(Other1)
+    custom = CustomField(Other2)
+
+class CircularA(models.Model):
+    c = models.ForeignKey('CircularC')
+
+class CircularB(models.Model):
+    a = models.ForeignKey(CircularA)
+
+class CircularC(models.Model):
+    b = models.ForeignKey(CircularB)
+
+class Recursive(models.Model):
+   self = models.ForeignKey('self')
