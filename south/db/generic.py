@@ -1032,7 +1032,7 @@ class DatabaseOperations(object):
             uniq_hash = abs(hash(tuple(params.values()))) 
             d = dict(
                      constraint = "CK_%s_PSTV_%s" % (name, hex(uniq_hash)[2:]),
-                     check = "%s > 0" % self.quote_name(name))
+                     check = "%s >= 0" % self.quote_name(name))
             sqls.append((self.add_check_constraint_fragment % d, []))
     
 
