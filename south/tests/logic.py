@@ -508,12 +508,12 @@ class TestMigrationLogic(Monkeypatcher):
     
     installed_apps = ["fakeapp", "otherfakeapp"]
 
-    def assertListEqual(self, list1, list2):
+    def assertListEqual(self, list1, list2, msg=None):
         list1 = list(list1)
         list2 = list(list2)
         list1.sort()
         list2.sort()
-        return self.assertEqual(list1, list2)
+        return self.assert_(list1 == list2, "%s is not equal to %s" % (list1, list2))
 
     def test_find_ghost_migrations(self):
         pass

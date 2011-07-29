@@ -72,6 +72,7 @@ class DatabaseOperations(object):
     delete_column_string = 'ALTER TABLE %s DROP COLUMN %s CASCADE;'
     create_primary_key_string = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s PRIMARY KEY (%(columns)s)"
     delete_primary_key_sql = "ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s"
+    add_check_constraint_fragment = "ADD CONSTRAINT %(constraint)s CHECK (%(check)s)"
     backend_name = None
     default_schema_name = "public"
 
@@ -368,6 +369,14 @@ class DatabaseOperations(object):
         except TypeError:
             return field.db_type()
         
+    def _alter_add_column_mods(self, field, name, params, sqls):
+        """
+        Subcommand of alter_column that modifies column definitions beyond
+        the type string -- e.g. adding constraints where they cannot be specified
+        as part of the type (overrideable)
+        """
+        pass
+
     def _alter_set_defaults(self, field, name, params, sqls): 
         "Subcommand of alter_column that sets default values (overrideable)"
         # Next, set any default
@@ -405,7 +414,8 @@ class DatabaseOperations(object):
             field.column = name
 
         if not ignore_constraints:
-            # Drop all check constraints. TODO: Add the right ones back.
+            # Drop all check constraints. Note that constraints will be added back
+            # with self.alter_string_set_type and self.alter_string_drop_null.
             if self.has_check_constraints:
                 check_constraints = self._constraints_affecting_columns(table_name, [name], "CHECK")
                 for constraint in check_constraints:
@@ -442,6 +452,8 @@ class DatabaseOperations(object):
         if params["type"] is not None:
             sqls.append((self.alter_string_set_type % params, []))
         
+        # Add any field- and backend- specific modifications
+        self._alter_add_column_mods(field, name, params, sqls)
         # Next, nullity
         if field.null:
             sqls.append((self.alter_string_set_null % params, []))
@@ -603,7 +615,7 @@ class DatabaseOperations(object):
                 field_output.append('UNIQUE')
 
             tablespace = field.db_tablespace or tablespace
-            if tablespace and self._get_connection().features.supports_tablespaces and field.unique:
+            if tablespace and getattr(self._get_connection().features, "supports_tablespaces", False) and field.unique:
                 # We must specify the index tablespace inline, because we
                 # won't be generating a CREATE INDEX statement for this field.
                 field_output.append(self._get_connection().ops.tablespace_sql(tablespace, inline=True))
@@ -996,6 +1008,33 @@ class DatabaseOperations(object):
         MockModel._meta = MockOptions()
         MockModel._meta.model = MockModel
         return MockModel
+
+    def _db_positive_type_for_alter_column(self, field):
+        """
+        A helper for subclasses overriding _db_type_for_alter_column:
+        Remove the check constraint from the type string for PositiveInteger
+        and PositiveSmallInteger fields.
+        @param field: The field to generate type for
+        """
+        super_result = super(type(self), self)._db_type_for_alter_column(field)
+        if isinstance(field, (models.PositiveSmallIntegerField, models.PositiveIntegerField)):
+            return super_result.split(" ", 1)[0]
+        return super_result
+        
+    def _alter_add_positive_check(self, field, name, params, sqls):
+        """
+        A helper for subclasses overriding _alter_add_column_mods:
+        Add a check constraint verifying positivity to PositiveInteger and
+        PositiveSmallInteger fields.
+        """
+        super(type(self), self)._alter_add_column_mods(field, name, params, sqls)
+        if isinstance(field, (models.PositiveSmallIntegerField, models.PositiveIntegerField)):
+            uniq_hash = abs(hash(tuple(params.values()))) 
+            d = dict(
+                     constraint = "CK_%s_PSTV_%s" % (name, hex(uniq_hash)[2:]),
+                     check = "%s >= 0" % self.quote_name(name))
+            sqls.append((self.add_check_constraint_fragment % d, []))
+    
 
 
 # Single-level flattening of lists

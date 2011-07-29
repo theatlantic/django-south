@@ -1,19 +1,29 @@
 import os.path
 import sys
 import re
+import warnings
 import cx_Oracle
 
 
 from django.db import connection, models
 from django.db.backends.util import truncate_name
 from django.core.management.color import no_style
-from django.db.backends.oracle.base import get_sequence_name
 from django.db.models.fields import NOT_PROVIDED
 from django.db.utils import DatabaseError
+
+# In revision r16016 function get_sequence_name has been transformed into
+# method of DatabaseOperations class. To make code backward-compatible we
+# need to handle both situations.
+try:
+    from django.db.backends.oracle.base import get_sequence_name\
+        as original_get_sequence_name
+except ImportError:
+    original_get_sequence_name = None
+
 from south.db import generic
 
-print >> sys.stderr, " ! WARNING: South's Oracle support is still alpha."
-print >> sys.stderr, " !          Be wary of possible bugs."
+warnings.warn("! WARNING: South's Oracle support is still alpha. "
+              "Be wary of possible bugs.")
 
 class DatabaseOperations(generic.DatabaseOperations):    
     """
@@ -25,6 +35,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     alter_string_set_default =  'ALTER TABLE %(table_name)s MODIFY %(column)s DEFAULT %(default)s;'
     add_column_string =         'ALTER TABLE %s ADD %s;'
     delete_column_string =      'ALTER TABLE %s DROP COLUMN %s;'
+    add_constraint_string =     'ALTER TABLE %(table_name)s ADD CONSTRAINT %(constraint)s %(clause)s'
 
     allows_combined_alters = False
     
@@ -35,9 +46,15 @@ class DatabaseOperations(generic.DatabaseOperations):
         'R': 'FOREIGN KEY'
     }
 
+    def get_sequence_name(self, table_name):
+        if original_get_sequence_name is None:
+            return self._get_connection().ops._get_sequence_name(table_name)
+        else:
+            return original_get_sequence_name(table_name)
+
     def adj_column_sql(self, col):
-        col = re.sub('(?P<constr>CHECK \(.*\))(?P<any>.*)(?P<default>DEFAULT [0|1])', 
-                     lambda mo: '%s %s%s'%(mo.group('default'), mo.group('constr'), mo.group('any')), col) #syntax fix for boolean field only
+        col = re.sub('(?P<constr>CHECK \(.*\))(?P<any>.*)(?P<default>DEFAULT \d+)', 
+                     lambda mo: '%s %s%s'%(mo.group('default'), mo.group('constr'), mo.group('any')), col) #syntax fix for boolean/integer field only
         col = re.sub('(?P<not_null>(NOT )?NULL) (?P<misc>(.* )?)(?P<default>DEFAULT.+)',
                      lambda mo: '%s %s %s'%(mo.group('default'),mo.group('not_null'),mo.group('misc') or ''), col) #fix order of NULL/NOT NULL and DEFAULT
         return col
@@ -96,7 +113,7 @@ BEGIN
         EXECUTE IMMEDIATE 'DROP SEQUENCE "%(sq_name)s"';
     END IF;
 END;
-/""" % {'sq_name': get_sequence_name(table_name)}
+/""" % {'sq_name': self.get_sequence_name(table_name)}
         self.execute(sequence_sql)
 
     @generic.invalidate_table_constraints
@@ -115,6 +132,8 @@ END;
         qn_col = self.quote_name(name)
 
         # First, change the type
+        # This will actually also add any CHECK constraints needed,
+        # since e.g. 'type' for a BooleanField is 'NUMBER(1) CHECK (%(qn_column)s IN (0,1))'
         params = {
             'table_name':qn,
             'column': qn_col,
@@ -124,28 +143,43 @@ END;
         }
         if field.null:
             params['nullity'] = 'NULL'
-        sqls = [self.alter_string_set_type % params]
 
         if not field.null and field.has_default():
             params['default'] = field.get_default()
 
-        sqls.append(self.alter_string_set_default % params)
+        sql_templates = [
+            (self.alter_string_set_type, params),
+            (self.alter_string_set_default, params.copy()),
+        ]
 
-        #UNIQUE constraint
+        # UNIQUE constraint
         unique_constraint = list(self._constraints_affecting_columns(table_name, [name], 'UNIQUE'))
         if field.unique and not unique_constraint:
             self.create_unique(table_name, [name])
         elif not field.unique and unique_constraint:
             self.delete_unique(table_name, [name])
 
-        #CHECK constraint is not handled
+        # drop CHECK constraints. Make sure this is executed before the ALTER TABLE statements
+        # generated above, since those statements recreate the constraints we delete here.
+        check_constraints = self._constraints_affecting_columns(table_name, [name], "CHECK")
+        for constraint in check_constraints:
+            self.execute(self.delete_check_sql % {
+                'table': self.quote_name(table_name),
+                'constraint': self.quote_name(constraint),
+            })
 
-        for sql in sqls:
+        for sql_template, params in sql_templates:
             try:
-                self.execute(sql)
+                self.execute(sql_template % params)
             except DatabaseError, exc:
-                # Oracle complains if a column is already NULL/NOT NULL 
-                if str(exc).find('ORA-01442') == -1 and str(exc).find('ORA-01451') == -1:
+                description = str(exc)
+                # Oracle complains if a column is already NULL/NOT NULL
+                if 'ORA-01442' in description or 'ORA-01451' in description:
+                    # so we just drop NULL/NOT NULL part from target sql and retry
+                    params['nullity'] = ''
+                    sql = sql_template % params
+                    self.execute(sql)
+                else:
                     raise
 
     @generic.copy_column_constraints
