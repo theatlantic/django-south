@@ -259,6 +259,27 @@ class TestOperations(unittest.TestCase):
         self.assertEquals(val, None)
         db.delete_column("test_addc", "add1")
         db.delete_table("test_addc")
+
+    def test_add_nullbool_column(self):
+        """
+        Test adding NullBoolean columns
+        """
+        db.create_table("test_addnbc", [
+            ('spam', models.BooleanField(default=False)),
+            ('eggs', models.IntegerField()),
+        ])
+        # Add a column
+        db.add_column("test_addnbc", "add1", models.NullBooleanField())
+        # Add a column with a default
+        db.add_column("test_addnbc", "add2", models.NullBooleanField(default=True))
+        # insert some data so we can test the default values of the added column
+        db.execute("INSERT INTO test_addnbc (eggs) VALUES (1)")
+        # try selecting from the new columns to make sure they were properly created
+        false,null,true = db.execute("SELECT spam,add1,add2 FROM test_addnbc")[0][0:3]
+        self.assertTrue(true)
+        self.assertEquals(null, None)
+        self.assertEquals(false, False)
+        db.delete_table("test_addnbc")
     
     def test_alter_columns(self):
         """
