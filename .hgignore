@@ -1,0 +1,15 @@
+# Globbing is cool.
+syntax: glob
+# No python bytecode
+*.pyc
+# Ignore dist builds and egg info
+dist/*
+South.egg-info/*
+# Ignore test log
+south/tests/test.log
+# Vim swap files
+*.swp
+
+# Also ignore Sphinx files
+syntax: regexp
+^docs/\_build/
