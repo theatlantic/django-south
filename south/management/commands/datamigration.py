@@ -102,7 +102,7 @@ class Command(BaseCommand):
         sys.exit(code)
 
 
-MIGRATION_TEMPLATE = """# encoding: utf-8
+MIGRATION_TEMPLATE = """# -*- coding: utf-8 -*-
 import datetime
 from south.db import db
 from south.v2 import DataMigration

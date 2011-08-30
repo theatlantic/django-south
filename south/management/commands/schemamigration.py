@@ -172,7 +172,7 @@ class Command(DataCommand):
                 print >>sys.stderr, "Created %s. You can now apply this migration with: ./manage.py migrate %s" % (new_filename, app)
 
 
-MIGRATION_TEMPLATE = """# encoding: utf-8
+MIGRATION_TEMPLATE = """# -*- coding: utf-8 -*-
 import datetime
 from south.db import db
 from south.v2 import SchemaMigration
