@@ -21,7 +21,7 @@ loaded at the correct time.
 
 To make such a migration, first make a blank migration::
 
- ./manage.py startmigration appname load_myfixture
+ ./manage.py datamigration appname load_myfixture
 
 Then, open the new migration file, and restructure your forwards() method
 so it looks like this::
