@@ -48,7 +48,7 @@ be making database changes, and migrations allow the other developers to apply
 their schema changes effortlessly and reproducibly.
 
 You should keep all of your migrations in a VCS (for obvious reasons), and
-encourage developers to run ./manage.py migrate if they see a new migration come
+encourage developers to run ``./manage.py migrate`` if they see a new migration come
 in when they do an update or pull.
 
 The issue with teams and migrations occurs when more than one person makes a
