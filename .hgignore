@@ -4,6 +4,7 @@ syntax: glob
 *.pyc
 # Ignore dist builds and egg info
 dist/*
+build
 South.egg-info/*
 # Ignore test log
 south/tests/test.log
