@@ -182,12 +182,9 @@ from django.db import models
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
-        %(forwards)s
-
+%(forwards)s
     def backwards(self, orm):
-        %(backwards)s
-
+%(backwards)s
     models = %(frozen_models)s
 
-    %(complete_apps)s
-"""
+    %(complete_apps)s"""

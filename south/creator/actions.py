@@ -70,11 +70,11 @@ class AddModel(Action):
         db.create_table(%(table_name)r, (
             %(field_defs)s
         ))
-        db.send_create_signal(%(app_label)r, [%(model_name)r])'''
+        db.send_create_signal(%(app_label)r, [%(model_name)r])'''[1:] + "\n"
     
     BACKWARDS_TEMPLATE = '''
         # Deleting model '%(model_name)s'
-        db.delete_table(%(table_name)r)'''
+        db.delete_table(%(table_name)r)'''[1:] + "\n"
 
     def __init__(self, model, model_def):
         self.model = model
@@ -209,11 +209,13 @@ class AddField(Action, _NullIssuesField):
     
     FORWARDS_TEMPLATE = '''
         # Adding field '%(model_name)s.%(field_name)s'
-        db.add_column(%(table_name)r, %(field_name)r, %(field_def)s, keep_default=False)'''
+        db.add_column(%(table_name)r, %(field_name)r,
+                      %(field_def)s,
+                      keep_default=False)'''[1:] + "\n"
     
     BACKWARDS_TEMPLATE = '''
         # Deleting field '%(model_name)s.%(field_name)s'
-        db.delete_column(%(table_name)r, %(field_column)r)'''
+        db.delete_column(%(table_name)r, %(field_column)r)'''[1:] + "\n"
     
     def __init__(self, model, field, field_def):
         self.model = model
@@ -360,11 +362,11 @@ class AddUnique(Action):
     
     FORWARDS_TEMPLATE = '''
         # Adding unique constraint on '%(model_name)s', fields %(field_names)s
-        db.create_unique(%(table_name)r, %(fields)r)'''
+        db.create_unique(%(table_name)r, %(fields)r)'''[1:] + "\n"
     
     BACKWARDS_TEMPLATE = '''
         # Removing unique constraint on '%(model_name)s', fields %(field_names)s
-        db.delete_unique(%(table_name)r, %(fields)r)'''
+        db.delete_unique(%(table_name)r, %(fields)r)'''[1:] + "\n"
     
     prepend_backwards = True
     
@@ -428,11 +430,11 @@ class AddIndex(AddUnique):
     
     FORWARDS_TEMPLATE = '''
         # Adding index on '%(model_name)s', fields %(field_names)s
-        db.create_index(%(table_name)r, %(fields)r)'''
+        db.create_index(%(table_name)r, %(fields)r)'''[1:] + "\n"
     
     BACKWARDS_TEMPLATE = '''
         # Removing index on '%(model_name)s', fields %(field_names)s
-        db.delete_index(%(table_name)r, %(fields)r)'''
+        db.delete_index(%(table_name)r, %(fields)r)'''[1:] + "\n"
     
     def console_line(self):
         "Returns the string to print on the console, e.g. ' + Added field foo'"
@@ -475,11 +477,11 @@ class AddM2M(Action):
             (%(left_field)r, models.ForeignKey(orm[%(left_model_key)r], null=False)),
             (%(right_field)r, models.ForeignKey(orm[%(right_model_key)r], null=False))
         ))
-        db.create_unique(%(table_name)r, [%(left_column)r, %(right_column)r])'''
+        db.create_unique(%(table_name)r, [%(left_column)r, %(right_column)r])'''[1:] + "\n"
     
     BACKWARDS_TEMPLATE = '''
         # Removing M2M table for field %(field_name)s on '%(model_name)s'
-        db.delete_table('%(table_name)s')'''
+        db.delete_table('%(table_name)s')'''[1:] + "\n"
     
     def __init__(self, model, field):
         self.model = model
