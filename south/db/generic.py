@@ -215,9 +215,9 @@ class DatabaseOperations(object):
 
         try:
             cursor.execute(sql, params)
-        except DatabaseError as exc:
+        except DatabaseError, e:
             print >> sys.stderr, 'FATAL ERROR - The following SQL query failed: %s' % sql
-            print >> sys.stderr, 'The error was: %s' % exc
+            print >> sys.stderr, 'The error was: %s' % e
             sys.exit(1)
 
         try:
