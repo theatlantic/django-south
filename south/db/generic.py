@@ -7,6 +7,7 @@ import sys
 
 from django.core.management.color import no_style
 from django.db import transaction, models
+from django.db.utils import DatabaseError
 from django.db.backends.util import truncate_name
 from django.db.models.fields import NOT_PROVIDED
 from django.dispatch import dispatcher
@@ -212,7 +213,13 @@ class DatabaseOperations(object):
         if self.dry_run:
             return []
 
-        cursor.execute(sql, params)
+        try:
+            cursor.execute(sql, params)
+        except DatabaseError, e:
+            print >> sys.stderr, 'FATAL ERROR - The following SQL query failed: %s' % sql
+            print >> sys.stderr, 'The error was: %s' % e
+            sys.exit(1)
+
         try:
             return cursor.fetchall()
         except:
