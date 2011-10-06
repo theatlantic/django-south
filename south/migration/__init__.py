@@ -142,6 +142,14 @@ def get_migrator(direction, db_dry_run, fake, load_initial_data):
         direction = LoadInitialDataMigrator(migrator=direction)
     return direction
 
+def get_unapplied_migrations(migrations, applied_migrations):
+    applied_migration_names = ['%s.%s' % (mi.app_name,mi.migration) for mi in applied_migrations]
+
+    for migration in migrations:
+        is_applied = '%s.%s' % (migration.app_label(), migration.name()) in applied_migration_names
+        if not is_applied:
+            yield migration
+
 def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False, database=DEFAULT_DB_ALIAS, delete_ghosts=False, ignore_ghosts=False, interactive=False):
     app_label = migrations.app_label()
 
@@ -179,6 +187,12 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
             if verbosity:
                 print 'previous_migration: zero'
             target_name = 'zero'
+    elif target_name == 'current+1':
+        try:
+            first_unapplied_migration = get_unapplied_migrations(migrations, applied).next()
+            target_name = first_unapplied_migration.name()
+        except StopIteration:
+            target_name = None
     
     applied = check_migration_histories(applied, delete_ghosts, ignore_ghosts)
     
