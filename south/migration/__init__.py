@@ -158,7 +158,7 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
     Migrations.calculate_dependencies()
     
     # Check there's no strange ones in the database
-    applied = MigrationHistory.objects.filter(applied__isnull=False)
+    applied = MigrationHistory.objects.filter(app_name=app_label, applied__isnull=False).order_by('applied')
     # If we're using a different database, use that
     if database != DEFAULT_DB_ALIAS:
         applied = applied.using(database)
@@ -168,6 +168,18 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
         Migrations.invalidate_all_modules()
     
     south.db.db.debug = (verbosity > 1)
+
+    if target_name == 'current-1':
+        if applied.count() > 1:
+            previous_migration = applied[applied.count() - 2]
+            if verbosity:
+                print 'previous_migration: %s (applied: %s)' % (previous_migration.migration, previous_migration.applied)
+            target_name = previous_migration.migration
+        else:
+            if verbosity:
+                print 'previous_migration: zero'
+            target_name = 'zero'
+    
     applied = check_migration_histories(applied, delete_ghosts, ignore_ghosts)
     
     # Guess the target_name
