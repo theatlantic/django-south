@@ -84,7 +84,7 @@ class Command(BaseCommand):
         
         # Do we need to show the list of migrations?
         if show_list and apps:
-            list_migrations(apps, database)
+            list_migrations(apps, database, **options)
             
         if show_changes and apps:
             show_migration_changes(apps)
@@ -110,7 +110,7 @@ class Command(BaseCommand):
                     sys.exit(1) # Migration failed, so the command fails.
 
 
-def list_migrations(apps, database = DEFAULT_DB_ALIAS):
+def list_migrations(apps, database = DEFAULT_DB_ALIAS, **options):
     """
     Prints a list of all available migrations, and which ones are currently applied.
     Accepts a list of Migrations instances.
@@ -119,17 +119,18 @@ def list_migrations(apps, database = DEFAULT_DB_ALIAS):
     applied_migrations = MigrationHistory.objects.filter(app_name__in=[app.app_label() for app in apps])
     if database != DEFAULT_DB_ALIAS:
         applied_migrations = applied_migrations.using(database)
-    applied_migrations = ['%s.%s' % (mi.app_name,mi.migration) for mi in applied_migrations]
+    applied_migration_names = ['%s.%s' % (mi.app_name,mi.migration) for mi in applied_migrations]
 
     print
     for app in apps:
         print " " + app.app_label()
         # Get the migrations object
         for migration in app:
-            if migration.app_label() + "." + migration.name() in applied_migrations:
-                print format_migration_list_item(migration.name())
+            if migration.app_label() + "." + migration.name() in applied_migration_names:
+                applied_migration = applied_migrations.get(app_name=migration.app_label(), migration=migration.name())
+                print format_migration_list_item(migration.name(), applied=applied_migration.applied, **options)
             else:
-                print format_migration_list_item(migration.name(), applied=False)
+                print format_migration_list_item(migration.name(), applied=False, **options)
         print
 
 def show_migration_changes(apps):
@@ -147,10 +148,14 @@ def show_migration_changes(apps):
         # we use reduce to compare models in pairs, not to generate a value
         reduce(diff_migrations, migrations)
 
-def format_migration_list_item(name, applied=True):
+def format_migration_list_item(name, applied=True, **options):
     if applied:
-        return '  (*) %s' % name
-    return '  ( ) %s' % name
+        if int(options.get('verbosity')) >= 2:
+            return '  (*) %-80s  (applied %s)' % (name, applied)
+        else:
+            return '  (*) %s' % name
+    else:
+        return '  ( ) %s' % name
                             
 def diff_migrations(migration1, migration2):
     
