@@ -142,6 +142,14 @@ def get_migrator(direction, db_dry_run, fake, load_initial_data):
         direction = LoadInitialDataMigrator(migrator=direction)
     return direction
 
+def get_unapplied_migrations(migrations, applied_migrations):
+    applied_migration_names = ['%s.%s' % (mi.app_name,mi.migration) for mi in applied_migrations]
+
+    for migration in migrations:
+        is_applied = '%s.%s' % (migration.app_label(), migration.name()) in applied_migration_names
+        if not is_applied:
+            yield migration
+
 def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_run=False, yes=False, verbosity=0, load_initial_data=False, skip=False, database=DEFAULT_DB_ALIAS, delete_ghosts=False, ignore_ghosts=False, interactive=False):
     app_label = migrations.app_label()
 
@@ -158,7 +166,7 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
     Migrations.calculate_dependencies()
     
     # Check there's no strange ones in the database
-    applied = MigrationHistory.objects.filter(applied__isnull=False)
+    applied = MigrationHistory.objects.filter(app_name=app_label, applied__isnull=False).order_by('applied')
     # If we're using a different database, use that
     if database != DEFAULT_DB_ALIAS:
         applied = applied.using(database)
@@ -168,6 +176,24 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
         Migrations.invalidate_all_modules()
     
     south.db.db.debug = (verbosity > 1)
+
+    if target_name == 'current-1':
+        if applied.count() > 1:
+            previous_migration = applied[applied.count() - 2]
+            if verbosity:
+                print 'previous_migration: %s (applied: %s)' % (previous_migration.migration, previous_migration.applied)
+            target_name = previous_migration.migration
+        else:
+            if verbosity:
+                print 'previous_migration: zero'
+            target_name = 'zero'
+    elif target_name == 'current+1':
+        try:
+            first_unapplied_migration = get_unapplied_migrations(migrations, applied).next()
+            target_name = first_unapplied_migration.name()
+        except StopIteration:
+            target_name = None
+    
     applied = check_migration_histories(applied, delete_ghosts, ignore_ghosts)
     
     # Guess the target_name
