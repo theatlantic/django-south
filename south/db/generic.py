@@ -639,11 +639,11 @@ class DatabaseOperations(object):
                         # If the default is a callable, then call it!
                         if callable(default):
                             default = default()
+                            
+                        default = field.get_db_prep_save(default, connection=self._get_connection())
                         # Now do some very cheap quoting. TODO: Redesign return values to avoid this.
                         if isinstance(default, basestring):
                             default = "'%s'" % default.replace("'", "''")
-                        elif isinstance(default, (datetime.date, datetime.time, datetime.datetime)):
-                            default = "'%s'" % default
                         # Escape any % signs in the output (bug #317)
                         if isinstance(default, basestring):
                             default = default.replace("%", "%%")

@@ -562,6 +562,45 @@ class TestOperations(unittest.TestCase):
         
         db.delete_table("test_column_constraint")
         db.start_transaction()
+
+
+    def test_sql_defaults(self):
+        """
+        Test that sql default value is correct for non-string field types.
+        """
+        from datetime import datetime
+
+        class CustomField(models.CharField):
+            __metaclass__ = models.SubfieldBase
+            description = 'CustomField'
+            def get_default(self):
+                if self.has_default():
+                    if callable(self.default):
+                        return self.default()
+                    return self.default
+                return super(CustomField, self).get_default()
+            def get_prep_value(self, value):
+                if not value:
+                    return value
+                return ','.join(map(str, value))
+            def to_python(self, value):
+                if not value or isinstance(value, list):
+                    return value
+                return map(int, value.split(','))
+
+        defaults = (
+            (models.DateTimeField(default=datetime(2012, 12, 21, 0, 0, 1)), 'DEFAULT \'2012-12-21 00:00:01'),
+            (models.CharField(default='sukasuka'), 'DEFAULT \'sukasuka'),
+            (models.BooleanField(default=False), 'DEFAULT False'),
+            (models.IntegerField(default=42), 'DEFAULT 42'),
+            (CustomField(default=[2012,2018,2021,2036]), 'DEFAULT \'2012,2018,2021,2036')
+        )
+        for field, sql_test_str in defaults:
+            sql = db.column_sql('fish', 'YAAAAAAZ', field)
+            if sql_test_str not in sql:
+                self.fail("default sql value was not properly generated for field %r." % field)
+
+
         
 class TestCacheGeneric(unittest.TestCase):
     base_ops_cls = generic.DatabaseOperations
