@@ -199,7 +199,7 @@ You can also freeze in additional apps if you want::
 Options
 ^^^^^^^
 
- - ``--freeze``: Use appname or appname.modelname to freeze additional models into the app.
+ - ``--freeze``: Use appname to additional models into the app.
  - ``--stdout``: Writes the migration to stdout instead of a file.
  
  
