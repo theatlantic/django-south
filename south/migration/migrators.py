@@ -1,4 +1,4 @@
-from copy import copy
+from copy import copy, deepcopy
 from cStringIO import StringIO
 import datetime
 import inspect
@@ -155,6 +155,8 @@ class DryRunMigrator(MigratorWrapper):
                 print " - Migration '%s' is marked for no-dry-run." % migration
             return
         south.db.db.dry_run = True
+        # preserve the constraint cache as it can be mutated by the dry run
+        constraint_cache = deepcopy(south.db.db._constraint_cache)
         if self._ignore_fail:
             south.db.db.debug, old_debug = False, south.db.db.debug
         pending_creates = south.db.db.get_pending_creates()
@@ -172,6 +174,9 @@ class DryRunMigrator(MigratorWrapper):
                 south.db.db.debug = old_debug
             south.db.db.clear_run_data(pending_creates)
             south.db.db.dry_run = False
+            # restore the preserved constraint cache from before dry run was
+            # executed
+            south.db.db._constraint_cache = constraint_cache
 
     def run_migration(self, migration):
         try:
