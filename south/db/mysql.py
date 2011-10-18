@@ -117,7 +117,6 @@ class DatabaseOperations(generic.DatabaseOperations):
         else:
             self.execute(sql)
 
-    @generic.delete_column_constraints
     def delete_column(self, table_name, name):
         db_name = self._get_setting('NAME')
 
@@ -131,7 +130,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             assert result == 1 # We should only have one result, otherwise there's Issues
             cursor = self._get_connection().cursor()
             drop_query = "ALTER TABLE %s DROP FOREIGN KEY %s"
-            cursor.execute(drop_query % (self.quote_name(table_name), self.quote_name(fkey_name)))
+            self.execute(drop_query % (self.quote_name(table_name), self.quote_name(fkey_name)))
 
         super(DatabaseOperations, self).delete_column(table_name, name)
 
