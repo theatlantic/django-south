@@ -12,12 +12,16 @@ class Command(BaseCommand):
     help = "Runs migrations for each app in turn, detecting missing depends_on values."
     usage_str = "Usage: ./manage.py migrationcheck"
 
-    def handle(self, **options):
+    def handle(self, check_app_name=None, **options):
         runner = simple.DjangoTestSuiteRunner(verbosity=0)
         err_msg = "Failed to migrate %s; see output for hints at missing dependencies:\n"
         hacks.patch_flush_during_test_db_creation()
         failures = 0
-        for app_name in settings.INSTALLED_APPS:
+        if check_app_name is None:
+            app_names = settings.INSTALLED_APPS
+        else:
+            app_names = [check_app_name]
+        for app_name in app_names:
             app_label = app_name.split(".")[-1]
             if app_name == 'south':
                 continue
