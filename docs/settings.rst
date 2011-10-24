@@ -32,11 +32,26 @@ SOUTH_DATABASE_ADAPTERS
 A dictionary with database aliases as keys and the database module South will
 use as values. South defaults to using the internal ``south.db.<ENGINE> modules``.
 
-DATABASE_STORAGE_ENGINE
------------------------
+MySQL STORAGE_ENGINE
+--------------------
 
-Only for MySQL. If set, South will tell MySQL to use the given storage engine
-for new items.
+If (database-specific) ``STORAGE_ENGINE`` is set, South will tell MySQL to use
+the given storage engine for new items.
+
+For Django version before 1.2 the (global) setting is ``DATABASE_STORAGE_ENGINE``.
+
+Example for Django 1.2 and above::
+
+ DATABASES = {
+    'default': {
+        ...
+        STORAGE_ENGINE = 'INNODB'
+    }
+ }
+
+For Django before 1.2::
+
+ DATABASE_STORAGE_ENGINE = 'INNODB'
 
 SOUTH_AUTO_FREEZE_APP
 ---------------------
