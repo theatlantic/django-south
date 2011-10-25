@@ -407,6 +407,8 @@ class DatabaseOperations(object):
         """
         
         if self.dry_run:
+            if self.debug:
+                print '   - no dry run output for alter_column() due to dynamic DDL, sorry'
             return
 
         # hook for the field to do any resolution prior to it's attributes being queried
@@ -573,6 +575,8 @@ class DatabaseOperations(object):
 
         # Dry runs mean we can't do anything.
         if self.dry_run:
+            if self.debug:
+                print '   - no dry run output for delete_unique_column() due to dynamic DDL, sorry'
             return
 
         constraints = list(self._constraints_affecting_columns(table_name, columns))
@@ -713,6 +717,8 @@ class DatabaseOperations(object):
     def delete_foreign_key(self, table_name, column):
         "Drop a foreign key constraint"
         if self.dry_run:
+            if self.debug:
+                print '   - no dry run output for delete_foreign_key() due to dynamic DDL, sorry'
             return # We can't look at the DB to get the constraints
         constraints = list(self._constraints_affecting_columns(table_name, [column], "FOREIGN KEY"))
         if not constraints:
@@ -821,6 +827,8 @@ class DatabaseOperations(object):
         """
         # Dry runs mean we can't do anything.
         if self.dry_run:
+            if self.debug:
+                print '   - no dry run output for delete_primary_key() due to dynamic DDL, sorry'
             return
         
         constraints = list(self._constraints_affecting_columns(table_name, None, type="PRIMARY KEY"))
