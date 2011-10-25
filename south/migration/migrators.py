@@ -92,11 +92,13 @@ class Migrator(object):
     def run(self, migration):
         # Get the correct ORM.
         south.db.db.current_orm = self.orm(migration)
-        # If the database doesn't support running DDL inside a transaction
-        # *cough*MySQL*cough* then do a dry run first.
-        if not south.db.db.has_ddl_transactions:
-            dry_run = DryRunMigrator(migrator=self, ignore_fail=False)
-            dry_run.run_migration(migration)
+        # If we're not already in a dry run, and the database doesn't support
+        # running DDL inside a transaction, *cough*MySQL*cough* then do a dry
+        # run first.
+        if not isinstance(getattr(self, '_wrapper', self), DryRunMigrator):
+            if not south.db.db.has_ddl_transactions:
+                dry_run = DryRunMigrator(migrator=self, ignore_fail=False)
+                dry_run.run_migration(migration)
         return self.run_migration(migration)
 
     def done_migrate(self, migration, database):
@@ -139,6 +141,7 @@ class MigratorWrapper(object):
                            for k in self.__class__.__dict__.iterkeys()
                            if not k.startswith('__')])
         self._migrator.__dict__.update(attributes)
+        self._migrator.__dict__['_wrapper'] = self
 
     def __getattr__(self, name):
         return getattr(self._migrator, name)
