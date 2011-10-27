@@ -1,3 +1,4 @@
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command, CommandError
 from django.core.management.base import BaseCommand
 from django.conf import settings
@@ -28,7 +29,7 @@ class Command(BaseCommand):
 
             try:
                 Migrations(app_name)
-            except NoMigrations:
+            except (NoMigrations, ImproperlyConfigured):
                 continue
             app = loading.get_app(app_label)
 
