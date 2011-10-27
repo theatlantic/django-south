@@ -166,9 +166,11 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
     Migrations.calculate_dependencies()
     
     # Check there's no strange ones in the database
-    applied = MigrationHistory.objects.filter(app_name=app_label, applied__isnull=False).order_by('applied')
+    applied_all = MigrationHistory.objects.filter(applied__isnull=False).order_by('applied')
+    applied = applied_all.filter(app_name=app_label)
     # If we're using a different database, use that
     if database != DEFAULT_DB_ALIAS:
+        applied_all = applied_all.using(database)
         applied = applied.using(database)
         south.db.db = south.db.dbs[database]
         # We now have to make sure the migrations are all reloaded, as they'll
@@ -194,7 +196,7 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
         except StopIteration:
             target_name = None
     
-    applied = check_migration_histories(applied, delete_ghosts, ignore_ghosts)
+    applied_all = check_migration_histories(applied_all, delete_ghosts, ignore_ghosts)
     
     # Guess the target_name
     target = migrations.guess_migration(target_name)
@@ -205,7 +207,7 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
         print "Running migrations for %s:" % app_label
     
     # Get the forwards and reverse dependencies for this target
-    direction, problems, workplan = get_direction(target, applied, migrations,
+    direction, problems, workplan = get_direction(target, applied_all, migrations,
                                                   verbosity, interactive)
     if problems and not (merge or skip):
         raise exceptions.InconsistentMigrationHistory(problems)
