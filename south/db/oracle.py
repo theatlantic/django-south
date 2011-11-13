@@ -53,6 +53,10 @@ class DatabaseOperations(generic.DatabaseOperations):
             return original_get_sequence_name(table_name)
 
     def adj_column_sql(self, col):
+        # Fix boolean field values: need to be 1/0, not True/False
+        col = re.sub('DEFAULT True', 'DEFAULT 1', col)
+        col = re.sub('DEFAULT False', 'DEFAULT 0', col)
+        # Fix other things
         col = re.sub('(?P<constr>CHECK \(.*\))(?P<any>.*)(?P<default>DEFAULT \d+)', 
                      lambda mo: '%s %s%s'%(mo.group('default'), mo.group('constr'), mo.group('any')), col) #syntax fix for boolean/integer field only
         col = re.sub('(?P<not_null>(NOT )?NULL) (?P<misc>(.* )?)(?P<default>DEFAULT.+)',
