@@ -530,7 +530,7 @@ class DatabaseOperations(object):
             raise ValueError("Cannot get constraints for columns during a dry run.")
 
         if columns is not None:
-            columns = set(columns)
+            columns = set(map(lambda s: s.lower(), columns))
 
         db_name = self._get_setting('NAME')
 
@@ -539,7 +539,7 @@ class DatabaseOperations(object):
             for kind, cname in constraints:
                 if kind == type:
                     cnames.setdefault(cname, set())
-                    cnames[cname].add(col)
+                    cnames[cname].add(col.lower())
 
         for cname, cols in cnames.items():
             if cols == columns or columns is None:
