@@ -8,13 +8,8 @@ class DatabaseOperations(generic.DatabaseOperations):
     """
     MySQL implementation of database operations.
     
-    MySQL is an 'interesting' database; it has no DDL transaction support,
-    among other things. This can confuse people when they ask how they can
-    roll back - hence the dry runs, etc., found in the migration code.
-    Alex agrees, and Alex is always right.
-    [19:06] <Alex_Gaynor> Also, I want to restate once again that MySQL is a special database
-    
-    (Still, if you want a key-value store with relational tendancies, go MySQL!)
+    MySQL has no DDL transaction support This can confuse people when they ask
+    how to roll back - hence the dry runs, etc., found in the migration code.
     """
     
     backend_name = "mysql"
@@ -32,6 +27,11 @@ class DatabaseOperations(generic.DatabaseOperations):
     geom_types = ['geometry', 'point', 'linestring', 'polygon']
     text_types = ['text', 'blob',]
 
+    def __init__(self, db_alias):
+        self._constraint_references = {}
+
+        super(DatabaseOperations, self).__init__(db_alias)
+ 
     def _is_valid_cache(self, db_name, table_name):
         cache = self._constraint_cache
         # we cache the whole db so if there are any tables table_name is valid
@@ -41,9 +41,11 @@ class DatabaseOperations(generic.DatabaseOperations):
         # for MySQL grab all constraints for this database.  It's just as cheap as a single column.
         self._constraint_cache[db_name] = {}
         self._constraint_cache[db_name][table_name] = {}
+        self._constraint_references[db_name] = {}
 
         name_query = """
-            SELECT kc.constraint_name, kc.column_name, kc.table_name
+            SELECT kc.`constraint_name`, kc.`column_name`, kc.`table_name`,
+                kc.`referenced_table_name`, kc.`referenced_column_name`
             FROM information_schema.key_column_usage AS kc
             WHERE
                 kc.table_schema = %s
@@ -52,16 +54,16 @@ class DatabaseOperations(generic.DatabaseOperations):
         if not rows:
             return
         cnames = {}
-        for constraint, column, table in rows:
+        for constraint, column, table, ref_table, ref_column in rows:
             key = (table, constraint)
             cnames.setdefault(key, set())
-            cnames[key].add(column)
+            cnames[key].add((column, ref_table, ref_column))
 
         type_query = """
-            SELECT c.constraint_name, c.table_name, c.constraint_type
-            FROM information_schema.table_constraints AS c
+            SELECT c.`constraint_name`, c.`table_name`, c.`constraint_type`
+            FROM `information_schema`.`table_constraints` AS c
             WHERE
-                c.table_schema = %s
+                c.`table_schema` = %s
         """
         rows = self.execute(type_query, [db_name])
         for constraint, table, kind in rows:
@@ -71,10 +73,18 @@ class DatabaseOperations(generic.DatabaseOperations):
                 cols = cnames[key]
             except KeyError:
                 cols = set()
-            for column in cols:
+            for column_set in cols:
+                (column, ref_table, ref_column) = column_set
                 self._constraint_cache[db_name][table].setdefault(column, set())
-                self._constraint_cache[db_name][table][column].add((kind, constraint))
-
+                if kind == 'FOREIGN KEY':
+                    self._constraint_cache[db_name][table][column].add((kind,
+                        constraint))
+                    # Create constraint lookup, see constraint_references
+                    self._constraint_references[db_name][(table,
+                        constraint)] = (ref_table, ref_column)
+                else:
+                    self._constraint_cache[db_name][table][column].add((kind,
+                    constraint))
 
     def connection_init(self):
         """
@@ -144,6 +154,17 @@ class DatabaseOperations(generic.DatabaseOperations):
             return
         params = (self.quote_name(old_table_name), self.quote_name(table_name))
         self.execute('RENAME TABLE %s TO %s;' % params)
+
+    def constraint_references(self, table_name, cname):
+        """
+        Provide an existing table and constraint, returns tuple of (foreign
+        table, column)
+        """
+        db_name = self._get_setting('NAME')
+        try:
+            return self._constraint_references[db_name][(table_name, cname)]
+        except KeyError:
+            return None
 
     def _field_sanity(self, field):
         """

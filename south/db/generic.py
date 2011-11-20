@@ -720,7 +720,7 @@ class DatabaseOperations(object):
             if self.debug:
                 print '   - no dry run output for delete_foreign_key() due to dynamic DDL, sorry'
             return # We can't look at the DB to get the constraints
-        constraints = list(self._constraints_affecting_columns(table_name, [column], "FOREIGN KEY"))
+        constraints = self._find_foreign_contraints(table_name, column)
         if not constraints:
             raise ValueError("Cannot find a FOREIGN KEY constraint on table %s, column %s" % (table_name, column))
         for constraint_name in constraints:
@@ -731,6 +731,9 @@ class DatabaseOperations(object):
 
     drop_foreign_key = alias('delete_foreign_key')
 
+    def _find_foreign_constraints(self, table_name, column_name):
+          return list(self._constraints_affecting_columns(
+                    table_name, [column_name], "FOREIGN KEY"))
 
     def create_index_name(self, table_name, column_names, suffix=""):
         """
