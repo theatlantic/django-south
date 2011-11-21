@@ -720,7 +720,7 @@ class DatabaseOperations(object):
             if self.debug:
                 print '   - no dry run output for delete_foreign_key() due to dynamic DDL, sorry'
             return # We can't look at the DB to get the constraints
-        constraints = self._find_foreign_contraints(table_name, column)
+        constraints = self._find_foreign_constraints(table_name, column)
         if not constraints:
             raise ValueError("Cannot find a FOREIGN KEY constraint on table %s, column %s" % (table_name, column))
         for constraint_name in constraints:
