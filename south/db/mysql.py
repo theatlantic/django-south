@@ -19,7 +19,12 @@ def delete_column_constraints(func):
             self.delete_foreign_key(table_name, column_name)
         except ValueError:
             pass # If no foreign key on column, OK because it checks first
-
+        try:
+            reverse = self._lookup_reverse_constraint(table_name, column_name)
+            for cname, rtable, rcolumn in reverse:
+                self.delete_foreign_key(rtable, rcolumn)
+        except DryRunError:
+            pass
         return func(self, table_name, column_name, *args, **opts)
     return _column_rm
 
@@ -31,14 +36,22 @@ def copy_column_constraints(func):
     def _column_cp(self, table_name, column_old, column_new, *args, **opts):
         try:
             constraint = self._find_foreign_constraints(table_name, column_old)[0]
-            (rtable, rcolumn) = self._lookup_constraint_references(table_name, constraint)
-            if rtable and rcolumn:
+            (ftable, fcolumn) = self._lookup_constraint_references(table_name, constraint)
+            if ftable and fcolumn:
                 fk_sql = self.foreign_key_sql(
-                            table_name, column_new, rtable, rcolumn)
+                            table_name, column_new, ftable, fcolumn)
                 get_logger().debug("Foreign key SQL: " + fk_sql)
                 self.add_deferred_sql(fk_sql)
         except IndexError:
             pass # No constraint exists so ignore
+        except DryRunError:
+            pass
+        try:
+            reverse = self._lookup_reverse_constraint(table_name, column_old)
+            for cname, rtable, rcolumn in reverse:
+                fk_sql = self.foreign_key_sql(
+                        rtable, rcolumn, table_name, column_new)
+                self.add_deferred_sql(fk_sql)
         except DryRunError:
             pass
         return func(self, table_name, column_old, column_new, *args, **opts)
@@ -215,9 +228,9 @@ class DatabaseOperations(generic.DatabaseOperations):
         try:
             table = self._reverse_cache[db_name][table_name]
             if column_name == None:
-                return table.items()
+                return [(y, tuple(y)) for x, y in table.items()]
             else:
-                return table[column_name]
+                return tuple(table[column_name])
         except KeyError, e:
             return []
 

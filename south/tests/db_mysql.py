@@ -56,8 +56,7 @@ class TestMySQLOperations(unittest.TestCase):
         self._create_foreign_tables(main_table, reference_table)
         db.execute_deferred_sql()
         inverse = db._lookup_reverse_constraint(reference_table, 'id')
-        # Hard to extract single value from set, .pop affects cache
-        (cname, rev_table, rev_column) = tuple(inverse)[0]
+        (cname, rev_table, rev_column) = inverse[0]
         self.assertEquals(main_table, rev_table)
         self.assertEquals('foreign_id', rev_column)
         db.delete_table(main_table)
@@ -87,5 +86,26 @@ class TestMySQLOperations(unittest.TestCase):
         db.execute_deferred_sql()  #Create constraints
         constraints = db._find_foreign_constraints(main_table, 'reference_id')
         self.assertEquals(len(constraints), 1)
+        db.delete_table(main_table)
+        db.delete_table(ref_table)
+
+    def test_rename_fk_inbound(self):
+        """
+        Tests that the column referred to by an external column can be renamed.
+        Edge case, but also useful as stepping stone to renaming tables.
+        """
+        main_table = 'test_rename_fk_inbound'
+        ref_table = 'test_rfi_ref'
+        self._create_foreign_tables(main_table, ref_table)
+        db.execute_deferred_sql()
+        constraints = db._lookup_reverse_constraint(ref_table, 'id')
+        self.assertEquals(len(constraints), 1)
+        db.rename_column(ref_table, 'id', 'rfi_id')
+        db.execute_deferred_sql()  #Create constraints
+        constraints = db._lookup_reverse_constraint(ref_table, 'rfi_id')
+        self.assertEquals(len(constraints), 1)
+        cname = db._find_foreign_constraints(main_table, 'foreign_id')[0]
+        (rtable, rcolumn) = db._lookup_constraint_references(main_table, cname)
+        self.assertEquals('rfi_id', rcolumn)
         db.delete_table(main_table)
         db.delete_table(ref_table)
