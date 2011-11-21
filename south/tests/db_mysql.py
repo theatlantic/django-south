@@ -39,7 +39,6 @@ class TestMySQLOperations(unittest.TestCase):
         db.start_transaction()
         self._create_foreign_tables(main_table, reference_table)
         db.execute_deferred_sql()
-        db_name = db._get_setting('NAME')
         constraint = db._find_foreign_constraints(main_table, 'foreign_id')[0]
         constraint_name = 'foreign_id_refs_id_%x' % (abs(hash((main_table,
             reference_table))))
@@ -56,7 +55,6 @@ class TestMySQLOperations(unittest.TestCase):
         db.start_transaction()
         self._create_foreign_tables(main_table, reference_table)
         db.execute_deferred_sql()
-        db_name = db._get_setting('NAME')
         inverse = db._lookup_reverse_constraint(reference_table, 'id')
         # Hard to extract single value from set, .pop affects cache
         (cname, rev_table, rev_column) = tuple(inverse)[0]
@@ -64,4 +62,15 @@ class TestMySQLOperations(unittest.TestCase):
         self.assertEquals('foreign_id', rev_column)
         db.delete_table(main_table)
         db.delete_table(reference_table)
+
+    def test_delete_fk_column(self):
+        main_table = 'test_drop_foreign'
+        ref_table = 'test_df_ref'
+        self._create_foreign_tables(main_table, ref_table)
+        db.execute_deferred_sql()
+        constraints = db._find_foreign_constraints(main_table, 'foreign_id')
+        self.assertEquals(len(constraints), 1)
+        db.delete_column(main_table, 'foreign_id')
+        constraints = db._find_foreign_constraints(main_table, 'foreign_id')
+        self.assertEquals(len(constraints), 0)
 

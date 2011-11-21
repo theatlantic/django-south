@@ -49,7 +49,6 @@ class INVALID(Exception):
         return 'INVALID'
 
 class DatabaseOperations(object):
-
     """
     Generic SQL implementation of the DatabaseOperations.
     Some of this code comes from Django Evolution.

@@ -1,17 +1,36 @@
+# MySQL-specific implementations for south
+# Original author: Andrew Godwin
+# Patches by: F. Gabriel Gosselin <gabrielNOSPAM@evidens.ca>
+#             aarranz
 
 from django.db import connection
 from django.conf import settings
 from south.db import generic
 
-class DatabaseOperations(generic.DatabaseOperations):
+from south.logger import get_logger
 
+def delete_column_constraints(func):
+    """
+    Decorates column operation functions for MySQL.
+    Deletes the constraints from the database and clears local cache.
+    """
+    def _column_rm(self, table_name, column_name, *args, **opts):
+        try:
+            self.delete_foreign_key(table_name, column_name)
+        except ValueError:
+            pass # If no foreign key on column, OK because it checks first
+
+        return func(self, table_name, column_name, *args, **opts)
+    return _column_rm
+
+class DatabaseOperations(generic.DatabaseOperations):
     """
     MySQL implementation of database operations.
-    
+
     MySQL has no DDL transaction support This can confuse people when they ask
     how to roll back - hence the dry runs, etc., found in the migration code.
     """
-    
+
     backend_name = "mysql"
     alter_string_set_type = ''
     alter_string_set_null = 'MODIFY %(column)s %(type)s NULL;'
@@ -31,7 +50,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         self._constraint_references = {}
         self._reverse_cache = {}
         super(DatabaseOperations, self).__init__(db_alias)
- 
+
     def _is_valid_cache(self, db_name, table_name):
         cache = self._constraint_cache
         # we cache the whole db so if there are any tables table_name is valid
@@ -110,12 +129,12 @@ class DatabaseOperations(generic.DatabaseOperations):
     def rename_column(self, table_name, old, new):
         if old == new or self.dry_run:
             return []
-        
+
         rows = [x for x in self.execute('DESCRIBE %s' % (self.quote_name(table_name),)) if x[0] == old]
-        
+
         if not rows:
             raise ValueError("No column '%s' in '%s'." % (old, table_name))
-        
+
         params = (
             self.quote_name(table_name),
             self.quote_name(old),
@@ -126,29 +145,16 @@ class DatabaseOperations(generic.DatabaseOperations):
             rows[0][4] and "%s" or "",
             rows[0][5] or "",
         )
-        
+
         sql = 'ALTER TABLE %s CHANGE COLUMN %s %s %s %s %s %s %s;' % params
-        
+
         if rows[0][4]:
             self.execute(sql, (rows[0][4],))
         else:
             self.execute(sql)
 
+    @delete_column_constraints
     def delete_column(self, table_name, name):
-        db_name = self._get_setting('NAME')
-
-        # See if there is a foreign key on this column
-        result = 0
-        for kind, cname in self.lookup_constraint(db_name, table_name, name):
-            if kind == 'FOREIGN KEY':
-                result += 1
-                fkey_name = cname
-        if result:
-            assert result == 1 # We should only have one result, otherwise there's Issues
-            cursor = self._get_connection().cursor()
-            drop_query = "ALTER TABLE %s DROP FOREIGN KEY %s"
-            self.execute(drop_query % (self.quote_name(table_name), self.quote_name(fkey_name)))
-
         super(DatabaseOperations, self).delete_column(table_name, name)
 
     @generic.invalidate_table_constraints
@@ -204,8 +210,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         if is_geom or is_text:
             field._suppress_default = True
         return field
-    
-    
+
     def _alter_set_defaults(self, field, name, params, sqls):
         """
         MySQL does not support defaults on text or blob columns.
