@@ -29,7 +29,7 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     def __init__(self, db_alias):
         self._constraint_references = {}
-
+        self._reverse_cache = {}
         super(DatabaseOperations, self).__init__(db_alias)
  
     def _is_valid_cache(self, db_name, table_name):
@@ -41,6 +41,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         # for MySQL grab all constraints for this database.  It's just as cheap as a single column.
         self._constraint_cache[db_name] = {}
         self._constraint_cache[db_name][table_name] = {}
+        self._reverse_cache[db_name] = {}
         self._constraint_references[db_name] = {}
 
         name_query = """
@@ -60,10 +61,10 @@ class DatabaseOperations(generic.DatabaseOperations):
             cnames[key].add((column, ref_table, ref_column))
 
         type_query = """
-            SELECT c.`constraint_name`, c.`table_name`, c.`constraint_type`
-            FROM `information_schema`.`table_constraints` AS c
+            SELECT c.constraint_name, c.table_name, c.constraint_type
+            FROM information_schema.table_constraints AS c
             WHERE
-                c.`table_schema` = %s
+                c.table_schema = %s
         """
         rows = self.execute(type_query, [db_name])
         for constraint, table, kind in rows:
@@ -82,6 +83,12 @@ class DatabaseOperations(generic.DatabaseOperations):
                     # Create constraint lookup, see constraint_references
                     self._constraint_references[db_name][(table,
                         constraint)] = (ref_table, ref_column)
+                    # Create reverse table lookup, reverse_lookup
+                    self._reverse_cache[db_name].setdefault(ref_table, {})
+                    self._reverse_cache[db_name][ref_table].setdefault(ref_column,
+                            set())
+                    self._reverse_cache[db_name][ref_table][ref_column].add(
+                            (constraint, table, column))
                 else:
                     self._constraint_cache[db_name][table][column].add((kind,
                     constraint))
@@ -155,9 +162,9 @@ class DatabaseOperations(generic.DatabaseOperations):
         params = (self.quote_name(old_table_name), self.quote_name(table_name))
         self.execute('RENAME TABLE %s TO %s;' % params)
 
-    def constraint_references(self, table_name, cname):
+    def _lookup_constraint_references(self, table_name, cname):
         """
-        Provide an existing table and constraint, returns tuple of (foreign
+        Provided an existing table and constraint, returns tuple of (foreign
         table, column)
         """
         db_name = self._get_setting('NAME')
@@ -165,6 +172,25 @@ class DatabaseOperations(generic.DatabaseOperations):
             return self._constraint_references[db_name][(table_name, cname)]
         except KeyError:
             return None
+
+    def _lookup_reverse_constraint(self, table_name, column_name=None):
+        """Look for the column referenced by a foreign constraint"""
+        db_name = self._get_setting('NAME')
+        if self.dry_run:
+            raise DryRunError("Cannot get constraints for columns.")
+
+        if not self._is_valid_cache(db_name, table_name):
+            # Piggy-back on lookup_constraint, ensures cache exists
+            self.lookup_constraint(db_name, table_name)
+
+        try:
+            table = self._reverse_cache[db_name][table_name]
+            if column_name == None:
+                return table.items()
+            else:
+                return table[column_name]
+        except KeyError, e:
+            return []
 
     def _field_sanity(self, field):
         """
@@ -190,3 +216,6 @@ class DatabaseOperations(generic.DatabaseOperations):
         is_text = True in [ type.find(t) > -1 for t in self.text_types ]
         if not is_geom and not is_text:
             super(DatabaseOperations, self)._alter_set_defaults(field, name, params, sqls)
+
+class DryRunError(ValueError):
+    pass

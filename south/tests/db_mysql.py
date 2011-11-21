@@ -39,8 +39,21 @@ class TestMySQLOperations(unittest.TestCase):
         constraint = db._find_foreign_constraints(main_table, 'foreign_id')[0]
         constraint_name = 'foreign_id_refs_id_%x' % (abs(hash((main_table,
             reference_table))))
-        print constraint + ': ' + constraint_name
         self.assertEquals(constraint_name, constraint)
-        references = db.constraint_references(main_table, constraint)
+        references = db._lookup_constraint_references(main_table, constraint)
         self.assertEquals((reference_table, 'id'), references)
+
+    def test_reverse_column_constraint(self):
+        """Tests that referred column in a foreign key (ex. id) is found"""
+        main_table = 'test_reverse_ref'
+        reference_table = 'test_rr_foreign'
+        db.start_transaction()
+        self._create_foreign_tables(main_table, reference_table)
+        db.execute_deferred_sql()
+        db_name = db._get_setting('NAME')
+        inverse = db._lookup_reverse_constraint(reference_table, 'id')
+        # Hard to extract single value from set, .pop affects cache
+        (cname, rev_table, rev_column) = tuple(inverse)[0]
+        self.assertEquals(main_table, rev_table)
+        self.assertEquals('foreign_id', rev_column)
 
