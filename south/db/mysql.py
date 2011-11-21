@@ -1,11 +1,11 @@
 # MySQL-specific implementations for south
 # Original author: Andrew Godwin
 # Patches by: F. Gabriel Gosselin <gabrielNOSPAM@evidens.ca>
-#             aarranz
 
 from django.db import connection
 from django.conf import settings
 from south.db import generic
+from south.db.generic import DryRunError, INVALID
 
 from south.logger import get_logger
 
@@ -22,6 +22,28 @@ def delete_column_constraints(func):
 
         return func(self, table_name, column_name, *args, **opts)
     return _column_rm
+
+def copy_column_constraints(func):
+    """
+    Decorates column operation functions for MySQL.
+    Determines existing constraints and copies them to a new column
+    """
+    def _column_cp(self, table_name, column_old, column_new, *args, **opts):
+        try:
+            constraint = self._find_foreign_constraints(table_name, column_old)[0]
+            (rtable, rcolumn) = self._lookup_constraint_references(table_name, constraint)
+            if rtable and rcolumn:
+                fk_sql = self.foreign_key_sql(
+                            table_name, column_new, rtable, rcolumn)
+                get_logger().debug("Foreign key SQL: " + fk_sql)
+                self.add_deferred_sql(fk_sql)
+        except IndexError:
+            pass # No constraint exists so ignore
+        except DryRunError:
+            pass
+        return func(self, table_name, column_old, column_new, *args, **opts)
+    return _column_cp
+
 
 class DatabaseOperations(generic.DatabaseOperations):
     """
@@ -54,7 +76,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     def _is_valid_cache(self, db_name, table_name):
         cache = self._constraint_cache
         # we cache the whole db so if there are any tables table_name is valid
-        return db_name in cache and cache[db_name].get(table_name, None) is not generic.INVALID
+        return db_name in cache and cache[db_name].get(table_name, None) is not INVALID
 
     def _fill_constraint_cache(self, db_name, table_name):
         # for MySQL grab all constraints for this database.  It's just as cheap as a single column.
@@ -124,8 +146,9 @@ class DatabaseOperations(generic.DatabaseOperations):
         cursor.execute("SET FOREIGN_KEY_CHECKS=0;")
         self.deferred_sql.append("SET FOREIGN_KEY_CHECKS=1;")
 
-    @generic.copy_column_constraints
-    @generic.delete_column_constraints
+    @copy_column_constraints
+    @delete_column_constraints
+    @generic.invalidate_table_constraints
     def rename_column(self, table_name, old, new):
         if old == new or self.dry_run:
             return []
@@ -222,5 +245,3 @@ class DatabaseOperations(generic.DatabaseOperations):
         if not is_geom and not is_text:
             super(DatabaseOperations, self)._alter_set_defaults(field, name, params, sqls)
 
-class DryRunError(ValueError):
-    pass

@@ -73,4 +73,19 @@ class TestMySQLOperations(unittest.TestCase):
         db.delete_column(main_table, 'foreign_id')
         constraints = db._find_foreign_constraints(main_table, 'foreign_id')
         self.assertEquals(len(constraints), 0)
+        db.delete_table(main_table)
+        db.delete_table(ref_table)
 
+    def test_rename_fk_column(self):
+        main_table = 'test_rename_foreign'
+        ref_table = 'test_rf_ref'
+        self._create_foreign_tables(main_table, ref_table)
+        db.execute_deferred_sql()
+        constraints = db._find_foreign_constraints(main_table, 'foreign_id')
+        self.assertEquals(len(constraints), 1)
+        db.rename_column(main_table, 'foreign_id', 'reference_id')
+        db.execute_deferred_sql()  #Create constraints
+        constraints = db._find_foreign_constraints(main_table, 'reference_id')
+        self.assertEquals(len(constraints), 1)
+        db.delete_table(main_table)
+        db.delete_table(ref_table)

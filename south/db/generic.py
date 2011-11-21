@@ -48,6 +48,9 @@ class INVALID(Exception):
     def __repr__(self):
         return 'INVALID'
 
+class DryRunError(ValueError):
+    pass
+
 class DatabaseOperations(object):
     """
     Generic SQL implementation of the DatabaseOperations.
@@ -526,7 +529,7 @@ class DatabaseOperations(object):
         If columns is None, returns all constraints of the type on the table.
         """
         if self.dry_run:
-            raise ValueError("Cannot get constraints for columns during a dry run.")
+            raise DryRunError("Cannot get constraints for columns.")
 
         if columns is not None:
             columns = set(map(lambda s: s.lower(), columns))
