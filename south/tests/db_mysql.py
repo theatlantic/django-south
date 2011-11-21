@@ -1,7 +1,11 @@
+# Additional MySQL-specific tests
+# Written by: F. Gabriel Gosselin <gabrielNOSPAM@evidens.ca>
+# Based on tests by: aarranz
 import unittest
 
 from south.db import db, generic, mysql
 from django.db import connection, models
+
 
 class TestMySQLOperations(unittest.TestCase):
     """MySQL-specific tests"""
@@ -42,6 +46,8 @@ class TestMySQLOperations(unittest.TestCase):
         self.assertEquals(constraint_name, constraint)
         references = db._lookup_constraint_references(main_table, constraint)
         self.assertEquals((reference_table, 'id'), references)
+        db.delete_table(main_table)
+        db.delete_table(reference_table)
 
     def test_reverse_column_constraint(self):
         """Tests that referred column in a foreign key (ex. id) is found"""
@@ -56,4 +62,6 @@ class TestMySQLOperations(unittest.TestCase):
         (cname, rev_table, rev_column) = tuple(inverse)[0]
         self.assertEquals(main_table, rev_table)
         self.assertEquals('foreign_id', rev_column)
+        db.delete_table(main_table)
+        db.delete_table(reference_table)
 
