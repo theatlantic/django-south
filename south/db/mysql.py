@@ -15,10 +15,12 @@ def delete_column_constraints(func):
     Deletes the constraints from the database and clears local cache.
     """
     def _column_rm(self, table_name, column_name, *args, **opts):
+        # Delete foreign key constraints
         try:
             self.delete_foreign_key(table_name, column_name)
         except ValueError:
             pass # If no foreign key on column, OK because it checks first
+        # Delete constraints referring to this column
         try:
             reverse = self._lookup_reverse_constraint(table_name, column_name)
             for cname, rtable, rcolumn in reverse:
@@ -34,6 +36,7 @@ def copy_column_constraints(func):
     Determines existing constraints and copies them to a new column
     """
     def _column_cp(self, table_name, column_old, column_new, *args, **opts):
+        # Copy foreign key constraint
         try:
             constraint = self._find_foreign_constraints(table_name, column_old)[0]
             (ftable, fcolumn) = self._lookup_constraint_references(table_name, constraint)
@@ -46,6 +49,7 @@ def copy_column_constraints(func):
             pass # No constraint exists so ignore
         except DryRunError:
             pass
+        # Copy constraints referring to this column
         try:
             reverse = self._lookup_reverse_constraint(table_name, column_old)
             for cname, rtable, rcolumn in reverse:
