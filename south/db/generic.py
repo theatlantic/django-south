@@ -314,7 +314,7 @@ class DatabaseOperations(object):
             # Short-circuit out.
             return
         params = (self.quote_name(old_table_name), self.quote_name(table_name))
-        self.execute(rename_table_sql % params)
+        self.execute(self.rename_table_sql % params)
         # Invalidate the not-yet-indexed table
         self._set_cache(table_name, value=INVALID)
 
