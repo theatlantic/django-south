@@ -106,6 +106,27 @@ class TestMySQLOperations(unittest.TestCase):
         self.assertEquals(len(constraints), 1)
         cname = db._find_foreign_constraints(main_table, 'foreign_id')[0]
         (rtable, rcolumn) = db._lookup_constraint_references(main_table, cname)
-        self.assertEquals('rfi_id', rcolumn)
+        self.assertEquals(rcolumn, 'rfi_id')
         db.delete_table(main_table)
         db.delete_table(ref_table)
+
+    def test_rename_constrained_table(self):
+        """Renames a table with a foreign key column (towards another table)"""
+        main_table = 'test_rn_table'
+        ref_table = 'test_rt_ref'
+        renamed_table = 'test_renamed_table'
+        self._create_foreign_tables(main_table, ref_table)
+        db.execute_deferred_sql()
+        constraints = db._find_foreign_constraints(main_table, 'foreign_id')
+        self.assertEquals(len(constraints), 1)
+        db.rename_table(main_table, renamed_table)
+        db.execute_deferred_sql()  #Create constraints
+        constraints = db._find_foreign_constraints(renamed_table, 'foreign_id')
+        print constraints
+        self.assertEquals(len(constraints), 1)
+        (rtable, rcolumn) = db._lookup_constraint_references(
+                renamed_table, constraints[0])
+        self.assertEquals(rcolumn, 'id')
+        db.delete_table(renamed_table)
+        db.delete_table(ref_table)
+

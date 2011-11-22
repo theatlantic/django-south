@@ -76,6 +76,7 @@ class DatabaseOperations(object):
     create_primary_key_string = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s PRIMARY KEY (%(columns)s)"
     delete_primary_key_sql = "ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s"
     add_check_constraint_fragment = "ADD CONSTRAINT %(constraint)s CHECK (%(check)s)"
+    rename_table_sql = "ALTER TABLE %s RENAME TO %s;"
     backend_name = None
     default_schema_name = "public"
 
@@ -313,7 +314,9 @@ class DatabaseOperations(object):
             # Short-circuit out.
             return
         params = (self.quote_name(old_table_name), self.quote_name(table_name))
-        self.execute('ALTER TABLE %s RENAME TO %s;' % params)
+        self.execute(rename_table_sql % params)
+        # Invalidate the not-yet-indexed table
+        self._set_cache(table_name, value=INVALID)
 
 
     @invalidate_table_constraints
@@ -733,8 +736,8 @@ class DatabaseOperations(object):
 
     drop_foreign_key = alias('delete_foreign_key')
 
-    def _find_foreign_constraints(self, table_name, column_name):
-          return list(self._constraints_affecting_columns(
+    def _find_foreign_constraints(self, table_name, column_name=None):
+        return list(self._constraints_affecting_columns(
                     table_name, [column_name], "FOREIGN KEY"))
 
     def create_index_name(self, table_name, column_names, suffix=""):

@@ -81,6 +81,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     has_ddl_transactions = False
     has_check_constraints = False
     delete_unique_sql = "ALTER TABLE %s DROP INDEX %s"
+    rename_table_sql = "RENAME TABLE %s TO %s;"
 
     geom_types = ['geometry', 'point', 'linestring', 'polygon']
     text_types = ['text', 'blob',]
@@ -197,16 +198,6 @@ class DatabaseOperations(generic.DatabaseOperations):
     def delete_column(self, table_name, name):
         super(DatabaseOperations, self).delete_column(table_name, name)
 
-    @generic.invalidate_table_constraints
-    def rename_table(self, old_table_name, table_name):
-        """
-        Renames the table 'old_table_name' to 'table_name'.
-        """
-        if old_table_name == table_name:
-            # No Operation
-            return
-        params = (self.quote_name(old_table_name), self.quote_name(table_name))
-        self.execute('RENAME TABLE %s TO %s;' % params)
 
     def _lookup_constraint_references(self, table_name, cname):
         """
