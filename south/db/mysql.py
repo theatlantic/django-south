@@ -61,6 +61,20 @@ def copy_column_constraints(func):
         return func(self, table_name, column_old, column_new, *args, **opts)
     return _column_cp
 
+def invalidate_table_constraints(func):
+    """
+    For MySQL we grab all table constraints simultaneously, so this is
+    effective.
+    It further solves the issues of invalidating referred table constraints.
+    """
+    def _cache_clear(self, table, *args, **opts):
+        db_name = self._get_setting('NAME')
+        if db_name in self._constraint_cache:
+            del self._constraint_cache[db_name]
+            del self._reverse_cache[db_name]
+            del self._constraint_references[db_name]
+        return func(self, table, *args, **opts)
+    return _cache_clear
 
 class DatabaseOperations(generic.DatabaseOperations):
     """
@@ -166,7 +180,7 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     @copy_column_constraints
     @delete_column_constraints
-    @generic.invalidate_table_constraints
+    @invalidate_table_constraints
     def rename_column(self, table_name, old, new):
         if old == new or self.dry_run:
             return []
@@ -198,6 +212,10 @@ class DatabaseOperations(generic.DatabaseOperations):
     def delete_column(self, table_name, name):
         super(DatabaseOperations, self).delete_column(table_name, name)
 
+    @invalidate_table_constraints
+    def rename_table(self, old_table_name, table_name):
+        super(DatabaseOperations, self).rename_table(old_table_name,
+                table_name)
 
     def _lookup_constraint_references(self, table_name, cname):
         """

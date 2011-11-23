@@ -122,11 +122,29 @@ class TestMySQLOperations(unittest.TestCase):
         db.rename_table(main_table, renamed_table)
         db.execute_deferred_sql()  #Create constraints
         constraints = db._find_foreign_constraints(renamed_table, 'foreign_id')
-        print constraints
         self.assertEquals(len(constraints), 1)
         (rtable, rcolumn) = db._lookup_constraint_references(
                 renamed_table, constraints[0])
         self.assertEquals(rcolumn, 'id')
         db.delete_table(renamed_table)
         db.delete_table(ref_table)
+
+    def test_renamed_referenced_table(self):
+        """Rename a table referred to in a foreign key"""
+        main_table = 'test_rn_refd_table'
+        ref_table = 'test_rrt_ref'
+        renamed_table = 'test_renamed_ref'
+        self._create_foreign_tables(main_table, ref_table)
+        db.execute_deferred_sql()
+        constraints = db._lookup_reverse_constraint(ref_table)
+        self.assertEquals(len(constraints), 1)
+        db.rename_table(ref_table, renamed_table)
+        db.execute_deferred_sql()  #Create constraints
+        constraints = db._find_foreign_constraints(main_table, 'foreign_id')
+        self.assertEquals(len(constraints), 1)
+        (rtable, rcolumn) = db._lookup_constraint_references(
+                main_table, constraints[0])
+        self.assertEquals(renamed_table, rtable)
+        db.delete_table(main_table)
+        db.delete_table(renamed_table)
 
