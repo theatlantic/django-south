@@ -101,8 +101,9 @@ class DatabaseOperations(generic.DatabaseOperations):
     def delete_table(self, table_name, cascade=True):
         qn = self.quote_name(table_name)
 
+        # Note: PURGE is not valid syntax for Oracle 9i (it was added in 10)
         if cascade:
-            self.execute('DROP TABLE %s CASCADE CONSTRAINTS PURGE;' % qn)
+            self.execute('DROP TABLE %s CASCADE CONSTRAINTS;' % qn)
         else:
             self.execute('DROP TABLE %s;' % qn)
         
