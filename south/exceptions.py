@@ -141,7 +141,10 @@ class ImpossibleORMUnfreeze(SouthError):
 class ConstraintDropped(SouthWarning):
     def __init__(self, constraint, table, column=None):
         self.table = table
-        self.column = (".%s" % column) if column else ""
+        if column:
+            self.column = ".%s" % column
+        else:
+            self.column = ""
         self.constraint = constraint
     
     def __str__(self):
