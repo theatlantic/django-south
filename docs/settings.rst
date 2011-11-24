@@ -45,7 +45,7 @@ Example for Django 1.2 and above::
  DATABASES = {
     'default': {
         ...
-        STORAGE_ENGINE = 'INNODB'
+        'STORAGE_ENGINE': 'INNODB'
     }
  }
 
