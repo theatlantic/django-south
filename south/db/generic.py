@@ -211,10 +211,10 @@ class DatabaseOperations(object):
         if self.debug:
             print "   = %s" % sql, params
 
-        get_logger().debug('south execute "%s" with params "%s"' % (sql, params))
-
         if self.dry_run:
             return []
+
+        get_logger().debug('execute "%s" with params "%s"' % (sql, params))
 
         try:
             cursor.execute(sql, params)

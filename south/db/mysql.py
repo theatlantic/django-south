@@ -71,7 +71,9 @@ def invalidate_table_constraints(func):
         db_name = self._get_setting('NAME')
         if db_name in self._constraint_cache:
             del self._constraint_cache[db_name]
+        if db_name in self._reverse_cache:
             del self._reverse_cache[db_name]
+        if db_name in self._constraint_references:
             del self._constraint_references[db_name]
         return func(self, table, *args, **opts)
     return _cache_clear
@@ -216,6 +218,10 @@ class DatabaseOperations(generic.DatabaseOperations):
     def rename_table(self, old_table_name, table_name):
         super(DatabaseOperations, self).rename_table(old_table_name,
                 table_name)
+
+    @invalidate_table_constraints
+    def delete_table(self, table_name):
+        super(DatabaseOperations, self).delete_table(table_name)
 
     def _lookup_constraint_references(self, table_name, cname):
         """
