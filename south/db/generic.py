@@ -48,8 +48,10 @@ class INVALID(Exception):
     def __repr__(self):
         return 'INVALID'
 
-class DatabaseOperations(object):
+class DryRunError(ValueError):
+    pass
 
+class DatabaseOperations(object):
     """
     Generic SQL implementation of the DatabaseOperations.
     Some of this code comes from Django Evolution.
@@ -74,6 +76,7 @@ class DatabaseOperations(object):
     create_primary_key_string = "ALTER TABLE %(table)s ADD CONSTRAINT %(constraint)s PRIMARY KEY (%(columns)s)"
     delete_primary_key_sql = "ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s"
     add_check_constraint_fragment = "ADD CONSTRAINT %(constraint)s CHECK (%(check)s)"
+    rename_table_sql = "ALTER TABLE %s RENAME TO %s;"
     backend_name = None
     default_schema_name = "public"
 
@@ -208,10 +211,10 @@ class DatabaseOperations(object):
         if self.debug:
             print "   = %s" % sql, params
 
-        get_logger().debug('south execute "%s" with params "%s"' % (sql, params))
-
         if self.dry_run:
             return []
+
+        get_logger().debug('execute "%s" with params "%s"' % (sql, params))
 
         try:
             cursor.execute(sql, params)
@@ -311,7 +314,9 @@ class DatabaseOperations(object):
             # Short-circuit out.
             return
         params = (self.quote_name(old_table_name), self.quote_name(table_name))
-        self.execute('ALTER TABLE %s RENAME TO %s;' % params)
+        self.execute(self.rename_table_sql % params)
+        # Invalidate the not-yet-indexed table
+        self._set_cache(table_name, value=INVALID)
 
 
     @invalidate_table_constraints
@@ -527,7 +532,7 @@ class DatabaseOperations(object):
         If columns is None, returns all constraints of the type on the table.
         """
         if self.dry_run:
-            raise ValueError("Cannot get constraints for columns during a dry run.")
+            raise DryRunError("Cannot get constraints for columns.")
 
         if columns is not None:
             columns = set(map(lambda s: s.lower(), columns))
@@ -720,7 +725,7 @@ class DatabaseOperations(object):
             if self.debug:
                 print '   - no dry run output for delete_foreign_key() due to dynamic DDL, sorry'
             return # We can't look at the DB to get the constraints
-        constraints = list(self._constraints_affecting_columns(table_name, [column], "FOREIGN KEY"))
+        constraints = self._find_foreign_constraints(table_name, column)
         if not constraints:
             raise ValueError("Cannot find a FOREIGN KEY constraint on table %s, column %s" % (table_name, column))
         for constraint_name in constraints:
@@ -731,6 +736,9 @@ class DatabaseOperations(object):
 
     drop_foreign_key = alias('delete_foreign_key')
 
+    def _find_foreign_constraints(self, table_name, column_name=None):
+        return list(self._constraints_affecting_columns(
+                    table_name, [column_name], "FOREIGN KEY"))
 
     def create_index_name(self, table_name, column_names, suffix=""):
         """
