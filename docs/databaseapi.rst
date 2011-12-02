@@ -330,6 +330,34 @@ Delete a column from a table::
 
 
 
+db.delete_index
+^^^^^^^^^^^^^^^
+
+::
+
+ db.delete_index(table_name, column_names, db_tablespace='')
+ 
+Deletes an index created by db.create_index or one of the other South
+functions. Pass the column_names in exactly the same order as the other call
+to ensure this works; we use a hashing algorithm to make sure you can delete
+migrations by only specifying column names.
+
+db_tablespace is an Oracle-specific option. 
+
+Examples
+""""""""
+
+Deleting an index on 'name'::
+
+ db.delete_index('core_profile', ['name'])
+
+Deleting the unique index on the combination of 'name' and 'age' columns
+(from the db.create_index examples)::
+
+ db.delete_index('core_profile', ['name', 'age'])
+
+
+
 db.delete_foreign_key
 ^^^^^^^^^^^^^^^^^^^^^
 
