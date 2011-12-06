@@ -176,9 +176,10 @@ class DatabaseOperations(generic.DatabaseOperations):
         cursor = self._get_connection().cursor()
         if self._has_setting('STORAGE_ENGINE') and self._get_setting('STORAGE_ENGINE'):
             cursor.execute("SET storage_engine=%s;" % self._get_setting('STORAGE_ENGINE'))
-        # Turn off foreign key checks, and turn them back on at the end
-        cursor.execute("SET FOREIGN_KEY_CHECKS=0;")
-        self.deferred_sql.append("SET FOREIGN_KEY_CHECKS=1;")
+
+    def start_transaction(self):
+        super(DatabaseOperations, self).start_transaction()
+        self.execute("SET FOREIGN_KEY_CHECKS=0;")
 
     @copy_column_constraints
     @delete_column_constraints
