@@ -274,8 +274,17 @@ def get_value(field, descriptor):
     # Make sure Decimal is converted down into a string
     if isinstance(value, decimal.Decimal):
         value = str(value)
+    # in case the value is timezone aware
     if isinstance(value, (datetime.datetime, datetime.time)):
-        value = dumb_down_timezone(value)
+        try:
+            from django.utils import timezone
+        except ImportError:
+            pass
+        else:
+            if (getattr(settings, 'USE_TZ', False) and
+                    value is not None and timezone.is_aware(value)):
+                default_timezone = timezone.get_default_timezone()
+                value = timezone.make_naive(value, default_timezone)
     # datetime_safe has an improper repr value
     if isinstance(value, datetime_safe.datetime):
         value = datetime.datetime(*value.utctimetuple()[:7])
@@ -286,16 +295,6 @@ def get_value(field, descriptor):
         value = options['converter'](value)
     # Return the final value
     return repr(value)
-
-def dumb_down_timezone(value):
-    try:
-        from django.utils import timezone
-    except ImportError:
-        pass
-    else:
-        if settings.USE_TZ and timezone.is_aware(value):
-            value = value.astimezone(timezone.utc).replace(tzinfo=None)
-    return value
 
 
 def introspector(field):
