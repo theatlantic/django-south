@@ -263,7 +263,11 @@ class Forwards(Migrator):
     def record(migration, database):
         # Record us as having done this
         record = MigrationHistory.for_migration(migration, database)
-        record.applied = datetime.datetime.utcnow()
+        try:
+            from django.utils.timezone import now
+            record.applied = now()
+        except ImportError:
+            record.applied = datetime.datetime.utcnow()
         if database != DEFAULT_DB_ALIAS:
             record.save(using=database)
         else:
