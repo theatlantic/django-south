@@ -11,7 +11,7 @@ from django.conf import settings
 from south import exceptions
 from south.migration.utils import depends, dfs, flatten, get_app_label
 from south.orm import FakeORM
-from south.utils import memoize, ask_for_it_by_name
+from south.utils import memoize, ask_for_it_by_name, datetime_utils
 from south.migration.utils import app_label_to_app_module
 
 
@@ -301,7 +301,7 @@ class Migration(object):
                 raise exceptions.BrokenMigration(self, sys.exc_info())
         # Override some imports
         migration._ = lambda x: x  # Fake i18n
-        migration.datetime = datetime
+        migration.datetime = datetime_utils
         return migration
     migration = memoize(migration)
 

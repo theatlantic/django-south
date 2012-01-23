@@ -5,13 +5,13 @@ blocks into the forwards() and backwards() methods, in the right place.
 """
 
 import sys
-import datetime
 
 from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
 from django.db.models.fields import FieldDoesNotExist, NOT_PROVIDED, CharField, TextField
 
 from south import modelsinspector
 from south.creator.freezer import remove_useless_attributes, model_key
+from south.utils import datetime_utils
 
 class Action(object):
     """
@@ -183,7 +183,7 @@ class _NullIssuesField(object):
                 sys.exit(1)
             else:
                 try:
-                    result = eval(code, {}, {"datetime": datetime})
+                    result = eval(code, {}, {"datetime": datetime_utils})
                 except (SyntaxError, NameError), e:
                     print " ! Invalid input: %s" % e
                 else:
