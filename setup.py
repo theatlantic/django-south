@@ -54,7 +54,7 @@ setup(
         'south.tests.circular_b.migrations',
         'south.tests.otherfakeapp.migrations',
         'south.tests.deps_c.migrations',
-        'south.tests.deps_b.migrations'
+        'south.tests.deps_b.migrations',
         'south.utils',
     ],
 )
