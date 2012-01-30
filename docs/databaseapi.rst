@@ -136,7 +136,7 @@ db.alter_column
 Alters the column ``column_name`` on the table ``table_name`` to match
 ``field``. Note that this cannot alter all field attributes; for example, if
 you want to make a field ``unique=True``, you should instead use
-``db.add_index`` with ``unique=True``, and if you want to make it a primary
+``db.create_unique``, and if you want to make it a primary
 key, you should look into ``db.drop_primary_key`` and ``db.create_primary_key``.
 
 If explicit_name is false, ForeignKey? fields will have _id appended to the end
