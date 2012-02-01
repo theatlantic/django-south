@@ -87,7 +87,12 @@ class Migrator(object):
             print "Error in migration: %s" % migration
             raise
         else:
-            south.db.db.commit_transaction()
+            try:
+                south.db.db.commit_transaction()
+            except:
+                print "Error during commit in migration: %s" % migration
+                raise
+                
 
     def run(self, migration):
         # Get the correct ORM.
