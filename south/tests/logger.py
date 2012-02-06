@@ -46,7 +46,7 @@ class TestLogger(unittest.TestCase):
 
         # since south logging is off, and our root logger is at WARNING
         # we should not find DEBUG info in the log
-        self.assertIs(logging_stream.getvalue(), '')
+        self.assertEqual(logging_stream.getvalue(), '')
 
     def test_db_execute_logging_validfile(self):
         "Does logging work when passing in a valid file?"
@@ -80,5 +80,3 @@ class TestLogger(unittest.TestCase):
             "test11",
             [('email_confirmed', models.BooleanField(default=False))],
         )
-        
-        
