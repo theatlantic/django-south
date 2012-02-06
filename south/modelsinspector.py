@@ -20,6 +20,11 @@ from django.utils import datetime_safe
 
 NOISY = False
 
+try:
+    from django.utils import timezone
+except ImportError:
+    timezone = False
+
 # Gives information about how to introspect certain fields.
 # This is a list of triples; the first item is a list of fields it applies to,
 # (note that isinstance is used, so superclasses are perfectly valid here)
@@ -254,10 +259,14 @@ def get_value(field, descriptor):
         # context (and because it changes all the time; people will file bugs otherwise).
         if value == datetime.datetime.now:
             return "datetime.datetime.now"
-        if value == datetime.datetime.utcnow:
+        elif value == datetime.datetime.utcnow:
             return "datetime.datetime.utcnow"
-        if value == datetime.date.today:
+        elif value == datetime.date.today:
             return "datetime.date.today"
+        # In case we use Django's own now function, revert to datetime's
+        # original one since we'll deal with timezones on our own.
+        elif timezone and value == timezone.now:
+            return "datetime.datetime.now"
         # All other callables get called.
         value = value()
     # Models get their own special repr()
