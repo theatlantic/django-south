@@ -284,21 +284,23 @@ def get_value(field, descriptor):
     if isinstance(value, decimal.Decimal):
         value = str(value)
     # in case the value is timezone aware
-    if isinstance(value, (datetime.datetime, datetime.time)):
-        try:
-            from django.utils import timezone
-        except ImportError:
-            pass
-        else:
-            if (getattr(settings, 'USE_TZ', False) and
-                    value is not None and timezone.is_aware(value)):
-                default_timezone = timezone.get_default_timezone()
-                value = timezone.make_naive(value, default_timezone)
+    datetime_types = (
+        datetime.datetime,
+        datetime.time,
+        datetime_safe.datetime,
+    )
+    if (timezone and isinstance(value, datetime_types) and
+            getattr(settings, 'USE_TZ', False) and
+            value is not None and timezone.is_aware(value)):
+        default_timezone = timezone.get_default_timezone()
+        value = timezone.make_naive(value, default_timezone)
     # datetime_safe has an improper repr value
     if isinstance(value, datetime_safe.datetime):
         value = datetime.datetime(*value.utctimetuple()[:7])
-    if isinstance(value, datetime_safe.date):
-        value = datetime.date(*value.timetuple()[:3])
+    # converting a date value to a datetime to be able to handle
+    # timezones later gracefully
+    elif isinstance(value, (datetime.date, datetime_safe.date)):
+        value = datetime.datetime(*value.timetuple()[:3])
     # Now, apply the converter func if there is one
     if "converter" in options:
         value = options['converter'](value)
