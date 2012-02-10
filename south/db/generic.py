@@ -89,10 +89,11 @@ class DatabaseOperations(object):
         try:
             cursor.execute('CREATE TABLE DDL_TRANSACTION_TEST (X INT)')
         except DatabaseError:
-            cursor.execute('DROP TABLE DDL_TRANSACTION_TEST')
             return False
         else:
             return True
+        finally:
+            cursor.execute('DROP TABLE DDL_TRANSACTION_TEST')
 
     def __init__(self, db_alias):
         self.debug = False
