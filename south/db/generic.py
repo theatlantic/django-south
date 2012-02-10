@@ -82,18 +82,22 @@ class DatabaseOperations(object):
     @cached_property
     def has_ddl_transactions(self):
         self._possibly_initialise()
-        cursor = self._get_connection().cursor()
-        self.start_transaction()
-        cursor.execute('CREATE TABLE DDL_TRANSACTION_TEST (X INT)')
-        self.rollback_transaction()
-        try:
+        connection = self._get_connection()
+        if connection.features.supports_transactions:
+            cursor = connection.cursor()
+            self.start_transaction()
             cursor.execute('CREATE TABLE DDL_TRANSACTION_TEST (X INT)')
-        except DatabaseError:
-            return False
+            self.rollback_transaction()
+            try:
+                cursor.execute('CREATE TABLE DDL_TRANSACTION_TEST (X INT)')
+            except DatabaseError:
+                return False
+            else:
+                return True
+            finally:
+                cursor.execute('DROP TABLE DDL_TRANSACTION_TEST')
         else:
-            return True
-        finally:
-            cursor.execute('DROP TABLE DDL_TRANSACTION_TEST')
+            return False
 
     def __init__(self, db_alias):
         self.debug = False
