@@ -13,6 +13,7 @@ from django.db.models.fields import NOT_PROVIDED
 from django.dispatch import dispatcher
 from django.conf import settings
 from django.utils.datastructures import SortedDict
+from django.utils.functional import cached_property
 
 from south.logger import get_logger
 
@@ -57,19 +58,13 @@ class DatabaseOperations(object):
     Some of this code comes from Django Evolution.
     """
 
-    # We assume the generic DB can handle DDL transactions. MySQL wil change this.
-    has_ddl_transactions = True
-
     alter_string_set_type = 'ALTER COLUMN %(column)s TYPE %(type)s'
     alter_string_set_null = 'ALTER COLUMN %(column)s DROP NOT NULL'
     alter_string_drop_null = 'ALTER COLUMN %(column)s SET NOT NULL'
-    has_check_constraints = True
     delete_check_sql = 'ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s'
-    allows_combined_alters = True
     add_column_string = 'ALTER TABLE %s ADD COLUMN %s;'
     delete_unique_sql = "ALTER TABLE %s DROP CONSTRAINT %s"
     delete_foreign_key_sql = 'ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s'
-    supports_foreign_keys = True
     max_index_name_length = 63
     drop_index_string = 'DROP INDEX %(index_name)s'
     delete_column_string = 'ALTER TABLE %s DROP COLUMN %s CASCADE;'
@@ -79,6 +74,25 @@ class DatabaseOperations(object):
     rename_table_sql = "ALTER TABLE %s RENAME TO %s;"
     backend_name = None
     default_schema_name = "public"
+    
+    # Features
+    allows_combined_alters = True
+    supports_foreign_keys = True
+    has_check_constraints = True
+    @cached_property
+    def has_ddl_transactions(self):
+        self._possibly_initialise()
+        cursor = self._get_connection().cursor()
+        self.start_transaction()
+        cursor.execute('CREATE TABLE DDL_TRANSACTION_TEST (X INT)')
+        self.rollback_transaction()
+        try:
+            cursor.execute('CREATE TABLE DDL_TRANSACTION_TEST (X INT)')
+        except DatabaseError:
+            cursor.execute('DROP TABLE DDL_TRANSACTION_TEST')
+            return False
+        else:
+            return True
 
     def __init__(self, db_alias):
         self.debug = False

@@ -93,11 +93,11 @@ class DatabaseOperations(generic.DatabaseOperations):
     drop_index_string = 'DROP INDEX %(index_name)s ON %(table_name)s'
     delete_primary_key_sql = "ALTER TABLE %(table)s DROP PRIMARY KEY"
     delete_foreign_key_sql = "ALTER TABLE %(table)s DROP FOREIGN KEY %(constraint)s"
-    allows_combined_alters = False
-    has_ddl_transactions = False
-    has_check_constraints = False
     delete_unique_sql = "ALTER TABLE %s DROP INDEX %s"
     rename_table_sql = "RENAME TABLE %s TO %s;"
+
+    allows_combined_alters = False
+    has_check_constraints = False
 
     geom_types = ['geometry', 'point', 'linestring', 'polygon']
     text_types = ['text', 'blob',]
