@@ -9,6 +9,7 @@ from django.core.management.color import no_style
 from django.db import transaction, models
 from django.db.utils import DatabaseError
 from django.db.backends.util import truncate_name
+from django.db.backends.creation import BaseDatabaseCreation
 from django.db.models.fields import NOT_PROVIDED
 from django.dispatch import dispatcher
 from django.conf import settings
@@ -759,16 +760,30 @@ class DatabaseOperations(object):
         return list(self._constraints_affecting_columns(
                     table_name, [column_name], "FOREIGN KEY"))
 
+    def _digest(self, *args):
+        """
+        Use django.db.backends.creation.BaseDatabaseCreation._digest
+        to create index name in Django style. An evil hack :(
+        """
+        if not hasattr(self, '_django_db_creation'):
+            self._django_db_creation = BaseDatabaseCreation(self._get_connection())
+        return self._django_db_creation._digest(*args)
+
     def create_index_name(self, table_name, column_names, suffix=""):
         """
         Generate a unique name for the index
         """
 
-        table_name = table_name.replace('"', '').replace('.', '_')
-        index_unique_name = ''
+        # If there is just one column in the index, use a default algorithm from Django
+        if len(column_names) == 1:
+            return truncate_name(
+                '%s_%s' % (table_name, self._digest(column_names[0])),
+                self._get_connection().ops.max_name_length()
+            )
 
-        if len(column_names) > 1:
-            index_unique_name = '_%x' % abs(hash((table_name, ','.join(column_names))))
+        # Else generate the name for the index by South
+        table_name = table_name.replace('"', '').replace('.', '_')
+        index_unique_name = '_%x' % abs(hash((table_name, ','.join(column_names))))
 
         # If the index name is too long, truncate it
         index_name = ('%s_%s%s%s' % (table_name, column_names[0], index_unique_name, suffix)).replace('"', '').replace('.', '_')
