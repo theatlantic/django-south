@@ -92,6 +92,8 @@ class DatabaseOperations(object):
     allows_combined_alters = True
     supports_foreign_keys = True
     has_check_constraints = True
+    has_booleans = True
+
     @cached_property
     def has_ddl_transactions(self):
         self._possibly_initialise()
@@ -682,6 +684,7 @@ class DatabaseOperations(object):
                             default = default()
                             
                         default = field.get_db_prep_save(default, connection=self._get_connection())
+                        default = self._default_value_workaround(default)
                         # Now do some very cheap quoting. TODO: Redesign return values to avoid this.
                         if isinstance(default, basestring):
                             default = "'%s'" % default.replace("'", "''")
@@ -734,6 +737,15 @@ class DatabaseOperations(object):
         """
         return field
 
+    def _default_value_workaround(self, value):
+        """
+        DBMS-specific value alterations (this really works around
+        missing functionality in Django backends)
+        """
+        if isinstance(value, bool) and not self.has_booleans:
+            return int(value)
+        else:
+            return value 
 
     def foreign_key_sql(self, from_table_name, from_column_name, to_table_name, to_column_name):
         """

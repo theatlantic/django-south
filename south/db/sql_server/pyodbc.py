@@ -32,6 +32,8 @@ class DatabaseOperations(generic.DatabaseOperations):
     
     
     default_schema_name = "dbo"
+    
+    has_booleans = False
 
 
     @delete_column_constraints
@@ -251,7 +253,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         else:
             #TODO: Anybody else needs special translations?
             return str(value) 
-
+        
     def _quote_string(self, s):
         return "'" + s.replace("'","''") + "'"
     

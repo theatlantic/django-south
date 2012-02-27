@@ -38,6 +38,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     add_constraint_string =     'ALTER TABLE %(table_name)s ADD CONSTRAINT %(constraint)s %(clause)s'
 
     allows_combined_alters = False
+    has_booleans = False
     
     constraints_dict = {
         'P': 'PRIMARY KEY',
