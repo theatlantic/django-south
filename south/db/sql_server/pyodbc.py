@@ -253,6 +253,11 @@ class DatabaseOperations(generic.DatabaseOperations):
         else:
             #TODO: Anybody else needs special translations?
             return str(value) 
+    def _default_value_workaround(self, value):
+        if isinstance(value, (date,time,datetime)):
+            return value.isoformat()
+        else:
+            return super(DatabaseOperations, self)._default_value_workaround(value)
         
     def _quote_string(self, s):
         return "'" + s.replace("'","''") + "'"
