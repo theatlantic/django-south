@@ -96,7 +96,7 @@ class DatabaseOperations(object):
     def has_ddl_transactions(self):
         self._possibly_initialise()
         connection = self._get_connection()
-        if connection.features.supports_transactions:
+        if getattr(connection.features, 'supports_transactions', True):
             cursor = connection.cursor()
             self.start_transaction()
             cursor.execute('CREATE TABLE DDL_TRANSACTION_TEST (X INT)')
