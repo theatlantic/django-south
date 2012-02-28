@@ -92,10 +92,20 @@ class DatabaseOperations(object):
     allows_combined_alters = True
     supports_foreign_keys = True
     has_check_constraints = True
+
     @cached_property
     def has_ddl_transactions(self):
+        "Tests the database using feature detection to see if it has DDL transactional support"
         self._possibly_initialise()
         connection = self._get_connection()
+        # Django 1.3's MySQLdb backend doesn't raise DatabaseError
+        exceptions = (DatabaseError, )
+        try:
+            from MySQLdb import OperationalError
+            exceptions += (OperationalError, )
+        except ImportError:
+            pass
+        # Now do the test
         if connection.features.supports_transactions:
             cursor = connection.cursor()
             self.start_transaction()
@@ -103,7 +113,7 @@ class DatabaseOperations(object):
             self.rollback_transaction()
             try:
                 cursor.execute('CREATE TABLE DDL_TRANSACTION_TEST (X INT)')
-            except DatabaseError:
+            except exceptions:
                 return False
             else:
                 return True
