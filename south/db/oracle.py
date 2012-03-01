@@ -53,11 +53,11 @@ class DatabaseOperations(generic.DatabaseOperations):
         else:
             return original_get_sequence_name(table_name)
 
+    #TODO: This will cause very obscure bugs if anyone uses a column name or string value
+    #      that looks like a column definition (with 'CHECK', 'DEFAULT' and/or 'NULL' in it)
+    #      e.g. "CHECK MATE" varchar(10) DEFAULT 'NULL'
     def adj_column_sql(self, col):
-        # Fix boolean field values: need to be 1/0, not True/False
-        col = re.sub('DEFAULT True', 'DEFAULT 1', col)
-        col = re.sub('DEFAULT False', 'DEFAULT 0', col)
-        # Fix other things
+        # Syntax fixes -- Oracle is picky about clause order
         col = re.sub('(?P<constr>CHECK \(.*\))(?P<any>.*)(?P<default>DEFAULT \d+)', 
                      lambda mo: '%s %s%s'%(mo.group('default'), mo.group('constr'), mo.group('any')), col) #syntax fix for boolean/integer field only
         col = re.sub('(?P<not_null>(NOT )?NULL) (?P<misc>(.* )?)(?P<default>DEFAULT.+)',
@@ -124,6 +124,12 @@ END;
 
     @generic.invalidate_table_constraints
     def alter_column(self, table_name, name, field, explicit_name=True):
+        
+        if self.dry_run:
+            if self.debug:
+                print '   - no dry run output for alter_column() due to dynamic DDL, sorry'
+            return
+
         qn = self.quote_name(table_name)
 
         # hook for the field to do any resolution prior to it's attributes being queried
@@ -151,7 +157,7 @@ END;
             params['nullity'] = 'NULL'
 
         if not field.null and field.has_default():
-            params['default'] = field.get_default()
+            params['default'] = self._default_value_workaround(field.get_default())
 
         sql_templates = [
             (self.alter_string_set_type, params),
@@ -241,6 +247,13 @@ END;
         if isinstance(field, models.BooleanField) and field.has_default():
             field.default = int(field.to_python(field.get_default()))
         return field
+
+    def _default_value_workaround(self, value):
+        from datetime import date,time,datetime
+        if isinstance(value, (date,time,datetime)):
+            return "'%s'" % value
+        else:
+            return super(DatabaseOperations, self)._default_value_workaround(value)
 
     def _fill_constraint_cache(self, db_name, table_name):
         self._constraint_cache.setdefault(db_name, {}) 

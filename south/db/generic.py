@@ -255,7 +255,7 @@ class DatabaseOperations(object):
         except DatabaseError, e:
             print >> sys.stderr, 'FATAL ERROR - The following SQL query failed: %s' % sql
             print >> sys.stderr, 'The error was: %s' % e
-            sys.exit(1)
+            raise
 
         try:
             return cursor.fetchall()
