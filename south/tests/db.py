@@ -507,7 +507,28 @@ class TestOperations(unittest.TestCase):
         db.create_table("test_textdef", [
             ('textcol', models.TextField(blank=True)),
         ])
-    
+
+    def test_datetime_default(self):
+        """
+        Test that defaults are created correctly for datetime columns
+        """    
+        from datetime import datetime
+
+        end_of_world = datetime(2012, 12, 21, 0, 0, 1)
+  
+        db.create_table("test_datetime_def", [
+            ('col0', models.IntegerField(null=True)),
+            ('col1', models.DateTimeField(default=end_of_world)),
+            ('col2', models.DateTimeField(null=True)),
+        ])
+        db.alter_column("test_datetime_def", "col2", models.DateTimeField(default=end_of_world))        
+        db.add_column("test_datetime_def", "col3", models.DateTimeField(default=end_of_world))
+        db.execute("insert into test_datetime_def (col0) values (null)")
+        ends = db.execute("select col1,col2,col3 from test_datetime_def")[0]
+        self.failUnlessEqual(len(ends), 3)
+        for e in ends:
+            self.failUnlessEqual(e, end_of_world)
+        
     def test_add_unique_fk(self):
         """
         Test adding a ForeignKey with unique=True or a OneToOneField
@@ -588,17 +609,18 @@ class TestOperations(unittest.TestCase):
                     return value
                 return map(int, value.split(','))
 
+        false_value = db.has_booleans and 'False' or '0' 
         defaults = (
-            (models.DateTimeField(default=datetime(2012, 12, 21, 0, 0, 1)), 'DEFAULT \'2012-12-21 00:00:01'),
+            #(models.DateTimeField(default=datetime(2012, 12, 21, 0, 0, 1)), 'DEFAULT \'2012-12-21 00:00:01'), # replaced by test_datetime_default
             (models.CharField(default='sukasuka'), 'DEFAULT \'sukasuka'),
-            (models.BooleanField(default=False), 'DEFAULT False'),
+            (models.BooleanField(default=False), 'DEFAULT %s' % false_value),
             (models.IntegerField(default=42), 'DEFAULT 42'),
             (CustomField(default=[2012,2018,2021,2036]), 'DEFAULT \'2012,2018,2021,2036')
         )
         for field, sql_test_str in defaults:
             sql = db.column_sql('fish', 'YAAAAAAZ', field)
             if sql_test_str not in sql:
-                self.fail("default sql value was not properly generated for field %r." % field)
+                self.fail("default sql value was not properly generated for field %r.\nSql was %s" % (field,sql))   
 
 
         
