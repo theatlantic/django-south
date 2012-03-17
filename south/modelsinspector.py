@@ -253,6 +253,15 @@ def get_value(field, descriptor):
         default_value = format % tuple(map(lambda x: get_attribute(field, x), attrs))
         if value == default_value:
             raise IsDefault
+    # Clean and return the value
+    return value_clean(value, options)
+
+
+def value_clean(value, options={}):
+    "Takes a value and cleans it up (so e.g. it has timezone working right)"
+    # Lazy-eval functions get eval'd.
+    if isinstance(value, Promise):
+        value = unicode(value)
     # Callables get called.
     if callable(value) and not isinstance(value, ModelBase):
         # Datetime.datetime.now is special, as we can access it from the eval

@@ -9,9 +9,10 @@ import sys
 from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
 from django.db.models.fields import FieldDoesNotExist, NOT_PROVIDED, CharField, TextField
 
-from south import modelsinspector
+from south.modelsinspector import value_clean
 from south.creator.freezer import remove_useless_attributes, model_key
 from south.utils import datetime_utils
+
 
 class Action(object):
     """
@@ -189,7 +190,7 @@ class _NullIssuesField(object):
                 else:
                     break
         # Right, add the default in.
-        field_def[2]['default'] = repr(result)
+        field_def[2]['default'] = value_clean(result)
 
     def irreversable_code(self, field):
         return self.IRREVERSIBLE_TEMPLATE % {
