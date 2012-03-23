@@ -12,6 +12,7 @@ from south.utils import get_attribute, auto_through
 from django.db import models
 from django.db.models.base import ModelBase, Model
 from django.db.models.fields import NOT_PROVIDED
+from django.db.models import CASCADE, PROTECT, SET, SET_NULL, SET_DEFAULT, DO_NOTHING
 from django.conf import settings
 from django.utils.functional import Promise
 from django.contrib.contenttypes import generic
@@ -24,6 +25,40 @@ try:
     from django.utils import timezone
 except ImportError:
     timezone = False
+
+def convert_on_delete_handler(value):
+    django_db_models_module = 'models' # relative to standard import 'django.db'
+    if django_db_models_module:
+        if value in (CASCADE, PROTECT, DO_NOTHING, SET_DEFAULT):
+            # straightforward functions
+            return '%s.%s' % (django_db_models_module, value.__name__)
+        else:
+            # This is totally dependent on the implementation of django.db.models.deletion.SET
+            func_name = getattr(value, '__name__', None)
+            if func_name == 'set_on_delete':
+                # we must inspect the function closure to see what parameters were passed in
+                closure_contents = value.func_closure[0].cell_contents
+                if closure_contents is None:
+                    return "%s.SET_NULL" % (django_db_models_module)
+                # simple function we can perhaps cope with:
+                elif hasattr(closure_contents, '__call__'):
+                    # module_name = getattr(closure_contents, '__module__', None)
+                    # inner_func_name = getattr(closure_contents, '__name__', None)
+                    # if inner_func_name:
+                        # TODO there is no way of checking that module_name matches the
+                        # model file, which is the only code that will be imported in
+                        # the Fake ORM. Any other functions won't be available.
+                        # TODO this doesn't work anyway yet as even the app's models
+                        # file is not imported, contrary to the coments in
+                        # orm.LazyFakeORM.eval_in_context, which implies that
+                        # migrations are expected to import that.
+                        # return "%s.SET(%s)" % (django_db_models_module, inner_func_name)
+                    raise ValueError("Function for on_delete could not be serialized.")
+                else:
+                    # an actual value rather than a sentinel function - insanity
+                    raise ValueError("on_delete=SET with a model instance is not supported.")
+                    
+    raise ValueError("%s was not recognized as a valid model deletion handler. Possible values: %s." % (value, ', '.join(f.__name__ for f in (CASCADE, PROTECT, SET, SET_NULL, SET_DEFAULT, DO_NOTHING))))
 
 # Gives information about how to introspect certain fields.
 # This is a list of triples; the first item is a list of fields it applies to,
@@ -60,6 +95,7 @@ introspection_details = [
             "to_field": ["rel.field_name", {"default_attr": "rel.to._meta.pk.name"}],
             "related_name": ["rel.related_name", {"default": None}],
             "db_index": ["db_index", {"default": True}],
+            "on_delete": ["rel.on_delete", {"default": CASCADE, "is_django_function": True, "converter": convert_on_delete_handler, }],
         },
     ),
     (
@@ -228,6 +264,7 @@ def get_value(field, descriptor):
                 raise IsDefault
             else:
                 raise
+            
     # Lazy-eval functions get eval'd.
     if isinstance(value, Promise):
         value = unicode(value)
@@ -263,7 +300,7 @@ def value_clean(value, options={}):
     if isinstance(value, Promise):
         value = unicode(value)
     # Callables get called.
-    if callable(value) and not isinstance(value, ModelBase):
+    if not options.get('is_django_function', False) and callable(value) and not isinstance(value, ModelBase):
         # Datetime.datetime.now is special, as we can access it from the eval
         # context (and because it changes all the time; people will file bugs otherwise).
         if value == datetime.datetime.now:
@@ -314,8 +351,10 @@ def value_clean(value, options={}):
     if "converter" in options:
         value = options['converter'](value)
     # Return the final value
-    return repr(value)
-
+    if options.get('is_django_function', False):
+        return value
+    else:
+        return repr(value)
 
 def introspector(field):
     """

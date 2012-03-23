@@ -11,6 +11,16 @@ def default_func():
 # An empty case.
 class Other1(models.Model): pass
 
+# Another one
+class Other3(models.Model): pass
+def get_sentinel_object():
+    """
+    A function to return the object to be used in place of any deleted object,
+    when using the SET option for on_delete.
+    """
+    # Create a new one, so we always have an instance to test with. Can't work!
+    return Other3()
+
 # Nastiness.
 class HorribleModel(models.Model):
     "A model to test the edge cases of model parsing"
@@ -25,6 +35,15 @@ class HorribleModel(models.Model):
     # A ForeignKey, to a model above, and then below
     o1 = models.ForeignKey(Other1)
     o2 = models.ForeignKey('Other2')
+    
+    o_set_null_on_delete = models.ForeignKey('Other3', null=True, on_delete=models.SET_NULL)
+    o_cascade_delete = models.ForeignKey('Other3', null=True, on_delete=models.CASCADE, related_name="cascademe")
+    o_protect = models.ForeignKey('Other3', null=True, on_delete=models.PROTECT, related_name="dontcascademe")
+    o_default_on_delete = models.ForeignKey('Other3', null=True, default=1, on_delete=models.SET_DEFAULT, related_name="setmedefault")
+    o_set_on_delete_function = models.ForeignKey('Other3', null=True, default=1, on_delete=models.SET(get_sentinel_object), related_name="setsentinel")
+    o_set_on_delete_value = models.ForeignKey('Other3', null=True, default=1, on_delete=models.SET(get_sentinel_object()), related_name="setsentinelwithactualvalue") # dubious case
+    o_no_action_on_delete = models.ForeignKey('Other3', null=True, default=1, on_delete=models.DO_NOTHING, related_name="deletemeatyourperil")
+    
     
     # Now to something outside
     user = models.ForeignKey(UserAlias, related_name="horribles")
@@ -50,7 +69,7 @@ and love the bomb"""
     multiline = \
               models.TextField(
         )
-    
+
 # Special case.
 class Other2(models.Model):
     # Try loading a field without a newline after it (inspect hates this)
