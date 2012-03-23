@@ -1,0 +1,51 @@
+
+.. _0-7-4-release-notes:
+
+===========
+South 0.7.4
+===========
+
+This is a minor new release of South, and the fourth bugfix release for the 
+:ref:`0.7 series <0-7-release-notes>`. The main feature is compatability with Django 1.4.
+
+It has unfortunately been over a year since the last South release - I intend to make them more
+frequent from now on, especially where large bugs are concerned. South 1.0 will eventually happen,
+but we may end up dropping support for some of the older Django versions when it's released.
+
+
+Backwards incompatible changes
+==============================
+
+None.
+
+
+Timezone support
+================
+
+Thanks to work by various contributors, most notably Jannis Leidel, South now supports timezone-aware
+datetime fields (as is the default in Django 1.4).
+
+unique handling
+===============
+
+South now correctly handles the use of the unique= keyword on columns.
+
+on_delete handling
+==================
+
+South now correctly handles and persists the on_delete argument to ForeignKeys.
+
+Constraint caching
+==================
+
+Runtime has been improved thanks to caching of constraints at runtime. Thanks to Jack Diederich for a large portion of this work.
+
+Oracle and MSSQL fixes
+======================
+
+Thanks mostly to the work of Shai Berger, the Oracle and MSSQl backends have been signficantly upgraded and improved.
+
+Other fixes
+===========
+
+As usual, there are tens of other minor fixes throughout the codebase. Full details of those are available on Trac.
