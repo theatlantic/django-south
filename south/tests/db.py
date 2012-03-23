@@ -511,17 +511,21 @@ class TestOperations(unittest.TestCase):
     def test_datetime_default(self):
         """
         Test that defaults are created correctly for datetime columns
-        """    
+        """
         from datetime import datetime
 
-        end_of_world = datetime(2012, 12, 21, 0, 0, 1)
-  
+        try:
+            from django.utils import timezone
+            end_of_world = datetime(2012, 12, 21, 0, 0, 1, tzinfo=timezone.utc)
+        except ImportError:
+            end_of_world = datetime(2012, 12, 21, 0, 0, 1)
+
         db.create_table("test_datetime_def", [
             ('col0', models.IntegerField(null=True)),
             ('col1', models.DateTimeField(default=end_of_world)),
             ('col2', models.DateTimeField(null=True)),
         ])
-        db.alter_column("test_datetime_def", "col2", models.DateTimeField(default=end_of_world))        
+        db.alter_column("test_datetime_def", "col2", models.DateTimeField(default=end_of_world))
         db.add_column("test_datetime_def", "col3", models.DateTimeField(default=end_of_world))
         db.execute("insert into test_datetime_def (col0) values (null)")
         ends = db.execute("select col1,col2,col3 from test_datetime_def")[0]
