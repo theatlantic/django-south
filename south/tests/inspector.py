@@ -1,8 +1,31 @@
-import unittest
-
 from south.tests import Monkeypatcher
 from south.modelsinspector import *
 from fakeapp.models import HorribleModel
+
+from django.utils.functional import wraps
+
+try:
+    # skipUnless added in Python 2.7;
+    from unittest import skipUnless
+    skipUnlessOnDeleteAvailable = skipUnless(on_delete_is_available, "not testing on_delete -- not available on Django<1.3")
+except ImportError:
+    try: 
+        # django.utils.unittest added in Django 1.3;
+        from django.utils.unittest import skipUnless
+        skipUnlessOnDeleteAvailable = skipUnless(on_delete_is_available, "not testing on_delete -- not available on Django<1.3")
+    except ImportError:
+        def skipUnlessOnDeleteAvailable(testfunc):
+            @wraps(testfunc)
+            def wrapper(self):
+                if on_delete_is_available:
+                    # Apply method
+                    getattr(self, testfunc.__name__)()
+                else:
+                    # The skip exceptions are not available either...
+                    print "Skipping", testfunc.__name__,"--", "not testing on_delete -- not available on Django<1.3"
+            return wrapper
+                    
+                
 
 class TestModelInspector(Monkeypatcher):
 
@@ -16,13 +39,6 @@ class TestModelInspector(Monkeypatcher):
         name = HorribleModel._meta.get_field_by_name("name")[0]
         slug = HorribleModel._meta.get_field_by_name("slug")[0]
         user = HorribleModel._meta.get_field_by_name("user")[0]
-        o_set_null_on_delete = HorribleModel._meta.get_field_by_name("o_set_null_on_delete")[0]
-        o_cascade_delete = HorribleModel._meta.get_field_by_name("o_cascade_delete")[0]
-        o_protect = HorribleModel._meta.get_field_by_name("o_protect")[0]
-        o_default_on_delete = HorribleModel._meta.get_field_by_name("o_default_on_delete")[0]
-        o_set_on_delete_function = HorribleModel._meta.get_field_by_name("o_set_on_delete_function")[0]
-        o_set_on_delete_value = HorribleModel._meta.get_field_by_name("o_set_on_delete_value")[0]
-        o_no_action_on_delete = HorribleModel._meta.get_field_by_name("o_no_action_on_delete")[0]
         
         # Simple int retrieval
         self.assertEqual(
@@ -53,7 +69,18 @@ class TestModelInspector(Monkeypatcher):
             slug,
             ["unique", {"default": True}],
         )
-        
+
+    @skipUnlessOnDeleteAvailable
+    def test_get_value_on_delete(self):
+
+        # First validate the FK fields with on_delete options
+        o_set_null_on_delete = HorribleModel._meta.get_field_by_name("o_set_null_on_delete")[0]
+        o_cascade_delete = HorribleModel._meta.get_field_by_name("o_cascade_delete")[0]
+        o_protect = HorribleModel._meta.get_field_by_name("o_protect")[0]
+        o_default_on_delete = HorribleModel._meta.get_field_by_name("o_default_on_delete")[0]
+        o_set_on_delete_function = HorribleModel._meta.get_field_by_name("o_set_on_delete_function")[0]
+        o_set_on_delete_value = HorribleModel._meta.get_field_by_name("o_set_on_delete_value")[0]
+        o_no_action_on_delete = HorribleModel._meta.get_field_by_name("o_no_action_on_delete")[0]
         # TODO this is repeated from the introspection_details in modelsinspector:
         # better to refactor that so we can reference these settings, in case they
         # must change at some point.
