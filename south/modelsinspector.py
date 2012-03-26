@@ -58,10 +58,10 @@ if on_delete_is_available:
                             # orm.LazyFakeORM.eval_in_context, which implies that
                             # migrations are expected to import that.
                             # return "%s.SET(%s)" % (django_db_models_module, inner_func_name)
-                        raise ValueError("Function for on_delete_is_available could not be serialized.")
+                        raise ValueError("Function for on_delete could not be serialized.")
                     else:
                         # an actual value rather than a sentinel function - insanity
-                        raise ValueError("on_delete_is_available=SET with a model instance is not supported.")
+                        raise ValueError("on_delete=SET with a model instance is not supported.")
                         
         raise ValueError("%s was not recognized as a valid model deletion handler. Possible values: %s." % (value, ', '.join(f.__name__ for f in (CASCADE, PROTECT, SET, SET_NULL, SET_DEFAULT, DO_NOTHING))))
 
