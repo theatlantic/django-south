@@ -1,5 +1,4 @@
-
-from django.db import connection, models
+from django.db.backends.util import truncate_name
 from south.db import generic
 
 class DatabaseOperations(generic.DatabaseOperations):
@@ -9,6 +8,23 @@ class DatabaseOperations(generic.DatabaseOperations):
     """
     
     backend_name = "postgres"
+
+    def create_index_name(self, table_name, column_names, suffix=""):
+        """
+        Generate a unique name for the index
+
+        Django's logic for naming field indexes is different in the
+        postgresql_psycopg2 backend, so we follow that for single-column
+        indexes.
+        """
+
+        if len(column_names) == 1:
+            return truncate_name(
+                '%s_%s' % (table_name, column_names[0]),
+                self._get_connection().ops.max_name_length()
+            )
+        return super(DatabaseOperations, self).create_index_name(table_name, column_names, suffix)
+
 
     @generic.copy_column_constraints
     @generic.delete_column_constraints
