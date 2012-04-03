@@ -17,6 +17,7 @@ try:
 except ImportError:
     mysql = None
 
+
 class TestOperations(unittest.TestCase):
 
     """
@@ -168,7 +169,6 @@ class TestOperations(unittest.TestCase):
         """
         Test that % in a default gets escaped to %%.
         """
-        cursor = connection.cursor()
         try:
             db.create_table("testpind", [('cf', models.CharField(max_length=255, default="It should be 2%!"))])
         except IndexError:
@@ -275,7 +275,7 @@ class TestOperations(unittest.TestCase):
         # insert some data so we can test the default values of the added column
         db.execute("INSERT INTO test_addnbc (eggs) VALUES (1)")
         # try selecting from the new columns to make sure they were properly created
-        false,null,true = db.execute("SELECT spam,add1,add2 FROM test_addnbc")[0][0:3]
+        false, null, true = db.execute("SELECT spam,add1,add2 FROM test_addnbc")[0][0:3]
         self.assertTrue(true)
         self.assertEquals(null, None)
         self.assertEquals(false, False)
@@ -588,12 +588,11 @@ class TestOperations(unittest.TestCase):
         db.delete_table("test_column_constraint")
         db.start_transaction()
 
-
     def test_sql_defaults(self):
         """
         Test that sql default value is correct for non-string field types.
+        Datetimes are handled in test_datetime_default.
         """
-        from datetime import datetime
 
         class CustomField(models.CharField):
             __metaclass__ = models.SubfieldBase
@@ -613,21 +612,19 @@ class TestOperations(unittest.TestCase):
                     return value
                 return map(int, value.split(','))
 
-        false_value = db.has_booleans and 'False' or '0' 
+        false_value = db.has_booleans and 'False' or '0'
         defaults = (
-            #(models.DateTimeField(default=datetime(2012, 12, 21, 0, 0, 1)), 'DEFAULT \'2012-12-21 00:00:01'), # replaced by test_datetime_default
             (models.CharField(default='sukasuka'), 'DEFAULT \'sukasuka'),
             (models.BooleanField(default=False), 'DEFAULT %s' % false_value),
             (models.IntegerField(default=42), 'DEFAULT 42'),
-            (CustomField(default=[2012,2018,2021,2036]), 'DEFAULT \'2012,2018,2021,2036')
+            (CustomField(default=[2012, 2018, 2021, 2036]), 'DEFAULT \'2012,2018,2021,2036')
         )
         for field, sql_test_str in defaults:
             sql = db.column_sql('fish', 'YAAAAAAZ', field)
             if sql_test_str not in sql:
-                self.fail("default sql value was not properly generated for field %r.\nSql was %s" % (field,sql))   
+                self.fail("default sql value was not properly generated for field %r.\nSql was %s" % (field, sql))
 
 
-        
 class TestCacheGeneric(unittest.TestCase):
     base_ops_cls = generic.DatabaseOperations
     def setUp(self):
@@ -635,7 +632,7 @@ class TestCacheGeneric(unittest.TestCase):
             def __init__(self):
                 self._constraint_cache = {}
                 self.cache_filled = 0
-                self.settings = {'NAME' : 'db'}
+                self.settings = {'NAME': 'db'}
 
             def _fill_constraint_cache(self, db, table):
                 self.cache_filled += 1
@@ -701,7 +698,6 @@ class TestCacheGeneric(unittest.TestCase):
         # copy_column_constraints
         cache['db']['table']['column'] = 'constraint'
         self.assertEqual('constraint', ops.lookup_constraint('db', 'table', 'column'))
-        import sys
         ops.cp_column('table', 'column', 'column_new')
         self.assertEqual('constraint', ops.lookup_constraint('db', 'table', 'column_new'))
         self.assertEqual('constraint', ops.lookup_constraint('db', 'table', 'column'))
@@ -757,7 +753,6 @@ if mysql:
             self.assertFalse(ops._is_valid_cache('db', 'table'))
             self.assertFalse(ops._is_valid_cache('db', 'other_table'))
             ops.lookup_constraint('db', 'table')
-            cache = ops._constraint_cache
             self.assertTrue(ops._is_valid_cache('db', 'table'))
             self.assertTrue(ops._is_valid_cache('db', 'other_table'))
             ops.lookup_constraint('db', 'other_table')
