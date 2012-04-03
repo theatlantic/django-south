@@ -1,6 +1,5 @@
-
-from django.db import connection, models
 from south.db import generic
+
 
 class DatabaseOperations(generic.DatabaseOperations):
 
@@ -32,7 +31,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         self.commit_transaction()
         self.start_transaction()
         try:
-            generic.DatabaseOperations.rename_table(self, old_table_name+"_id_seq", table_name+"_id_seq")
+            generic.DatabaseOperations.rename_table(self, old_table_name + "_id_seq", table_name + "_id_seq")
         except:
             if self.debug:
                 print "   ~ No such sequence (ignoring error)"
@@ -45,7 +44,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         # the table that are used by django (e.g. foreign keys). Until
         # figure out how, you need to do this yourself.
         try:
-            generic.DatabaseOperations.rename_table(self, old_table_name+"_pkey", table_name+ "_pkey")
+            generic.DatabaseOperations.rename_table(self, old_table_name + "_pkey", table_name + "_pkey")
         except:
             if self.debug:
                 print "   ~ No such primary key (ignoring error)"
@@ -53,7 +52,6 @@ class DatabaseOperations(generic.DatabaseOperations):
         else:
             self.commit_transaction()
         self.start_transaction()
-
 
     def rename_index(self, old_index_name, index_name):
         "Rename an index individually"

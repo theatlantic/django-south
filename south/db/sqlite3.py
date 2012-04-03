@@ -1,10 +1,5 @@
-import inspect
-import re
-
-from django.db.models import ForeignKey
-
 from south.db import generic
-from django.core.management.commands import inspectdb
+
     
 class DatabaseOperations(generic.DatabaseOperations):
 
@@ -23,13 +18,13 @@ class DatabaseOperations(generic.DatabaseOperations):
         Adds a column.
         """
         # If it's not nullable, and has no default, raise an error (SQLite is picky)
-        if (not field.null and 
-            (not field.has_default() or field.get_default() is None) and
-            not field.empty_strings_allowed):
+        if (not field.null and
+           (not field.has_default() or field.get_default() is None) and
+           not field.empty_strings_allowed):
             raise ValueError("You cannot add a null=False column without a default value.")
         # Initialise the field.
         field.set_attributes_from_name(name)
-        # We add columns by remaking the table; even though SQLite supports 
+        # We add columns by remaking the table; even though SQLite supports
         # adding columns, it doesn't support adding PRIMARY KEY or UNIQUE cols.
         self._remake_table(table_name, added={
             field.column: self._column_sql_for_create(table_name, name, field, False),
@@ -104,7 +99,6 @@ class DatabaseOperations(generic.DatabaseOperations):
         # We can't do that before since it's impossible to rename indexes
         # and index name scope is global
         self._make_multi_indexes(table_name, multi_indexes, renames=renames, deleted=deleted, uniques_deleted=uniques_deleted)
-
     
     def _copy_data(self, src, dst, field_renames={}):
         "Used to copy data into a new table"

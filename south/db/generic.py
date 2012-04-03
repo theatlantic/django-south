@@ -1,7 +1,3 @@
-
-import datetime
-import string
-import random
 import re
 import sys
 
@@ -17,19 +13,20 @@ from django.utils.datastructures import SortedDict
 try:
     from django.utils.functional import cached_property
 except ImportError:
-   class cached_property(object):
-       """
-       Decorator that creates converts a method with a single
-       self argument into a property cached on the instance.
-       """
-       def __init__(self, func):
-           self.func = func
+    class cached_property(object):
+        """
+        Decorator that creates converts a method with a single
+        self argument into a property cached on the instance.
+        """
+        def __init__(self, func):
+            self.func = func
 
-       def __get__(self, instance, type):
-           res = instance.__dict__[self.func.__name__] = self.func(instance)
-           return res
+        def __get__(self, instance, type):
+            res = instance.__dict__[self.func.__name__] = self.func(instance)
+            return res
 
 from south.logger import get_logger
+
 
 def alias(attrname):
     """
@@ -40,17 +37,20 @@ def alias(attrname):
         return getattr(self, attrname)(*args, **kwds)
     return func
 
+
 def invalidate_table_constraints(func):
     def _cache_clear(self, table, *args, **opts):
         self._set_cache(table, value=INVALID)
         return func(self, table, *args, **opts)
     return _cache_clear
 
+
 def delete_column_constraints(func):
     def _column_rm(self, table, column, *args, **opts):
         self._set_cache(table, column, value=[])
         return func(self, table, column, *args, **opts)
     return _column_rm
+
 
 def copy_column_constraints(func):
     def _column_cp(self, table, column_old, column_new, *args, **opts):
@@ -59,12 +59,15 @@ def copy_column_constraints(func):
         return func(self, table, column_old, column_new, *args, **opts)
     return _column_cp
 
+
 class INVALID(Exception):
     def __repr__(self):
         return 'INVALID'
 
+
 class DryRunError(ValueError):
     pass
+
 
 class DatabaseOperations(object):
     """
@@ -148,10 +151,10 @@ class DatabaseOperations(object):
         try:
             ret = _lookup()
             return ret
-        except INVALID, e:
+        except INVALID:
             del self._constraint_cache[db_name][table_name]
             self._fill_constraint_cache(db_name, table_name)
-        except KeyError, e:
+        except KeyError:
             if self._is_valid_cache(db_name, table_name):
                 return []
             self._fill_constraint_cache(db_name, table_name)
@@ -176,33 +179,34 @@ class DatabaseOperations(object):
             return False
 
     def _is_multidb(self):
-        try: 
+        try:
             from django.db import connections
+            connections  # Prevents "unused import" warning
         except ImportError:
             return False
         else:
             return True
 
-    def _get_connection(self): 
-        """ 
-        Returns a django connection for a given DB Alias 
+    def _get_connection(self):
+        """
+        Returns a django connection for a given DB Alias
         """
         if self._is_multidb():
-            from django.db import connections 
-            return connections[self.db_alias] 
+            from django.db import connections
+            return connections[self.db_alias]
         else:
-            from django.db import connection 
-            return connection 
+            from django.db import connection
+            return connection
 
     def _get_setting(self, setting_name):
         """
         Allows code to get a setting (like, for example, STORAGE_ENGINE)
         """
         setting_name = setting_name.upper()
-        connection = self._get_connection() 
+        connection = self._get_connection()
         if self._is_multidb():
             # Django 1.2 and above
-            return connection.settings_dict[setting_name] 
+            return connection.settings_dict[setting_name]
         else:
             # Django 1.1 and below
             return getattr(settings, "DATABASE_%s" % setting_name)
@@ -223,7 +227,6 @@ class DatabaseOperations(object):
             return self._get_setting('schema')
         except (KeyError, AttributeError):
             return self.default_schema_name
-
     
     def _possibly_initialise(self):
         if not self._initialised:
@@ -272,7 +275,6 @@ class DatabaseOperations(object):
         except:
             return []
 
-
     def execute_many(self, sql, regex=r"(?mx) ([^';]* (?:'[^']*'[^';]*)*)", comment_regex=r"(?mx) (?:^\s*$)|(?:--.*$)"):
         """
         Takes a SQL file and executes it as many separate statements.
@@ -286,14 +288,12 @@ class DatabaseOperations(object):
         for st in re.split(regex, sql)[1:][::2]:
             self.execute(st)
 
-
     def add_deferred_sql(self, sql):
         """
         Add a SQL statement to the deferred list, that won't be executed until
         this instance's execute_deferred_sql method is run.
         """
         self.deferred_sql.append(sql)
-
 
     def execute_deferred_sql(self):
         """
@@ -304,13 +304,11 @@ class DatabaseOperations(object):
 
         self.deferred_sql = []
 
-
     def clear_deferred_sql(self):
         """
         Resets the deferred_sql list to empty.
         """
         self.deferred_sql = []
-
 
     def clear_run_data(self, pending_creates = None):
         """
@@ -320,10 +318,8 @@ class DatabaseOperations(object):
         self.clear_deferred_sql()
         self.pending_create_signals = pending_creates or []
 
-
     def get_pending_creates(self):
         return self.pending_create_signals
-
 
     @invalidate_table_constraints
     def create_table(self, table_name, fields):
@@ -346,8 +342,7 @@ class DatabaseOperations(object):
             ', '.join([col for col in columns if col]),
         ))
 
-    add_table = alias('create_table') # Alias for consistency's sake
-
+    add_table = alias('create_table')  # Alias for consistency's sake
 
     @invalidate_table_constraints
     def rename_table(self, old_table_name, table_name):
@@ -362,7 +357,6 @@ class DatabaseOperations(object):
         # Invalidate the not-yet-indexed table
         self._set_cache(table_name, value=INVALID)
 
-
     @invalidate_table_constraints
     def delete_table(self, table_name, cascade=True):
         """
@@ -376,7 +370,6 @@ class DatabaseOperations(object):
 
     drop_table = alias('delete_table')
 
-
     @invalidate_table_constraints
     def clear_table(self, table_name):
         """
@@ -384,8 +377,6 @@ class DatabaseOperations(object):
         """
         params = (self.quote_name(table_name), )
         self.execute('DELETE FROM %s;' % params)
-
-
 
     @invalidate_table_constraints
     def add_column(self, table_name, name, field, keep_default=True):
@@ -412,7 +403,6 @@ class DatabaseOperations(object):
                 field.default = NOT_PROVIDED
                 self.alter_column(table_name, name, field, explicit_name=False, ignore_constraints=True)
 
-
     def _db_type_for_alter_column(self, field):
         """
         Returns a field's type suitable for ALTER COLUMN.
@@ -433,7 +423,7 @@ class DatabaseOperations(object):
         """
         pass
 
-    def _alter_set_defaults(self, field, name, params, sqls): 
+    def _alter_set_defaults(self, field, name, params, sqls):
         "Subcommand of alter_column that sets default values (overrideable)"
         # Next, set any default
         if not field.null and field.has_default():
@@ -540,7 +530,7 @@ class DatabaseOperations(object):
 
     def _fill_constraint_cache(self, db_name, table_name):
 
-        schema = self._get_schema_name()            
+        schema = self._get_schema_name()
         ifsc_tables = ["constraint_column_usage", "key_column_usage"]
 
         self._constraint_cache.setdefault(db_name, {})
@@ -600,8 +590,8 @@ class DatabaseOperations(object):
 
         cols = ", ".join(map(self.quote_name, columns))
         self.execute("ALTER TABLE %s ADD CONSTRAINT %s UNIQUE (%s)" % (
-            self.quote_name(table_name), 
-            self.quote_name(name), 
+            self.quote_name(table_name),
+            self.quote_name(name),
             cols,
         ))
         return name
@@ -626,10 +616,9 @@ class DatabaseOperations(object):
             raise ValueError("Cannot find a UNIQUE constraint on table %s, columns %r" % (table_name, columns))
         for constraint in constraints:
             self.execute(self.delete_unique_sql % (
-                self.quote_name(table_name), 
+                self.quote_name(table_name),
                 self.quote_name(constraint),
             ))
-
 
     def column_sql(self, table_name, field_name, field, tablespace='', with_name=True, field_prepared=False):
         """
@@ -732,7 +721,6 @@ class DatabaseOperations(object):
         else:
             return None
 
-
     def _field_sanity(self, field):
         """
         Placeholder for DBMS-specific field alterations (some combos aren't valid,
@@ -748,7 +736,7 @@ class DatabaseOperations(object):
         if isinstance(value, bool) and not self.has_booleans:
             return int(value)
         else:
-            return value 
+            return value
 
     def foreign_key_sql(self, from_table_name, from_column_name, to_table_name, to_column_name):
         """
@@ -761,9 +749,8 @@ class DatabaseOperations(object):
             self.quote_name(from_column_name),
             self.quote_name(to_table_name),
             self.quote_name(to_column_name),
-            self._get_connection().ops.deferrable_sql() # Django knows this
+            self._get_connection().ops.deferrable_sql()  # Django knows this
         )
-    
 
     @invalidate_table_constraints
     def delete_foreign_key(self, table_name, column):
@@ -771,7 +758,7 @@ class DatabaseOperations(object):
         if self.dry_run:
             if self.debug:
                 print '   - no dry run output for delete_foreign_key() due to dynamic DDL, sorry'
-            return # We can't look at the DB to get the constraints
+            return  # We can't look at the DB to get the constraints
         constraints = self._find_foreign_constraints(table_name, column)
         if not constraints:
             raise ValueError("Cannot find a FOREIGN KEY constraint on table %s, column %s" % (table_name, column))
@@ -816,10 +803,9 @@ class DatabaseOperations(object):
         index_name = ('%s_%s%s%s' % (table_name, column_names[0], index_unique_name, suffix)).replace('"', '').replace('.', '_')
         if len(index_name) > self.max_index_name_length:
             part = ('_%s%s%s' % (column_names[0], index_unique_name, suffix))
-            index_name = '%s%s' % (table_name[:(self.max_index_name_length-len(part))], part)
+            index_name = '%s%s' % (table_name[:(self.max_index_name_length - len(part))], part)
 
         return index_name
-
 
     def create_index_sql(self, table_name, column_names, unique=False, db_tablespace=''):
         """
@@ -850,7 +836,6 @@ class DatabaseOperations(object):
         sql = self.create_index_sql(table_name, column_names, unique, db_tablespace)
         self.execute(sql)
 
-
     @invalidate_table_constraints
     def delete_index(self, table_name, column_names, db_tablespace=''):
         """
@@ -869,25 +854,21 @@ class DatabaseOperations(object):
 
     drop_index = alias('delete_index')
 
-
     @delete_column_constraints
     def delete_column(self, table_name, name):
         """
         Deletes the column 'column_name' from the table 'table_name'.
         """
-        db_name = self._get_setting('NAME')
         params = (self.quote_name(table_name), self.quote_name(name))
         self.execute(self.delete_column_string % params, [])
 
     drop_column = alias('delete_column')
-
 
     def rename_column(self, table_name, old, new):
         """
         Renames the column 'old' from the table 'table_name' to 'new'.
         """
         raise NotImplementedError("rename_column has no generic SQL syntax")
-
 
     @invalidate_table_constraints
     def delete_primary_key(self, table_name):
@@ -912,7 +893,6 @@ class DatabaseOperations(object):
     
     drop_primary_key = alias('delete_primary_key')
 
-
     @invalidate_table_constraints
     def create_primary_key(self, table_name, columns):
         """
@@ -922,10 +902,9 @@ class DatabaseOperations(object):
             columns = [columns]
         self.execute(self.create_primary_key_string % {
             "table": self.quote_name(table_name),
-            "constraint": self.quote_name(table_name+"_pkey"),
+            "constraint": self.quote_name(table_name + "_pkey"),
             "columns": ", ".join(map(self.quote_name, columns)),
         })
-
 
     def start_transaction(self):
         """
@@ -938,7 +917,6 @@ class DatabaseOperations(object):
         transaction.enter_transaction_management()
         transaction.managed(True)
 
-
     def commit_transaction(self):
         """
         Commits the current transaction.
@@ -948,7 +926,6 @@ class DatabaseOperations(object):
             return
         transaction.commit()
         transaction.leave_transaction_management()
-
 
     def rollback_transaction(self):
         """
@@ -973,10 +950,8 @@ class DatabaseOperations(object):
             # This means we are missing a COMMIT/ROLLBACK.
             transaction.leave_transaction_management()
 
-
     def send_create_signal(self, app_label, model_names):
         self.pending_create_signals.append((app_label, model_names))
-
 
     def send_pending_create_signals(self, verbosity=0, interactive=False):
         # Group app_labels together
@@ -992,7 +967,6 @@ class DatabaseOperations(object):
                                            verbosity=verbosity,
                                            interactive=interactive)
         self.pending_create_signals = []
-
 
     def really_send_create_signal(self, app_label, model_names,
                                   verbosity=0, interactive=False):
@@ -1049,8 +1023,7 @@ class DatabaseOperations(object):
                         interactive=interactive,
                     )
 
-
-    def mock_model(self, model_name, db_table, db_tablespace='', 
+    def mock_model(self, model_name, db_table, db_tablespace='',
                    pk_field_name='id', pk_field_type=models.AutoField,
                    pk_field_args=[], pk_field_kwargs={}):
         """
@@ -1113,12 +1086,11 @@ class DatabaseOperations(object):
         """
         super(type(self), self)._alter_add_column_mods(field, name, params, sqls)
         if isinstance(field, (models.PositiveSmallIntegerField, models.PositiveIntegerField)):
-            uniq_hash = abs(hash(tuple(params.values()))) 
+            uniq_hash = abs(hash(tuple(params.values())))
             d = dict(
                      constraint = "CK_%s_PSTV_%s" % (name, hex(uniq_hash)[2:]),
                      check = "%s >= 0" % self.quote_name(name))
             sqls.append((self.add_check_constraint_fragment % d, []))
-    
 
 
 # Single-level flattening of lists
