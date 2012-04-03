@@ -164,13 +164,6 @@ END;
             (self.alter_string_set_default, params.copy()),
         ]
 
-        # UNIQUE constraint
-        unique_constraint = list(self._constraints_affecting_columns(table_name, [name], 'UNIQUE'))
-        if field.unique and not unique_constraint:
-            self.create_unique(table_name, [name])
-        elif not field.unique and unique_constraint:
-            self.delete_unique(table_name, [name])
-
         # drop CHECK constraints. Make sure this is executed before the ALTER TABLE statements
         # generated above, since those statements recreate the constraints we delete here.
         check_constraints = self._constraints_affecting_columns(table_name, [name], "CHECK")

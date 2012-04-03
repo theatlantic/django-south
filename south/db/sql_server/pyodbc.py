@@ -178,18 +178,12 @@ class DatabaseOperations(generic.DatabaseOperations):
         ret_val = super(DatabaseOperations, self).alter_column(table_name, name, field, explicit_name, ignore_constraints=True)
         
         if not ignore_constraints:
-            unique_field_handled = False
             for cname, (ctype,args) in constraints.items():
                 params = dict(table = table,
                               constraint = qn(cname))
                 if ctype=='UNIQUE':
-                    if len(args)==1:
-                        unique_field_handled = True # 
-                    if len(args)>1 or field.unique:
-                        params['columns'] = ", ".join(map(qn,args))
-                        sql = self.create_unique_sql % params
-                    else:
-                        continue
+                    params['columns'] = ", ".join(map(qn,args))
+                    sql = self.create_unique_sql % params
                 elif ctype=='PRIMARY KEY':
                     params['columns'] = ", ".join(map(qn,args))
                     sql = self.create_primary_key_string % params
@@ -209,9 +203,6 @@ class DatabaseOperations(generic.DatabaseOperations):
                 else:
                     raise NotImplementedError("Don't know how to handle constraints of type "+ type)                    
                 self.execute(sql, [])
-            # Create unique constraint if necessary
-            if field.unique and not unique_field_handled:
-                self.create_unique(table_name, (name,))
             # Create foreign key if necessary
             if field.rel and self.supports_foreign_keys:
                 self.execute(
