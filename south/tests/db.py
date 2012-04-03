@@ -217,26 +217,20 @@ class TestOperations(unittest.TestCase):
     
     def test_primary_key_implicit(self):
         """
-        Tests changing primary key implicitly.
+        Tests that changing primary key implicitly fails.
         """
-        
-        # This is ONLY important for SQLite. It's not a feature we support, but
-        # not implementing it means SQLite fails (due to the table-copying weirdness).
-        if db.backend_name != "sqlite3":
-            return
-        
         db.create_table("test_pki", [
             ('id', models.IntegerField(primary_key=True)),
             ('new_pkey', models.IntegerField()),
             ('eggs', models.IntegerField(unique=True)),
         ])
         db.execute_deferred_sql()
-        # Remove the default primary key, and make eggs it
+        # Fiddle with alter_column to attempt to make it remove the primary key
         db.alter_column("test_pki", "id", models.IntegerField())
         db.alter_column("test_pki", "new_pkey", models.IntegerField(primary_key=True))
-        # Try inserting a now-valid row pair
+        # Try inserting a should-be-valid row pair
         db.execute("INSERT INTO test_pki (id, new_pkey, eggs) VALUES (1, 2, 3)")
-        db.execute("INSERT INTO test_pki (id, new_pkey, eggs) VALUES (1, 3, 4)")
+        db.execute("INSERT INTO test_pki (id, new_pkey, eggs) VALUES (2, 2, 4)")
         db.delete_table("test_pki")
     
     def test_add_columns(self):
@@ -455,11 +449,11 @@ class TestOperations(unittest.TestCase):
         db.execute_deferred_sql()
         
         # Make sure the unique constraint is created
-        db.execute('INSERT INTO test_alter_unique VALUES (0, 42)')
+        db.execute('INSERT INTO test_alter_unique (spam, eggs) VALUES (0, 42)')
         db.commit_transaction()
         db.start_transaction()
         try:
-            db.execute("INSERT INTO test_alter_unique VALUES (1, 42)")
+            db.execute("INSERT INTO test_alter_unique (spam, eggs) VALUES (1, 42)")
         except:
             pass
         else:
@@ -472,7 +466,7 @@ class TestOperations(unittest.TestCase):
         # Insertion should still fail
         db.start_transaction()
         try:
-            db.execute("INSERT INTO test_alter_unique VALUES (1, 42)")
+            db.execute("INSERT INTO test_alter_unique (spam, eggs) VALUES (1, 42)")
         except:
             pass
         else:
@@ -546,6 +540,9 @@ class TestOperations(unittest.TestCase):
         Tests that the value constraint of PositiveIntegerField is enforced on
         the database level.
         """
+        if not db.has_check_constraints:
+            return
+        
         db.create_table("test_column_constraint", [
             ('spam', models.PositiveIntegerField()),
         ])

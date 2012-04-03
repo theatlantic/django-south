@@ -12,6 +12,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     # SQLite ignores several constraints. I wish I could.
     supports_foreign_keys = False
     has_check_constraints = False
+    has_booleans = False
 
     def add_column(self, table_name, name, field, *args, **kwds):
         """
@@ -72,19 +73,27 @@ class DatabaseOperations(generic.DatabaseOperations):
                 type += " NOT NULL"
             if indexes[name]['unique'] and name not in uniques_deleted:
                 type += " UNIQUE"
-
             if column_info['dflt_value'] is not None:
                 type += " DEFAULT " + column_info['dflt_value']
-
             # Deal with a rename
             if name in renames:
                 name = renames[name]
             # Add to the defs
             definitions[name] = type
         # Add on altered columns
-        definitions.update(altered)
+        for name, type in altered.items():
+            print name, type
+            if (primary_key_override and primary_key_override == name) or \
+               (not primary_key_override and indexes[name]['primary_key']):
+                type += " PRIMARY KEY"
+            if indexes[name]['unique'] and name not in uniques_deleted:
+                type += " UNIQUE"
+            definitions[name] = type
         # Add on the new columns
-        definitions.update(added)
+        for name, type in added.items():
+            if (primary_key_override and primary_key_override == name):
+                type += " PRIMARY KEY"
+            definitions[name] = type
         # Alright, Make the table
         self.execute("CREATE TABLE %s (%s)" % (
             self.quote_name(temp_name),
@@ -168,17 +177,15 @@ class DatabaseOperations(generic.DatabaseOperations):
                 self._create_unique(table_name, columns)
     
     def _column_sql_for_create(self, table_name, name, field, explicit_name=True):
-        "Given a field and its name, returns the full type for the CREATE TABLE."
+        "Given a field and its name, returns the full type for the CREATE TABLE (without unique/pk)"
         field.set_attributes_from_name(name)
         if not explicit_name:
             name = field.db_column
         else:
             field.column = name
         sql = self.column_sql(table_name, name, field, with_name=False, field_prepared=True)
-        #if field.primary_key:
-        #    sql += " PRIMARY KEY"
-        #if field.unique:
-        #    sql += " UNIQUE"
+        # Remove keywords we don't want (this should be type only, not constraint)
+        sql = sql.replace("PRIMARY KEY", "")
         return sql
     
     def alter_column(self, table_name, name, field, explicit_name=True, ignore_constraints=False):
@@ -232,3 +239,10 @@ class DatabaseOperations(generic.DatabaseOperations):
     # No cascades on deletes
     def delete_table(self, table_name, cascade=True):
         generic.DatabaseOperations.delete_table(self, table_name, False)
+
+    def _default_value_workaround(self, default):
+        if default == True:
+            default = 1
+        elif default == False:
+            default = 0
+        return default
