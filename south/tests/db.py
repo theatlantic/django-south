@@ -445,8 +445,8 @@ class TestOperations(unittest.TestCase):
     
     def test_alter_unique(self):
         """
-        Tests that unique constraints are properly created and deleted when
-        altering columns.
+        Tests that unique constraints are not affected when
+        altering columns (that's handled by create_/delete_unique)
         """
         db.create_table("test_alter_unique", [
             ('spam', models.IntegerField()),
@@ -463,25 +463,20 @@ class TestOperations(unittest.TestCase):
         except:
             pass
         else:
-            self.fail("Could insert the same integer twice into a field with unique=True.")
+            self.fail("Could insert the same integer twice into a unique field.")
         db.rollback_transaction()
 
-        # remove constraint
+        # Alter without unique=True (should not affect anything)
         db.alter_column("test_alter_unique", "eggs", models.IntegerField())
-        # make sure the insertion works now
-        db.execute('INSERT INTO test_alter_unique VALUES (1, 42)')
-        
-        # add it back again
-        db.execute('DELETE FROM test_alter_unique WHERE spam=1')
-        db.alter_column("test_alter_unique", "eggs", models.IntegerField(unique=True))
-        # it should fail again
+
+        # Insertion should still fail
         db.start_transaction()
         try:
             db.execute("INSERT INTO test_alter_unique VALUES (1, 42)")
         except:
             pass
         else:
-            self.fail("Unique constraint not created during alter_column()")
+            self.fail("Could insert the same integer twice into a unique field after alter_column with unique=False.")
         db.rollback_transaction()
         
         # Delete the unique index/constraint
