@@ -185,7 +185,8 @@ class DatabaseOperations(generic.DatabaseOperations):
             field.column = name
         sql = self.column_sql(table_name, name, field, with_name=False, field_prepared=True)
         # Remove keywords we don't want (this should be type only, not constraint)
-        sql = sql.replace("PRIMARY KEY", "")
+        if sql:
+            sql = sql.replace("PRIMARY KEY", "")
         return sql
     
     def alter_column(self, table_name, name, field, explicit_name=True, ignore_constraints=False):
