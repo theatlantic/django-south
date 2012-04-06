@@ -21,49 +21,36 @@ from django.utils import datetime_safe
 NOISY = False
 
 try:
-    from django.db.models import CASCADE, PROTECT, SET, SET_NULL, SET_DEFAULT, DO_NOTHING
-    on_delete_is_available = True
-except ImportError:
-    on_delete_is_available = False
-try:
     from django.utils import timezone
 except ImportError:
     timezone = False
 
-if on_delete_is_available:
-    def convert_on_delete_handler(value):
-        django_db_models_module = 'models' # relative to standard import 'django.db'
-        if django_db_models_module:
-            if value in (CASCADE, PROTECT, DO_NOTHING, SET_DEFAULT):
-                # straightforward functions
-                return '%s.%s' % (django_db_models_module, value.__name__)
-            else:
-                # This is totally dependent on the implementation of django.db.models.deletion.SET
-                func_name = getattr(value, '__name__', None)
-                if func_name == 'set_on_delete':
-                    # we must inspect the function closure to see what parameters were passed in
-                    closure_contents = value.func_closure[0].cell_contents
-                    if closure_contents is None:
-                        return "%s.SET_NULL" % (django_db_models_module)
-                    # simple function we can perhaps cope with:
-                    elif hasattr(closure_contents, '__call__'):
-                        # module_name = getattr(closure_contents, '__module__', None)
-                        # inner_func_name = getattr(closure_contents, '__name__', None)
-                        # if inner_func_name:
-                            # TODO there is no way of checking that module_name matches the
-                            # model file, which is the only code that will be imported in
-                            # the Fake ORM. Any other functions won't be available.
-                            # TODO this doesn't work anyway yet as even the app's models
-                            # file is not imported, contrary to the coments in
-                            # orm.LazyFakeORM.eval_in_context, which implies that
-                            # migrations are expected to import that.
-                            # return "%s.SET(%s)" % (django_db_models_module, inner_func_name)
-                        raise ValueError("Function for on_delete could not be serialized.")
-                    else:
-                        # an actual value rather than a sentinel function - insanity
-                        raise ValueError("on_delete=SET with a model instance is not supported.")
-                        
-        raise ValueError("%s was not recognized as a valid model deletion handler. Possible values: %s." % (value, ', '.join(f.__name__ for f in (CASCADE, PROTECT, SET, SET_NULL, SET_DEFAULT, DO_NOTHING))))
+
+# Define any converter functions first to prevent NameErrors
+
+def convert_on_delete_handler(value):
+    django_db_models_module = 'models'  # relative to standard import 'django.db'
+    if hasattr(models, "PROTECT"):
+        if value in (models.CASCADE, models.PROTECT, models.DO_NOTHING, models.SET_DEFAULT):
+            # straightforward functions
+            return '%s.%s' % (django_db_models_module, value.__name__)
+        else:
+            # This is totally dependent on the implementation of django.db.models.deletion.SET
+            func_name = getattr(value, '__name__', None)
+            if func_name == 'set_on_delete':
+                # we must inspect the function closure to see what parameters were passed in
+                closure_contents = value.func_closure[0].cell_contents
+                if closure_contents is None:
+                    return "%s.SET_NULL" % (django_db_models_module)
+                # simple function we can perhaps cope with:
+                elif hasattr(closure_contents, '__call__'):
+                    raise ValueError("South does not support on_delete with SET(function) as values.")
+                else:
+                    # Attempt to serialise the value
+                    return "%s.SET(%s)" % (django_db_models_module, value_clean(closure_contents))
+        raise ValueError("%s was not recognized as a valid model deletion handler. Possible values: %s." % (value, ', '.join(f.__name__ for f in (models.CASCADE, models.PROTECT, models.SET, models.SET_NULL, models.SET_DEFAULT, models.DO_NOTHING))))
+    else:
+        raise ValueError("on_delete argument encountered in Django version that does not support it")
 
 # Gives information about how to introspect certain fields.
 # This is a list of triples; the first item is a list of fields it applies to,
@@ -96,16 +83,13 @@ introspection_details = [
     (
         (models.ForeignKey, models.OneToOneField),
         [],
-        dict ( [
+        dict([
             ("to", ["rel.to", {}]),
             ("to_field", ["rel.field_name", {"default_attr": "rel.to._meta.pk.name"}]),
             ("related_name", ["rel.related_name", {"default": None}]),
             ("db_index", ["db_index", {"default": True}]),
-            ] + 
-            # on_delete was added in Django 1.3, only use it when available
-            (on_delete_is_available \
-                and [("on_delete", ["rel.on_delete", {"default": CASCADE, "is_django_function": True, "converter": convert_on_delete_handler, }])] \
-                or []))
+            ("on_delete", ["rel.on_delete", {"default": getattr(models, "CASCADE", None), "is_django_function": True, "converter": convert_on_delete_handler}])
+        ])
     ),
     (
         (models.ManyToManyField,),
@@ -205,11 +189,13 @@ def add_introspection_rules(rules=[], patterns=[]):
     allowed_fields.extend(patterns)
     introspection_details.extend(rules)
 
+
 def add_ignored_fields(patterns):
     "Allows you to add some ignore field patterns."
     assert isinstance(patterns, (list, tuple))
     ignored_fields.extend(patterns)
     
+
 def can_ignore(field):
     """
     Returns True if we know for certain that we can ignore this field, False
@@ -220,6 +206,7 @@ def can_ignore(field):
         if re.match(regex, full_name):
             return True
     return False
+
 
 def can_introspect(field):
     """
@@ -364,6 +351,7 @@ def value_clean(value, options={}):
         return value
     else:
         return repr(value)
+
 
 def introspector(field):
     """
