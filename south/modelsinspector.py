@@ -88,7 +88,7 @@ introspection_details = [
             ("to_field", ["rel.field_name", {"default_attr": "rel.to._meta.pk.name"}]),
             ("related_name", ["rel.related_name", {"default": None}]),
             ("db_index", ["db_index", {"default": True}]),
-            ("on_delete", ["rel.on_delete", {"default": getattr(models, "CASCADE", None), "is_django_function": True, "converter": convert_on_delete_handler}])
+            ("on_delete", ["rel.on_delete", {"default": getattr(models, "CASCADE", None), "is_django_function": True, "converter": convert_on_delete_handler, "ignore_missing": True}])
         ])
     ),
     (
