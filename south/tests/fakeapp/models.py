@@ -3,7 +3,9 @@
 from django.db import models
 from django.contrib.auth.models import User as UserAlias
 
-from south.modelsinspector import add_introspection_rules, on_delete_is_available
+from south.modelsinspector import add_introspection_rules
+
+on_delete_is_available = hasattr(models, "PROTECT") # models here is django.db.models
 
 def default_func():
     return "yays"

@@ -1,8 +1,10 @@
 from south.tests import Monkeypatcher
 from south.modelsinspector import *
-from fakeapp.models import HorribleModel
+from fakeapp.models import HorribleModel, get_sentinel_object
 
 from django.utils.functional import wraps
+
+on_delete_is_available = hasattr(models, "PROTECT") # models here is django.db.models
 
 try:
     # skipUnless added in Python 2.7;
@@ -84,7 +86,7 @@ class TestModelInspector(Monkeypatcher):
         # TODO this is repeated from the introspection_details in modelsinspector:
         # better to refactor that so we can reference these settings, in case they
         # must change at some point.
-        on_delete = ["rel.on_delete", {"default": CASCADE, "is_django_function": True, "converter": convert_on_delete_handler, }]
+        on_delete = ["rel.on_delete", {"default": models.CASCADE, "is_django_function": True, "converter": convert_on_delete_handler, }]
         
         # Foreign Key cascade update/delete
         self.assertRaises(
@@ -120,10 +122,8 @@ class TestModelInspector(Monkeypatcher):
             o_set_on_delete_function,
             on_delete,
         )
-        self.assertRaises(
-            ValueError,
-            get_value,
-            o_set_on_delete_value, # setting to a specific value not supported
-            on_delete,
+        self.assertEqual(
+            get_value(o_set_on_delete_value, on_delete),
+            "models.SET(%s)" % value_clean(get_sentinel_object()),
         )
         
