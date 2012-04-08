@@ -393,8 +393,11 @@ class DatabaseOperations(generic.DatabaseOperations):
         params = (self.quote_name(old_table_name), self.quote_name(table_name))
         self.execute('EXEC sp_rename %s, %s' % params)
 
-    _db_type_for_alter_column = generic.alias("_db_positive_type_for_alter_column")
-    _alter_add_column_mods = generic.alias("_alter_add_positive_check")
+    def _db_type_for_alter_column(self, field): 
+        return self._db_positive_type_for_alter_column(DatabaseOperations, field)
+
+    def _alter_add_column_mods(self, field, name, params, sqls):
+        return self._alter_add_positive_check(DatabaseOperations, field, name, params, sqls)
 
     @invalidate_table_constraints
     def delete_foreign_key(self, table_name, column):

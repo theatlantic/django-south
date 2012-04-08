@@ -75,5 +75,8 @@ class DatabaseOperations(generic.DatabaseOperations):
         "Rename an index individually"
         generic.DatabaseOperations.rename_table(self, old_index_name, index_name)
 
-    _db_type_for_alter_column = generic.alias("_db_positive_type_for_alter_column")
-    _alter_add_column_mods = generic.alias("_alter_add_positive_check")
+    def _db_type_for_alter_column(self, field): 
+        return self._db_positive_type_for_alter_column(DatabaseOperations, field)
+
+    def _alter_add_column_mods(self, field, name, params, sqls):
+        return self._alter_add_positive_check(DatabaseOperations, field, name, params, sqls)
