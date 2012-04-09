@@ -1,3 +1,4 @@
+import uuid
 from django.db.backends.util import truncate_name
 from south.db import generic
 
@@ -74,6 +75,13 @@ class DatabaseOperations(generic.DatabaseOperations):
     def rename_index(self, old_index_name, index_name):
         "Rename an index individually"
         generic.DatabaseOperations.rename_table(self, old_index_name, index_name)
+
+    def _default_value_workaround(self, value):
+        "Support for UUIDs on psql"
+        if isinstance(value, uuid.UUID):
+            return str(value)
+        else:
+            return super(DatabaseOperations, self)._default_value_workaround(value)
 
     def _db_type_for_alter_column(self, field): 
         return self._db_positive_type_for_alter_column(DatabaseOperations, field)
