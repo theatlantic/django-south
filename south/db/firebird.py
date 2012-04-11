@@ -14,6 +14,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     alter_string_set_default =  'ALTER %(column)s SET DEFAULT %(default)s;'
     alter_string_drop_null = ''
     add_column_string = 'ALTER TABLE %s ADD %s;'
+    delete_column_string = 'ALTER TABLE %s DROP %s;'
     allows_combined_alters = False
 
     def _fill_constraint_cache(self, db_name, table_name):
@@ -309,3 +310,16 @@ class DatabaseOperations(generic.DatabaseOperations):
                         field.rel.to._meta.get_field(field.rel.field_name).column
                     )
                 )
+
+    @generic.copy_column_constraints
+    @generic.delete_column_constraints
+    def rename_column(self, table_name, old, new):
+        if old == new:
+            # Short-circuit out
+            return []
+
+        self.execute('ALTER TABLE %s ALTER %s TO %s;' % (
+            self.quote_name(table_name),
+            self.quote_name(old),
+            self.quote_name(new),
+        ))
