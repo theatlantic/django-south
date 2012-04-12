@@ -73,7 +73,7 @@ class DatabaseOperations(generic.DatabaseOperations):
 
 
     @generic.invalidate_table_constraints
-    def create_table(self, table_name, fields): 
+    def create_table(self, table_name, fields):
         qn = self.quote_name(table_name)
         columns = []
         autoinc_sql = ''
@@ -129,15 +129,9 @@ class DatabaseOperations(generic.DatabaseOperations):
                 # Just use UNIQUE (no indexes any more, we have delete_unique)
                 field_output.append('UNIQUE')
 
-            tablespace = field.db_tablespace or tablespace
-            if tablespace and getattr(self._get_connection().features, "supports_tablespaces", False) and field.unique:
-                # We must specify the index tablespace inline, because we
-                # won't be generating a CREATE INDEX statement for this field.
-                field_output.append(self._get_connection().ops.tablespace_sql(tablespace, inline=True))
-
             sql = ' '.join(field_output)
-
             sqlparams = ()
+
             # if the field is "NOT NULL" and a default value is provided, create the column with it
             # this allows the addition of a NOT NULL field to a table with existing rows
             if not getattr(field, '_suppress_default', False):
@@ -167,8 +161,8 @@ class DatabaseOperations(generic.DatabaseOperations):
                     #    raise ValueError("Attempting to add a non null column that isn't character based without an explicit default value.")
 
             # Firebird need set not null after of default value keyword
-            if not field.null:
-                field_output.append('NOT NULL')
+            if not field.primary_key and not field.null:
+                sql += ' NOT NULL'
 
             if field.rel and self.supports_foreign_keys:
                 self.add_deferred_sql(
