@@ -22,11 +22,10 @@ class DatabaseOperations(generic.DatabaseOperations):
 
         if len(column_names) == 1:
             return truncate_name(
-                '%s_%s' % (table_name, column_names[0]),
+                '%s_%s%s' % (table_name, column_names[0], suffix),
                 self._get_connection().ops.max_name_length()
             )
         return super(DatabaseOperations, self).create_index_name(table_name, column_names, suffix)
-
 
     @generic.copy_column_constraints
     @generic.delete_column_constraints
