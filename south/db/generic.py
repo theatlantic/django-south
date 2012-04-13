@@ -944,7 +944,7 @@ class DatabaseOperations(object):
         if not self.dry_run:
             return
         while self.pending_transactions > 0:
-            self.rollback_transaction(using=self.db_alias)
+            self.rollback_transaction()
         if transaction.is_dirty(using=self.db_alias):
             # Force an exception, if we're still in a dirty transaction.
             # This means we are missing a COMMIT/ROLLBACK.
