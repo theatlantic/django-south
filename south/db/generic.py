@@ -103,7 +103,7 @@ class DatabaseOperations(object):
         "Tests the database using feature detection to see if it has DDL transactional support"
         self._possibly_initialise()
         connection = self._get_connection()
-        if not connection.features._confirmed:
+        if hasattr(connection.features, "confirm") and not connection.features._confirmed:
             connection.features.confirm()
         # Django 1.3's MySQLdb backend doesn't raise DatabaseError
         exceptions = (DatabaseError, )
