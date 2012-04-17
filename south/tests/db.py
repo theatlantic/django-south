@@ -508,11 +508,11 @@ class TestOperations(unittest.TestCase):
         db.execute("INSERT INTO test_text_to_char VALUES (%s)", [value])
         db.alter_column("test_text_to_char", "textcol", models.CharField(max_length=100))
         after = db.execute("select * from test_text_to_char")[0][0]
-        self.assertEqual(value, after, "Change from text to char altered value")
+        self.assertEqual(value, after, "Change from text to char altered value [ %s != %s ]" % (`value`,`after`))
 
     def test_char_to_text(self):
         """
-        On Oracle, you can't simply ALTER TABLE MODIFY a textfield to a charfield
+        On Oracle, you can't simply ALTER TABLE MODIFY a charfield to a textfield either
         """
         value = "agnabawak"
         db.create_table("test_char_to_text", [
@@ -521,7 +521,8 @@ class TestOperations(unittest.TestCase):
         db.execute("INSERT INTO test_char_to_text VALUES (%s)", [value])
         db.alter_column("test_char_to_text", "textcol", models.TextField())
         after = db.execute("select * from test_char_to_text")[0][0]
-        self.assertEqual(value, after, "Change from char to text altered value")
+        after = unicode(after) # Oracle text fields return a sort of lazy string -- force evaluation
+        self.assertEqual(value, after, "Change from char to text altered value [ %s != %s ]" % (`value`,`after`))
 
     def test_datetime_default(self):
         """
