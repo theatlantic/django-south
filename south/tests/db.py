@@ -497,6 +497,32 @@ class TestOperations(unittest.TestCase):
             ('textcol', models.TextField(blank=True)),
         ])
 
+    def test_text_to_char(self):
+        """
+        On Oracle, you can't simply ALTER TABLE MODIFY a textfield to a charfield
+        """
+        value = "kawabanga"
+        db.create_table("test_text_to_char", [
+            ('textcol', models.TextField()),
+        ])
+        db.execute("INSERT INTO test_text_to_char VALUES (%s)", [value])
+        db.alter_column("test_text_to_char", "textcol", models.CharField(max_length=100))
+        after = db.execute("select * from test_text_to_char")[0][0]
+        self.assertEqual(value, after, "Change from text to char altered value")
+
+    def test_char_to_text(self):
+        """
+        On Oracle, you can't simply ALTER TABLE MODIFY a textfield to a charfield
+        """
+        value = "agnabawak"
+        db.create_table("test_char_to_text", [
+            ('textcol', models.CharField(max_length=100)),
+        ])
+        db.execute("INSERT INTO test_char_to_text VALUES (%s)", [value])
+        db.alter_column("test_char_to_text", "textcol", models.TextField())
+        after = db.execute("select * from test_char_to_text")[0][0]
+        self.assertEqual(value, after, "Change from char to text altered value")
+
     def test_datetime_default(self):
         """
         Test that defaults are created correctly for datetime columns
