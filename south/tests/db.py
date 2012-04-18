@@ -287,6 +287,17 @@ class TestOperations(unittest.TestCase):
         db.alter_column("test_alterc", "eggs", models.FloatField())
         db.delete_table("test_alterc")
     
+    def test_alter_char_default(self):
+        """
+        Test altering column defaults with char fields
+        """
+        db.create_table("test_altercd", [
+            ('spam', models.CharField(max_length=30)),
+            ('eggs', models.IntegerField()),
+        ])
+        # Change spam default
+        db.alter_column("test_altercd", "spam", models.CharField(max_length=30, default="loof"))
+        
     def test_mysql_defaults(self):
         """
         Test MySQL default handling for BLOB and TEXT.
