@@ -5,6 +5,7 @@ from django.db.models import fields
 from south.db import generic
 from south.db.generic import delete_column_constraints, invalidate_table_constraints, copy_column_constraints
 from south.exceptions import ConstraintDropped
+from django.utils.encoding import smart_unicode
 
 class DatabaseOperations(generic.DatabaseOperations):
     """
