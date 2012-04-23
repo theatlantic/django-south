@@ -100,7 +100,10 @@ class DatabaseOperations(object):
 
     @cached_property
     def has_ddl_transactions(self):
-        "Tests the database using feature detection to see if it has DDL transactional support"
+        """
+        Tests the database using feature detection to see if it has
+        transactional DDL support.
+        """
         self._possibly_initialise()
         connection = self._get_connection()
         if hasattr(connection.features, "confirm") and not connection.features._confirmed:
@@ -756,7 +759,9 @@ class DatabaseOperations(object):
 
     @invalidate_table_constraints
     def delete_foreign_key(self, table_name, column):
-        "Drop a foreign key constraint"
+        """
+        Drop a foreign key constraint
+        """
         if self.dry_run:
             if self.debug:
                 print '   - no dry run output for delete_foreign_key() due to dynamic DDL, sorry'
@@ -773,8 +778,19 @@ class DatabaseOperations(object):
     drop_foreign_key = alias('delete_foreign_key')
 
     def _find_foreign_constraints(self, table_name, column_name=None):
-        return list(self._constraints_affecting_columns(
-                    table_name, [column_name], "FOREIGN KEY"))
+        constraints = self._constraints_affecting_columns(
+                            table_name, [column_name], "FOREIGN KEY")
+        
+        primary_key_columns = self._find_primary_key_columns(table_name)
+        
+        if len(primary_key_columns) > 1:
+            # Composite primary keys cannot be referenced by a foreign key
+            return list(constraints)
+        else:
+            primary_key_columns.add(column_name)
+            recursive_constraints = set(self._constraints_affecting_columns(
+                                table_name, primary_key_columns, "FOREIGN KEY"))
+            return list(recursive_constraints.union(constraints))
 
     def _digest(self, *args):
         """
@@ -907,6 +923,20 @@ class DatabaseOperations(object):
             "constraint": self.quote_name(table_name + "_pkey"),
             "columns": ", ".join(map(self.quote_name, columns)),
         })
+
+    def _find_primary_key_columns(self, table_name):
+        """
+        Find all columns of the primary key of the specified table
+        """
+        db_name = self._get_setting('NAME')
+        
+        primary_key_columns = set()
+        for col, constraints in self.lookup_constraint(db_name, table_name):
+            for kind, cname in constraints:
+                if kind == 'PRIMARY KEY':
+                    primary_key_columns.add(col.lower())
+                    
+        return primary_key_columns
 
     def start_transaction(self):
         """
