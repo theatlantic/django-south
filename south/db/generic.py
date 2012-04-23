@@ -780,9 +780,9 @@ class DatabaseOperations(object):
     def _find_foreign_constraints(self, table_name, column_name=None):
         constraints = self._constraints_affecting_columns(
                             table_name, [column_name], "FOREIGN KEY")
-        
+
         primary_key_columns = self._find_primary_key_columns(table_name)
-        
+
         if len(primary_key_columns) > 1:
             # Composite primary keys cannot be referenced by a foreign key
             return list(constraints)
