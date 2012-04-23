@@ -2,6 +2,7 @@ import unittest
 
 from south.db import db, generic
 from django.db import connection, models
+from django.utils.unittest.case import skipUnless
 
 # Create a list of error classes from the various database libraries
 errors = []
@@ -92,6 +93,22 @@ class TestOperations(unittest.TestCase):
             ('UNIQUE', models.ForeignKey(Test)),
         ])
         db.execute_deferred_sql()
+        
+    @skipUnless(db.supports_foreign_keys, 'Foreign keys can only be deleted on '
+                                          'engines that support them.')
+    def test_recursive_foreign_key_delete(self):
+        """
+        Test that recursive foreign keys are deleted correctly (see #1065)
+        """
+        Test = db.mock_model(model_name='Test', db_table='test_rec_fk_del',
+                             db_tablespace='', pk_field_name='id',
+                             pk_field_type=models.AutoField, pk_field_args=[])
+        db.create_table('test_rec_fk_del', [
+            ('id', models.AutoField(primary_key=True, auto_created=True)),
+            ('fk', models.ForeignKey(Test)),
+        ])
+        db.execute_deferred_sql()
+        db.delete_foreign_key('test_rec_fk_del', 'fk_id')
     
     def test_rename(self):
         """
