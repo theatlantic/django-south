@@ -82,7 +82,6 @@ class DatabaseOperations(generic.DatabaseOperations):
             definitions[name] = type
         # Add on altered columns
         for name, type in altered.items():
-            print name, type
             if (primary_key_override and primary_key_override == name) or \
                (not primary_key_override and indexes[name]['primary_key']):
                 type += " PRIMARY KEY"
