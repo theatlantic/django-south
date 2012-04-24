@@ -1,3 +1,4 @@
+import datetime
 import unittest
 
 from south.db import db, generic
@@ -556,13 +557,16 @@ class TestOperations(unittest.TestCase):
         """
         Test that defaults are created correctly for datetime columns
         """
-        from datetime import datetime
+        end_of_world = datetime.datetime(2012, 12, 21, 0, 0, 1)
 
         try:
             from django.utils import timezone
-            end_of_world = datetime(2012, 12, 21, 0, 0, 1, tzinfo=timezone.utc)
         except ImportError:
-            end_of_world = datetime(2012, 12, 21, 0, 0, 1)
+            pass
+        else:
+            from django.conf import settings
+            if getattr(settings, 'USE_TZ', False):
+                end_of_world = end_of_world.replace(tzinfo=timezone.utc)
 
         db.create_table("test_datetime_def", [
             ('col0', models.IntegerField(null=True)),
