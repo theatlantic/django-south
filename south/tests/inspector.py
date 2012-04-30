@@ -6,28 +6,9 @@ from django.utils.functional import wraps
 
 on_delete_is_available = hasattr(models, "PROTECT") # models here is django.db.models
 
-try:
-    # skipUnless added in Python 2.7;
-    from unittest import skipUnless
-    skipUnlessOnDeleteAvailable = skipUnless(on_delete_is_available, "not testing on_delete -- not available on Django<1.3")
-except ImportError:
-    try: 
-        # django.utils.unittest added in Django 1.3;
-        from django.utils.unittest import skipUnless
-        skipUnlessOnDeleteAvailable = skipUnless(on_delete_is_available, "not testing on_delete -- not available on Django<1.3")
-    except ImportError:
-        def skipUnlessOnDeleteAvailable(testfunc):
-            @wraps(testfunc)
-            def wrapper(self):
-                if on_delete_is_available:
-                    # Apply method
-                    getattr(self, testfunc.__name__)()
-                else:
-                    # The skip exceptions are not available either...
-                    print "Skipping", testfunc.__name__,"--", "not testing on_delete -- not available on Django<1.3"
-            return wrapper
-                    
-                
+from south.tests import skipUnless        
+skipUnlessOnDeleteAvailable = skipUnless(on_delete_is_available, "not testing on_delete -- not available on Django<1.3")                    
+
 
 class TestModelInspector(Monkeypatcher):
 
