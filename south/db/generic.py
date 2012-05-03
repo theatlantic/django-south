@@ -807,7 +807,7 @@ class DatabaseOperations(object):
         """
 
         # If there is just one column in the index, use a default algorithm from Django
-        if len(column_names) == 1:
+        if len(column_names) == 1 and not suffix:
             return truncate_name(
                 '%s_%s' % (table_name, self._digest(column_names[0])),
                 self._get_connection().ops.max_name_length()
