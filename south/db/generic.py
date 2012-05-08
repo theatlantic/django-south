@@ -122,11 +122,12 @@ class DatabaseOperations(object):
             cursor.execute('CREATE TABLE DDL_TRANSACTION_TEST (X INT)')
             self.rollback_transaction()
             try:
-                cursor.execute('CREATE TABLE DDL_TRANSACTION_TEST (X INT)')
-            except exceptions:
-                return False
-            else:
-                return True
+                try:
+                    cursor.execute('CREATE TABLE DDL_TRANSACTION_TEST (X INT)')
+                except exceptions:
+                    return False
+                else:
+                    return True
             finally:
                 cursor.execute('DROP TABLE DDL_TRANSACTION_TEST')
         else:
