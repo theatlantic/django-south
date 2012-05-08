@@ -46,6 +46,7 @@ setup(
         'south.tests.otherfakeapp',
         'south.tests.deps_c',
         'south.tests.deps_b',
+        'south.tests.non_managed',
         'south.tests.circular_a.migrations',
         'south.tests.emptyapp.migrations',
         'south.tests.deps_a.migrations',
@@ -55,7 +56,7 @@ setup(
         'south.tests.otherfakeapp.migrations',
         'south.tests.deps_c.migrations',
         'south.tests.deps_b.migrations',
-        'south.tests.non_managed',
+        'south.tests.non_managed.migrations',
         'south.utils',
     ],
 )
