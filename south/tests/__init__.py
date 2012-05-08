@@ -52,22 +52,18 @@ try:
     # skipUnless added in Python 2.7;
     from unittest import skipUnless
 except ImportError:
-    try: 
-        # django.utils.unittest added in Django 1.3;
-        from django.utils.unittest import skipUnless
-    except ImportError:
-        def skipUnless(condition, message):
-            def decorator(testfunc):
-                @wraps(testfunc)
-                def wrapper(self):
-                    if condition:
-                        # Apply method
-                        testfunc(self)
-                    else:
-                        # The skip exceptions are not available either...
-                        print "Skipping", testfunc.__name__,"--", message
-                return wrapper
-            return decorator
+    def skipUnless(condition, message):
+        def decorator(testfunc):
+            @wraps(testfunc)
+            def wrapper(self):
+                if condition:
+                    # Apply method
+                    testfunc(self)
+                else:
+                    # The skip exceptions are not available either...
+                    print "Skipping", testfunc.__name__,"--", message
+            return wrapper
+        return decorator
 
 
 # Try importing all tests if asked for (then we can run 'em)
