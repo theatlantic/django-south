@@ -67,11 +67,13 @@ class DatabaseOperations(generic.DatabaseOperations):
             type = column_info['type'].replace("PRIMARY KEY", "")
             # Add on primary key, not null or unique if needed.
             if (primary_key_override and primary_key_override == name) or \
-               (not primary_key_override and indexes[name]['primary_key']):
+               (not primary_key_override and name in indexes and
+                indexes[name]['primary_key']):
                 type += " PRIMARY KEY"
             elif not column_info['null_ok']:
                 type += " NOT NULL"
-            if indexes[name]['unique'] and name not in uniques_deleted:
+            if (name in indexes and indexes[name]['unique'] and
+                name not in uniques_deleted):
                 type += " UNIQUE"
             if column_info['dflt_value'] is not None:
                 type += " DEFAULT " + column_info['dflt_value']
@@ -83,9 +85,11 @@ class DatabaseOperations(generic.DatabaseOperations):
         # Add on altered columns
         for name, type in altered.items():
             if (primary_key_override and primary_key_override == name) or \
-               (not primary_key_override and indexes[name]['primary_key']):
+               (not primary_key_override and name in indexes and
+                indexes[name]['primary_key']):
                 type += " PRIMARY KEY"
-            if indexes[name]['unique'] and name not in uniques_deleted:
+            if (name in indexes and indexes[name]['unique'] and
+                name not in uniques_deleted):
                 type += " UNIQUE"
             definitions[name] = type
         # Add on the new columns
