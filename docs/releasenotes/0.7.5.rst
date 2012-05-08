@@ -1,0 +1,63 @@
+
+.. _0-7-5-release-notes:
+
+===========
+South 0.7.5
+===========
+
+This is a minor new release of South, and the fifth bugfix release for the 
+:ref:`0.7 series <0-7-release-notes>`.
+
+
+Compatability Notes
+===================
+
+From now on, South will only officially be compatable with Django 1.2 and up, and thus only with Python 2.4 and up. Future versions of South are likely to require newer and newer versions of Django in order to simplify the codebase somewhat.
+
+
+Backwards incompatible changes
+==============================
+
+None.
+
+
+Index naming
+============
+
+Single-column indexes should now be named the same as if they were created using ``syncdb``
+
+
+UUIDs
+=====
+
+UUID default values now work correctly on the PostgreSQL backend.
+
+
+Transactions
+============
+
+Transactions now use the correct database in a multi-db setup - previously, they were sometimes using the default database instead of another configured one.
+
+
+Recursive Foreign Keys
+======================
+
+Deletion of self-referencing ForeignKeys is now possible again.
+
+
+Unmanaged models
+================
+
+A bug with ignoring changes to unmanaged models has been fixed, so they are now ignored properly.
+
+
+Oracle/SQL Server
+=================
+
+A few minor fixes, including the ability to change TextFields to CharFields and vice-versa on the Oracle backend.
+
+
+Other fixes
+===========
+
+As usual, there are tens of other minor fixes throughout the codebase. Full details of those are available on Trac.
