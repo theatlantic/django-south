@@ -166,16 +166,10 @@ def migrate_app(migrations, target_name=None, merge=False, fake=False, db_dry_ru
     Migrations.calculate_dependencies()
     
     # Check there's no strange ones in the database
-    applied_all = MigrationHistory.objects.filter(applied__isnull=False).order_by('applied')
-    applied = applied_all.filter(app_name=app_label)
-    # If we're using a different database, use that
-    if database != DEFAULT_DB_ALIAS:
-        applied_all = applied_all.using(database)
-        applied = applied.using(database)
-        south.db.db = south.db.dbs[database]
-        # We now have to make sure the migrations are all reloaded, as they'll
-        # have imported the old value of south.db.db.
-        Migrations.invalidate_all_modules()
+    applied_all = MigrationHistory.objects.filter(applied__isnull=False).order_by('applied').using(database)
+    applied = applied_all.filter(app_name=app_label).using(database)
+    south.db.db = south.db.dbs[database]
+    Migrations.invalidate_all_modules()
     
     south.db.db.debug = (verbosity > 1)
 
