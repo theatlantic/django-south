@@ -1,10 +1,9 @@
 import datetime
-import unittest
 
 from south.db import db, generic
 from django.db import connection, models
 
-from south.tests import skipUnless        
+from south.tests import unittest, skipUnless        
 
 # Create a list of error classes from the various database libraries
 errors = []

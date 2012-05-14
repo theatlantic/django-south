@@ -1,7 +1,7 @@
 import logging
 import os
 import tempfile
-import unittest
+from south.tests import unittest
 import StringIO
 import sys
 

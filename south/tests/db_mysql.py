@@ -1,7 +1,8 @@
 # Additional MySQL-specific tests
 # Written by: F. Gabriel Gosselin <gabrielNOSPAM@evidens.ca>
 # Based on tests by: aarranz
-import unittest
+from south.tests import unittest
+
 
 from south.db import db, generic, mysql
 from django.db import connection, models

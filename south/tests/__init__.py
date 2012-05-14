@@ -1,10 +1,35 @@
 
-import unittest
+#import unittest
 import os
 import sys
 from functools import wraps
 from django.conf import settings
 from south.hacks import hacks
+
+# Make sure skipping tests is available.
+try:
+    # easiest and best is unittest included in Django>=1.3
+    from django.utils import unittest
+except ImportError:
+    # earlier django... use unittest from stdlib
+    import unittest
+# however, skipUnless was only added in Python 2.7;
+# if not available, we need to do something else
+try:
+    skipUnless = unittest.skipUnless #@UnusedVariable
+except AttributeError:
+    def skipUnless(condition, message):
+        def decorator(testfunc):
+            @wraps(testfunc)
+            def wrapper(self):
+                if condition:
+                    # Apply method
+                    testfunc(self)
+                else:
+                    # The skip exceptions are not available either...
+                    print "Skipping", testfunc.__name__,"--", message
+            return wrapper
+        return decorator
 
 # Add the tests directory so fakeapp is on sys.path
 test_root = os.path.dirname(__file__)
@@ -46,24 +71,6 @@ class Monkeypatcher(unittest.TestCase):
         """
         if getattr(self, 'installed_apps', None):
             hacks.reset_installed_apps()
-
-# Make sure skipUnless is available.
-try:
-    # skipUnless added in Python 2.7;
-    from unittest import skipUnless
-except ImportError:
-    def skipUnless(condition, message):
-        def decorator(testfunc):
-            @wraps(testfunc)
-            def wrapper(self):
-                if condition:
-                    # Apply method
-                    testfunc(self)
-                else:
-                    # The skip exceptions are not available either...
-                    print "Skipping", testfunc.__name__,"--", message
-            return wrapper
-        return decorator
 
 
 # Try importing all tests if asked for (then we can run 'em)

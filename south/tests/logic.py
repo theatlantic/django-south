@@ -1,4 +1,4 @@
-import unittest
+from south.tests import unittest
 
 import datetime
 import sys
