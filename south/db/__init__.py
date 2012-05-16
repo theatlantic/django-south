@@ -18,6 +18,7 @@ engine_modules = {
     'django.contrib.gis.db.backends.spatialite': 'sqlite3',
     'django.contrib.gis.db.backends.mysql': 'mysql',
     'django.contrib.gis.db.backends.oracle': 'oracle',
+    'doj.backends.zxjdbc.postgresql': 'postgresql_psycopg2', #django-jython
 }
 
 # First, work out if we're multi-db or not, and which databases we have
