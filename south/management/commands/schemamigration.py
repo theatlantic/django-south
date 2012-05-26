@@ -20,7 +20,8 @@ from django.core.management.color import no_style
 from django.db import models
 from django.conf import settings
 
-from south.migration import Migrations
+from south.migration import Migrations, migrate_app
+from south.models import MigrationHistory
 from south.exceptions import NoMigrations
 from south.creator import changes, actions, freezer
 from south.management.commands.datamigration import Command as DataCommand
@@ -39,11 +40,13 @@ class Command(DataCommand):
             help='Attempt to automatically detect differences from the last migration.'),
         make_option('--empty', action='store_true', dest='empty', default=False,
             help='Make a blank migration.'),
+        make_option('--update', action='store_true', dest='update', default=False,
+                    help='Update the most recent migration instead of creating a new one. Rollback this migration if it is already applied.'),
     )
     help = "Creates a new template schema migration for the given app"
     usage_str = "Usage: ./manage.py schemamigration appname migrationname [--empty] [--initial] [--auto] [--add-model ModelName] [--add-field ModelName.field_name] [--stdout]"
     
-    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, freeze_list=None, initial=False, auto=False, stdout=False, added_index_list=None, verbosity=1, empty=False, **options):
+    def handle(self, app=None, name="", added_model_list=None, added_field_list=None, freeze_list=None, initial=False, auto=False, stdout=False, added_index_list=None, verbosity=1, empty=False, update=False, **options):
         
         # Any supposed lists that are None become empty lists
         added_model_list = added_model_list or []
@@ -76,7 +79,7 @@ class Command(DataCommand):
         if auto:
             # Get the old migration
             try:
-                last_migration = migrations[-1]
+                last_migration = migrations[-2 if update else -1]
             except IndexError:
                 self.error("You cannot use --auto on an app with no migrations. Try --initial.")
             # Make sure it has stored models
@@ -116,16 +119,19 @@ class Command(DataCommand):
             else:
                 print >>sys.stderr, "You have not passed any of --initial, --auto, --empty, --add-model, --add-field or --add-index."
                 sys.exit(1)
+
+        # Validate this so we can access the last migration without worrying
+        if update and not migrations:
+            self.error("You cannot use --update on an app with no migrations.")
         
         # if not name, there's an error
         if not name:
             if change_source:
                 name = change_source.suggest_name()
+            if update:
+                name = re.sub(r'^\d{4}_', '', migrations[-1].name())
             if not name:
                 self.error("You must provide a name for this migration\n" + self.usage_str)
-        
-        # See what filename is next in line. We assume they use numbers.
-        new_filename = migrations.next_filename(name)
         
         # Get the actions, and then insert them into the actions lists
         forwards_actions = []
@@ -157,7 +163,23 @@ class Command(DataCommand):
             "frozen_models":  freezer.freeze_apps_to_string(apps_to_freeze),
             "complete_apps": apps_to_freeze and "complete_apps = [%s]" % (", ".join(map(repr, apps_to_freeze))) or ""
         }
-        
+
+        # Deal with update mode as late as possible, avoid a rollback as long
+        # as something else can go wrong.
+        if update:
+            last_migration = migrations[-1]
+            if MigrationHistory.objects.filter(applied__isnull=False, app_name=app, migration=last_migration.name()):
+                print >>sys.stderr, "Migration to be updated, %s, is already applied, rolling it back now..." % last_migration.name()
+                migrate_app(migrations, 'current-1', verbosity=verbosity)
+            for ext in ('py', 'pyc'):
+                old_filename = "%s.%s" % (os.path.join(migrations.migrations_dir(), last_migration.filename), ext)
+                if os.path.isfile(old_filename):
+                    os.unlink(old_filename)
+            migrations.remove(last_migration)
+
+        # See what filename is next in line. We assume they use numbers.
+        new_filename = migrations.next_filename(name)
+
         # - is a special name which means 'print to stdout'
         if name == "-":
             print file_contents
@@ -166,10 +188,11 @@ class Command(DataCommand):
             fp = open(os.path.join(migrations.migrations_dir(), new_filename), "w")
             fp.write(file_contents)
             fp.close()
+            verb = 'Updated' if update else 'Created'
             if empty:
-                print >>sys.stderr, "Created %s. You must now edit this migration and add the code for each direction." % new_filename
+                print >>sys.stderr, "%s %s. You must now edit this migration and add the code for each direction." % (verb, new_filename)
             else:
-                print >>sys.stderr, "Created %s. You can now apply this migration with: ./manage.py migrate %s" % (new_filename, app)
+                print >>sys.stderr, "%s %s. You can now apply this migration with: ./manage.py migrate %s" % (verb, new_filename, app)
 
 
 MIGRATION_TEMPLATE = """# -*- coding: utf-8 -*-
