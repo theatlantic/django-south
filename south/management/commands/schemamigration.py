@@ -73,7 +73,7 @@ class Command(DataCommand):
             self.error("You must provide an app to create a migration for.\n" + self.usage_str)
         
         # Get the Migrations for this app (creating the migrations dir if needed)
-        migrations = Migrations(app, force_creation=True, verbose_creation=verbosity > 0)
+        migrations = Migrations(app, force_creation=True, verbose_creation=int(verbosity) > 0)
         
         # What actions do we need to do?
         if auto:

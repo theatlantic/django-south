@@ -274,6 +274,9 @@ class Migration(object):
     def __eq__(self, other):
         return self.app_label() == other.app_label() and self.name() == other.name()
 
+    def __hash__(self):
+        return hash(str(self))
+
     def app_label(self):
         return self.migrations.app_label()
 
