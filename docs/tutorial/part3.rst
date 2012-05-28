@@ -4,6 +4,50 @@
 Part 3: Advanced Commands and Data Migrations
 =============================================
 
+Iteratively working on a migration
+----------------------------------
+
+Sometimes, you'll find that you've made model changes that need to be further
+refined. Say you define this model::
+
+ class Group(models.Model):
+     name = models.TextField(verbose_name="Name")
+     facebook_page__id = models.CharField(max_length=255)
+
+and you've created and applied this migration::
+
+ ./manage.py schemamigration southtut --auto
+ ./manage.py migrate southtut
+
+You then notice two things: One, ``name`` should really be a ``CharField``, not
+a ``TextField``; and ``facebook_page__id`` contains double underscores where
+there should be a single one. You can fix these issues in your model, and then
+run::
+
+  ./manage.py schemamigration southtut --auto --update
+   + Added model southtut.Group
+  Migration to be updated, 0026_auto__add_group, is already applied, rolling it back now...
+  previous_migration: 0025_auto__foo (applied: 2012-05-25 21:20:47)
+  Running migrations for southtut:
+    - Migrating backwards to just after 0025_auto__foo.
+    < partner:0026_auto__add_group
+  Updated 0026_auto__add_group.py. You can now apply this migration with: ./manage.py migrate southtut
+
+What happened here is that South removed the most recent migration, which
+created the model, but included the mistakes that were made, and replaced it
+with a new migration that includes the latest corrections made to the model.
+
+It also noticed that the migration had already been applied, and automatically
+rolled it back for you. You can now apply the latest version of the migration
+to create the correct version of the model::
+
+ ./manage.py migrate southtut
+
+You may repeat this process as often as required to iron out any issues and
+come up with the final database changes required; which you can then publish,
+neatly packed into a single migration.
+
+
 Listing current migrations
 --------------------------
 

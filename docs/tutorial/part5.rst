@@ -38,6 +38,15 @@ think nothing has changed. If you're making a large change, and want to split it
 over several migrations, do each schema change to models.py separately, then make
 the migration, and then make the next small change.
 
+Note that the ``./manage.py schemamigration`` command has an ``--update`` mode
+that allows you to further iteratively refine your migration as such changes
+become necessary while working on your code. It is preferable to distribute a
+single migration for each atomic code change (a particular bug fixed, a new
+feature), then half a dozen migrations that could be merged into one. Remember
+that the purpose of migrations is to replay database changes on multiple
+machines; a separate migration is not required for changes that have only been
+applied locally.
+
 
 Team Workflow
 -------------

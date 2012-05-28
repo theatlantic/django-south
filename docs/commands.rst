@@ -153,6 +153,11 @@ this, run schemamigration with the --auto flag::
 
  ./manage.py schemamigration myapp --auto changed_user_model_bug_434
 
+If you make further changes to your models, you can further refine the most
+recent migration::
+
+ ./manage.py schemamigration myapp --auto --update
+
 You can also manually specify changes::
 
  ./manage.py schemamigration mitest some_cols --add-field User.age --add-model User
@@ -178,6 +183,8 @@ Note that you can combine as many ``--add-X`` options as you like.
  - ``--initial``: Like having --model for every model in your app.
    You should use this only for your first migration.
  - ``--auto``: Generates a migration with automatically-detected actions.
+ - ``--update``: Update the most recent migration, instead of creating a
+   new one.
  - ``--stdout``: Writes the migration to stdout instead of a file.
 
 .. _commands-datamigration: 
