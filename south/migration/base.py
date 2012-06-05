@@ -7,6 +7,7 @@ import sys
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.conf import settings
+from django.utils import importlib
 
 from south import exceptions
 from south.migration.utils import depends, dfs, flatten, get_app_label
@@ -111,11 +112,11 @@ class Migrations(list):
         """
         module_path = self.migrations_module()
         try:
-            module = __import__(module_path, {}, {}, [''])
+            module = importlib.import_module(module_path)
         except ImportError:
             # There's no migrations module made yet; guess!
             try:
-                parent = __import__(".".join(module_path.split(".")[:-1]), {}, {}, [''])
+                parent = importlib.import_module(".".join(module_path.split(".")[:-1]))
             except ImportError:
                 # The parent doesn't even exist, that's an issue.
                 raise exceptions.InvalidMigrationModule(
@@ -149,12 +150,12 @@ class Migrations(list):
         self._application = application
         if not hasattr(application, 'migrations'):
             try:
-                module = __import__(self.migrations_module(), {}, {}, [''])
+                module = importlib.import_module(self.migrations_module())
                 self._migrations = application.migrations = module
             except ImportError:
                 if force_creation:
                     self.create_migrations_directory(verbose_creation)
-                    module = __import__(self.migrations_module(), {}, {}, [''])
+                    module = importlib.import_module(self.migrations_module())
                     self._migrations = application.migrations = module
                 else:
                     raise exceptions.NoMigrations(application)
