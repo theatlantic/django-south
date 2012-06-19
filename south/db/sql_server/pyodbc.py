@@ -6,6 +6,7 @@ from south.db import generic
 from south.db.generic import delete_column_constraints, invalidate_table_constraints, copy_column_constraints
 from south.exceptions import ConstraintDropped
 from django.utils.encoding import smart_unicode
+from django.core.management.color import no_style
 
 class DatabaseOperations(generic.DatabaseOperations):
     """
@@ -169,6 +170,11 @@ class DatabaseOperations(generic.DatabaseOperations):
             sch = qn(self._get_schema_name())
             tab = qn(table_name)
             table = ".".join([sch, tab])
+            try:
+                self.delete_foreign_key(table_name, name)
+            except ValueError:
+                # no FK constraint on this field. That's OK.
+                pass
             constraints = self._find_constraints_for_column(table_name, name, False)
             for constraint in constraints.keys():
                 params = dict(table_name = table,
@@ -214,6 +220,9 @@ class DatabaseOperations(generic.DatabaseOperations):
                         field.rel.to._meta.get_field(field.rel.field_name).column
                     )
                 )
+                model = self.mock_model("FakeModelForIndexCreation", table_name)
+                for stmt in self._get_connection().creation.sql_indexes_for_field(model, field, no_style()):
+                    self.execute(stmt)
 
 
         return ret_val
@@ -420,6 +429,6 @@ class DatabaseOperations(generic.DatabaseOperations):
         schema = self._get_schema_name()
         indexes = self.execute(find_index_sql, [schema, table_name, column])
         qn = self.quote_name
-        for index in (i[0] for i in indexes):
+        for index in (i[0] for i in indexes if i[0]): # "if i[0]" added because an empty name may return
             self.execute("DROP INDEX %s on %s.%s" % (qn(index), qn(schema), qn(table_name) ))
             
