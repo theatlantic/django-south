@@ -338,6 +338,10 @@ class DatabaseOperations(object):
         if len(table_name) > 63:
             print "   ! WARNING: You have a table name longer than 63 characters; this will not fully work on PostgreSQL or MySQL."
 
+        # avoid default values in CREATE TABLE statements (#925)
+        for field_name, field in fields:
+            field._suppress_default = True
+
         columns = [
             self.column_sql(table_name, field_name, field)
             for field_name, field in fields
