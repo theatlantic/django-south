@@ -7,6 +7,7 @@ from optparse import make_option
 
 from django.core.management.base import BaseCommand
 from django.conf import settings
+from django.utils.importlib import import_module
 
 from south import migration
 from south.migration import Migrations
@@ -59,7 +60,7 @@ class Command(BaseCommand):
         # we need apps to behave correctly.
         for app_name in settings.INSTALLED_APPS:
             try:
-                __import__(app_name + '.management', {}, {}, [''])
+                import_module('.management', app_name)
             except ImportError, exc:
                 msg = exc.args[0]
                 if not msg.startswith('No module named') or 'management' not in msg:
