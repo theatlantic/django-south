@@ -1,7 +1,7 @@
 import datetime
 
 from south.db import db, generic
-from django.db import connection, models
+from django.db import connection, models, IntegrityError
 
 from south.tests import unittest, skipUnless        
 
@@ -264,7 +264,7 @@ class TestOperations(unittest.TestCase):
         # Add a FK with keep_default=False (#69)
         User = db.mock_model(model_name='User', db_table='auth_user', db_tablespace='', pk_field_name='id', pk_field_type=models.AutoField, pk_field_args=[], pk_field_kwargs={})
         # insert some data so we can test the default value of the added fkey
-        db.execute("INSERT INTO test_addc (eggs, add1) VALUES (1, 2)")
+        db.execute("INSERT INTO test_addc (spam, eggs, add1) VALUES (false, 1, 2)")
         db.add_column("test_addc", "user", models.ForeignKey(User, null=True), keep_default=False)
         db.execute_deferred_sql()
         # try selecting from the user_id column to make sure it was actually created
@@ -286,7 +286,7 @@ class TestOperations(unittest.TestCase):
         # Add a column with a default
         db.add_column("test_addnbc", "add2", models.NullBooleanField(default=True))
         # insert some data so we can test the default values of the added column
-        db.execute("INSERT INTO test_addnbc (eggs) VALUES (1)")
+        db.execute("INSERT INTO test_addnbc (spam, eggs) VALUES (false, 1)")
         # try selecting from the new columns to make sure they were properly created
         false, null, true = db.execute("SELECT spam,add1,add2 FROM test_addnbc")[0][0:3]
         self.assertTrue(true)
@@ -589,7 +589,17 @@ class TestOperations(unittest.TestCase):
         db.alter_column("test_datetime_def", "col2", models.DateTimeField(default=end_of_world))
         db.add_column("test_datetime_def", "col3", models.DateTimeField(default=end_of_world))
         db.execute_deferred_sql()
-        db.execute("insert into test_datetime_def (col0) values (null)")
+        # There should not be a default in the database for col1
+        db.commit_transaction()
+        db.start_transaction()
+        self.assertRaises(
+            IntegrityError,
+            db.execute, "insert into test_datetime_def (col0) values (null)"
+        )
+        db.rollback_transaction()
+        db.start_transaction()
+        # There should be for the others
+        db.execute("insert into test_datetime_def (col0, col1) values (null, %s)", [end_of_world])
         ends = db.execute("select col1,col2,col3 from test_datetime_def")[0]
         self.failUnlessEqual(len(ends), 3)
         for e in ends:
