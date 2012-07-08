@@ -264,7 +264,7 @@ class TestOperations(unittest.TestCase):
         # Add a FK with keep_default=False (#69)
         User = db.mock_model(model_name='User', db_table='auth_user', db_tablespace='', pk_field_name='id', pk_field_type=models.AutoField, pk_field_args=[], pk_field_kwargs={})
         # insert some data so we can test the default value of the added fkey
-        db.execute("INSERT INTO test_addc (spam, eggs, add1) VALUES (false, 1, 2)")
+        db.execute("INSERT INTO test_addc (spam, eggs, add1) VALUES (%s, 1, 2)", [False])
         db.add_column("test_addc", "user", models.ForeignKey(User, null=True), keep_default=False)
         db.execute_deferred_sql()
         # try selecting from the user_id column to make sure it was actually created
@@ -286,7 +286,7 @@ class TestOperations(unittest.TestCase):
         # Add a column with a default
         db.add_column("test_addnbc", "add2", models.NullBooleanField(default=True))
         # insert some data so we can test the default values of the added column
-        db.execute("INSERT INTO test_addnbc (spam, eggs) VALUES (false, 1)")
+        db.execute("INSERT INTO test_addnbc (spam, eggs) VALUES (%s, 1)", [False])
         # try selecting from the new columns to make sure they were properly created
         false, null, true = db.execute("SELECT spam,add1,add2 FROM test_addnbc")[0][0:3]
         self.assertTrue(true)
