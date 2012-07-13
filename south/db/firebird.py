@@ -86,6 +86,7 @@ class DatabaseOperations(generic.DatabaseOperations):
 
             columns.append(col)
             if isinstance(field, models.AutoField):
+                field_name = field.db_column or field.column
                 autoinc_sql = connection.ops.autoinc_sql(table_name, field_name)
 
         sql = 'CREATE TABLE %s (%s);' % (qn, ', '.join([col for col in columns]))
@@ -147,6 +148,8 @@ class DatabaseOperations(generic.DatabaseOperations):
                             default = "'%s'" % default.replace("'", "''")
                         elif isinstance(default, (datetime.date, datetime.time, datetime.datetime)):
                             default = "'%s'" % default
+                        elif isinstance(default, bool):
+                            default = int(default)
                         # Escape any % signs in the output (bug #317)
                         if isinstance(default, basestring):
                             default = default.replace("%", "%%")
