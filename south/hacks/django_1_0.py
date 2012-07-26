@@ -3,9 +3,8 @@ Hacks for the Django 1.0/1.0.2 releases.
 """
 
 from django.conf import settings
-from django.db import models
 from django.db.backends.creation import BaseDatabaseCreation
-from django.db.models.loading import AppCache, cache
+from django.db.models.loading import cache
 from django.core import management
 from django.core.management.commands.flush import Command as FlushCommand
 from django.utils.datastructures import SortedDict
@@ -49,14 +48,13 @@ class Hacks:
         """
         Used to repopulate AppCache after fiddling with INSTALLED_APPS.
         """
-        a = AppCache()
-        a.loaded = False
-        a.handled = {}
-        a.postponed = []
-        a.app_store = SortedDict()
-        a.app_models = SortedDict()
-        a.app_errors = {}
-        a._populate()
+        cache.loaded = False
+        cache.handled = {}
+        cache.postponed = []
+        cache.app_store = SortedDict()
+        cache.app_models = SortedDict()
+        cache.app_errors = {}
+        cache._populate()
     
     
     def clear_app_cache(self):
@@ -80,6 +78,12 @@ class Hacks:
         Rebuilds AppCache with the real model definitions.
         """
         cache._populate()
+
+    def store_app_cache_state(self):
+        self.stored_app_cache_state = dict(**cache.__dict__)
+
+    def restore_app_cache_state(self):
+        cache.__dict__ = self.stored_app_cache_state
 
     def patch_flush_during_test_db_creation(self):
         """
