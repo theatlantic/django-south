@@ -1,0 +1,56 @@
+
+.. _0-7-6-release-notes:
+
+===========
+South 0.7.6
+===========
+
+This is a minor new release of South, and the sixth bugfix release for the 
+:ref:`0.7 series <0-7-release-notes>`.
+
+Major changes are outlined below. A full list of bugs fixed can be found on the
+South Trac.
+
+
+Backwards incompatible changes
+==============================
+
+None.
+
+
+--update
+========
+
+There is now a new ``--update`` switch, which you can use with ``schemamigration``
+to merge updates you've just done into your most recent migration and then
+reverse and re-apply that migration to the database.
+
+Note that this will only work with migrations that aren't yet committed into
+a VCS - once that occurs, you should create a new migration rather than
+running ``--update`` on the current one.
+
+
+Table defaults
+==============
+
+South now keeps all defaults out of the database during table creation, to 
+mirror Django's approach when creating tables. This was already the case when
+adding columns.
+
+
+SQLite fixes
+============
+
+The SQLite backend now correctly handles boolean default values.
+
+
+MSSQL fixes
+===========
+
+Altering ForeignKey columns now works correctly.
+
+
+Firebird fixes
+==============
+
+Boolean defaults and autoincrement now works correctly.

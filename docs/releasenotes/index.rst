@@ -12,3 +12,4 @@ Release notes from various versions of South.
    0.7.3
    0.7.4
    0.7.5
+   0.7.6
