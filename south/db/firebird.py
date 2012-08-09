@@ -15,7 +15,11 @@ class DatabaseOperations(generic.DatabaseOperations):
     alter_string_drop_null = ''
     add_column_string = 'ALTER TABLE %s ADD %s;'
     delete_column_string = 'ALTER TABLE %s DROP %s;'
+    rename_table_sql = ''
+
+    # Features
     allows_combined_alters = False
+    has_booleans = False
 
     def _fill_constraint_cache(self, db_name, table_name):
         self._constraint_cache.setdefault(db_name, {})
@@ -82,7 +86,6 @@ class DatabaseOperations(generic.DatabaseOperations):
             col = self.column_sql(table_name, field_name, field)
             if not col:
                 continue
-            #col = self.adj_column_sql(col)
 
             columns.append(col)
             if isinstance(field, models.AutoField):
@@ -95,6 +98,28 @@ class DatabaseOperations(generic.DatabaseOperations):
             self.execute(autoinc_sql[0])
             self.execute(autoinc_sql[1])
 
+    def rename_table(self, old_table_name, table_name):
+        """
+        Renames table is not supported by firebird.
+        This involve recreate all related objects (store procedure, views, triggers, etc)
+        """
+        pass
+
+    @generic.invalidate_table_constraints
+    def delete_table(self, table_name, cascade=False):
+        """
+        Deletes the table 'table_name'.
+        Firebird will also delete any triggers associated with the table.
+        """
+        super(DatabaseOperations, self).delete_table(table_name, cascade=False)
+
+        # Also, drop sequence if exists
+        sql = connection.ops.drop_sequence_sql(table_name)
+        if sql:
+            try:
+                self.execute(sql)
+            except:
+                pass
 
     def column_sql(self, table_name, field_name, field, tablespace='', with_name=True, field_prepared=False):
         """
@@ -234,7 +259,10 @@ class DatabaseOperations(generic.DatabaseOperations):
         """
 
         if self.dry_run:
+            if self.debug:
+                print '   - no dry run output for alter_column() due to dynamic DDL, sorry'
             return
+
 
         # hook for the field to do any resolution prior to it's attributes being queried
         if hasattr(field, 'south_init'):
