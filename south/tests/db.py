@@ -359,14 +359,13 @@ class TestOperations(unittest.TestCase):
 
         db.delete_table("test_multiword")
     
+    @skipUnless(db.has_check_constraints, 'Only applies to databases that '
+                                          'support CHECK constraints.')
     def test_alter_constraints(self):
         """
         Tests that going from a PostiveIntegerField to an IntegerField drops
         the constraint on the database.
         """
-        # Only applies to databases that support CHECK constraints
-        if not db.has_check_constraints:
-            return
         # Make the test table
         db.create_table("test_alterc", [
             ('num', models.PositiveIntegerField()),
