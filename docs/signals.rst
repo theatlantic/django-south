@@ -33,5 +33,5 @@ sent multiple times in one run of South, possibly hundreds of times if you
 have hundreds of migrations, and are doing a fresh install.
 
 Provides three arguments, ``app``, a string containing the app's label,
-``migration``, a string containing the name of the migration file without the
-file extension, and ``method``, which is either ``"forwards"`` or ``"backwards"``.
+``migration``, a Migration object, and ``method``, which is either
+``"forwards"`` or ``"backwards"``.
