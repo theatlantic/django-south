@@ -617,14 +617,13 @@ class TestOperations(unittest.TestCase):
         
         db.delete_table("test_add_unique_fk")
         
+    @skipUnless(db.has_check_constraints, 'Only applies to databases that '
+                                          'support CHECK constraints.')
     def test_column_constraint(self):
         """
         Tests that the value constraint of PositiveIntegerField is enforced on
         the database level.
         """
-        if not db.has_check_constraints:
-            return
-        
         db.create_table("test_column_constraint", [
             ('spam', models.PositiveIntegerField()),
         ])
