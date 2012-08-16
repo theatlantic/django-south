@@ -797,7 +797,6 @@ class TestCacheGeneric(unittest.TestCase):
         ops.mv_column('table', 'column', 'column_new')
         self.assertEqual('constraint', ops.lookup_constraint('db', 'table', 'column_new'))
         self.assertEqual([], ops.lookup_constraint('db', 'table', 'column'))
-        return
 
     def test_valid(self):
         ops = self.CacheOps()
