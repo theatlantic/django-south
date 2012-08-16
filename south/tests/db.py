@@ -3,7 +3,7 @@ import datetime
 from south.db import db, generic
 from django.db import connection, models, IntegrityError
 
-from south.tests import unittest, skipUnless        
+from south.tests import unittest, skipIf, skipUnless
 
 # Create a list of error classes from the various database libraries
 errors = []
@@ -392,15 +392,12 @@ class TestOperations(unittest.TestCase):
         # We need to match up for tearDown
         db.start_transaction()
     
+    @skipIf(db.backend_name == "sqlite3", "SQLite backend doesn't support this "
+                                          "yet.")
     def test_unique(self):
         """
         Tests creating/deleting unique constraints.
         """
-        
-        # SQLite backend doesn't support this yet.
-        if db.backend_name == "sqlite3":
-            return
-        
         db.create_table("test_unique2", [
             ('id', models.AutoField(primary_key=True)),
         ])
