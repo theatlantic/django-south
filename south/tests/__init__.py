@@ -31,6 +31,22 @@ except AttributeError:
             return wrapper
         return decorator
 
+# ditto for skipIf
+try:
+    skipIf = unittest.skipIf #@UnusedVariable
+except AttributeError:
+    def skipIf(condition, message):
+        def decorator(testfunc):
+            @wraps(testfunc)
+            def wrapper(self):
+                if condition:
+                    print "Skipping", testfunc.__name__,"--", message
+                else:
+                    # Apply method
+                    testfunc(self)
+            return wrapper
+        return decorator
+
 # Add the tests directory so fakeapp is on sys.path
 test_root = os.path.dirname(__file__)
 sys.path.append(test_root)

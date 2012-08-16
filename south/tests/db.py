@@ -3,7 +3,7 @@ import datetime
 from south.db import db, generic
 from django.db import connection, models, IntegrityError
 
-from south.tests import unittest, skipUnless        
+from south.tests import unittest, skipIf, skipUnless
 
 # Create a list of error classes from the various database libraries
 errors = []
@@ -359,14 +359,13 @@ class TestOperations(unittest.TestCase):
 
         db.delete_table("test_multiword")
     
+    @skipUnless(db.has_check_constraints, 'Only applies to databases that '
+                                          'support CHECK constraints.')
     def test_alter_constraints(self):
         """
         Tests that going from a PostiveIntegerField to an IntegerField drops
         the constraint on the database.
         """
-        # Only applies to databases that support CHECK constraints
-        if not db.has_check_constraints:
-            return
         # Make the test table
         db.create_table("test_alterc", [
             ('num', models.PositiveIntegerField()),
@@ -393,15 +392,12 @@ class TestOperations(unittest.TestCase):
         # We need to match up for tearDown
         db.start_transaction()
     
+    @skipIf(db.backend_name == "sqlite3", "SQLite backend doesn't support this "
+                                          "yet.")
     def test_unique(self):
         """
         Tests creating/deleting unique constraints.
         """
-        
-        # SQLite backend doesn't support this yet.
-        if db.backend_name == "sqlite3":
-            return
-        
         db.create_table("test_unique2", [
             ('id', models.AutoField(primary_key=True)),
         ])
@@ -618,14 +614,13 @@ class TestOperations(unittest.TestCase):
         
         db.delete_table("test_add_unique_fk")
         
+    @skipUnless(db.has_check_constraints, 'Only applies to databases that '
+                                          'support CHECK constraints.')
     def test_column_constraint(self):
         """
         Tests that the value constraint of PositiveIntegerField is enforced on
         the database level.
         """
-        if not db.has_check_constraints:
-            return
-        
         db.create_table("test_column_constraint", [
             ('spam', models.PositiveIntegerField()),
         ])
@@ -802,7 +797,6 @@ class TestCacheGeneric(unittest.TestCase):
         ops.mv_column('table', 'column', 'column_new')
         self.assertEqual('constraint', ops.lookup_constraint('db', 'table', 'column_new'))
         self.assertEqual([], ops.lookup_constraint('db', 'table', 'column'))
-        return
 
     def test_valid(self):
         ops = self.CacheOps()

@@ -1,7 +1,7 @@
 # Additional MySQL-specific tests
 # Written by: F. Gabriel Gosselin <gabrielNOSPAM@evidens.ca>
 # Based on tests by: aarranz
-from south.tests import unittest
+from south.tests import unittest, skipUnless
 
 
 from south.db import db, generic, mysql
@@ -10,6 +10,18 @@ from django.db import connection, models
 
 class TestMySQLOperations(unittest.TestCase):
     """MySQL-specific tests"""
+
+    # A class decoration may be used in lieu of this when Python 2.5 is the
+    # minimum.
+    def __metaclass__(name, bases, dict_):
+        decorator = skipUnless(db.backend_name == "mysql", 'MySQL-specific tests')
+
+        for key, method in dict_.iteritems():
+            if key.startswith('test'):
+                dict_[key] = decorator(method)
+
+        return type(name, bases, dict_)
+
     def setUp(self):
         db.debug = False
         db.clear_deferred_sql()
@@ -35,8 +47,6 @@ class TestMySQLOperations(unittest.TestCase):
 
     def test_constraint_references(self):
         """Tests that referred table is reported accurately"""
-        if db.backend_name != "mysql":
-            return
         main_table = 'test_cns_ref'
         reference_table = 'test_cr_foreign'
         db.start_transaction()
@@ -53,8 +63,6 @@ class TestMySQLOperations(unittest.TestCase):
 
     def test_reverse_column_constraint(self):
         """Tests that referred column in a foreign key (ex. id) is found"""
-        if db.backend_name != "mysql":
-            return
         main_table = 'test_reverse_ref'
         reference_table = 'test_rr_foreign'
         db.start_transaction()
@@ -68,8 +76,6 @@ class TestMySQLOperations(unittest.TestCase):
         db.delete_table(reference_table)
 
     def test_delete_fk_column(self):
-        if db.backend_name != "mysql":
-            return
         main_table = 'test_drop_foreign'
         ref_table = 'test_df_ref'
         self._create_foreign_tables(main_table, ref_table)
@@ -83,8 +89,6 @@ class TestMySQLOperations(unittest.TestCase):
         db.delete_table(ref_table)
 
     def test_rename_fk_column(self):
-        if db.backend_name != "mysql":
-            return
         main_table = 'test_rename_foreign'
         ref_table = 'test_rf_ref'
         self._create_foreign_tables(main_table, ref_table)
@@ -103,8 +107,6 @@ class TestMySQLOperations(unittest.TestCase):
         Tests that the column referred to by an external column can be renamed.
         Edge case, but also useful as stepping stone to renaming tables.
         """
-        if db.backend_name != "mysql":
-            return
         main_table = 'test_rename_fk_inbound'
         ref_table = 'test_rfi_ref'
         self._create_foreign_tables(main_table, ref_table)
@@ -123,8 +125,6 @@ class TestMySQLOperations(unittest.TestCase):
 
     def test_rename_constrained_table(self):
         """Renames a table with a foreign key column (towards another table)"""
-        if db.backend_name != "mysql":
-            return
         main_table = 'test_rn_table'
         ref_table = 'test_rt_ref'
         renamed_table = 'test_renamed_table'
@@ -144,8 +144,6 @@ class TestMySQLOperations(unittest.TestCase):
 
     def test_renamed_referenced_table(self):
         """Rename a table referred to in a foreign key"""
-        if db.backend_name != "mysql":
-            return
         main_table = 'test_rn_refd_table'
         ref_table = 'test_rrt_ref'
         renamed_table = 'test_renamed_ref'
