@@ -473,16 +473,17 @@ class AddM2M(Action):
     
     FORWARDS_TEMPLATE = '''
         # Adding M2M table for field %(field_name)s on '%(model_name)s'
-        db.create_table(%(table_name)r, (
+        m2m_table_name = %(table_name)s
+        db.create_table(m2m_table_name, (
             ('id', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)),
             (%(left_field)r, models.ForeignKey(orm[%(left_model_key)r], null=False)),
             (%(right_field)r, models.ForeignKey(orm[%(right_model_key)r], null=False))
         ))
-        db.create_unique(%(table_name)r, [%(left_column)r, %(right_column)r])'''[1:] + "\n"
+        db.create_unique(m2m_table_name, [%(left_column)r, %(right_column)r])'''[1:] + "\n"
     
     BACKWARDS_TEMPLATE = '''
         # Removing M2M table for field %(field_name)s on '%(model_name)s'
-        db.delete_table('%(table_name)s')'''[1:] + "\n"
+        db.delete_table(%(table_name)s)'''[1:] + "\n"
     
     def __init__(self, model, field):
         self.model = model
@@ -495,13 +496,25 @@ class AddM2M(Action):
             self.model._meta.app_label, 
             self.model._meta.object_name,
         )
-    
+
+    def table_name(self):
+        # This is part of a workaround for the fact that Django uses
+        # different shortening for automatically generated m2m table names 
+        # (as opposed to any explicitly specified table name)
+        f = self.field
+        explicit = f.db_table
+        if explicit:
+            return "%r" % explicit
+        else:
+            auto = "%s_%s" % (self.model._meta.db_table, f.name)
+            return 'db.shorten_name(%r)' % auto
+
     def forwards_code(self):
         
         return self.FORWARDS_TEMPLATE % {
             "model_name": self.model._meta.object_name,
             "field_name": self.field.name,
-            "table_name": self.field.m2m_db_table(),
+            "table_name": self.table_name(),
             "left_field": self.field.m2m_column_name()[:-3], # Remove the _id part
             "left_column": self.field.m2m_column_name(),
             "left_model_key": model_key(self.model),
@@ -515,7 +528,7 @@ class AddM2M(Action):
         return self.BACKWARDS_TEMPLATE % {
             "model_name": self.model._meta.object_name,
             "field_name": self.field.name,
-            "table_name": self.field.m2m_db_table(),
+            "table_name": self.table_name(),
         }
 
 

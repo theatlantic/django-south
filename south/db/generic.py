@@ -755,7 +755,7 @@ class DatabaseOperations(object):
         constraint_name = '%s_refs_%s_%x' % (from_column_name, to_column_name, abs(hash((from_table_name, to_table_name))))
         return 'ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)%s;' % (
             self.quote_name(from_table_name),
-            self.quote_name(truncate_name(constraint_name, self._get_connection().ops.max_name_length())),
+            self.quote_name(self.shorten_name(constraint_name)),
             self.quote_name(from_column_name),
             self.quote_name(to_table_name),
             self.quote_name(to_column_name),
@@ -806,6 +806,9 @@ class DatabaseOperations(object):
             self._django_db_creation = BaseDatabaseCreation(self._get_connection())
         return self._django_db_creation._digest(*args)
 
+    def shorten_name(self, name):
+        return truncate_name(name, self._get_connection().ops.max_name_length())
+
     def create_index_name(self, table_name, column_names, suffix=""):
         """
         Generate a unique name for the index
@@ -813,9 +816,8 @@ class DatabaseOperations(object):
 
         # If there is just one column in the index, use a default algorithm from Django
         if len(column_names) == 1 and not suffix:
-            return truncate_name(
-                '%s_%s' % (table_name, self._digest(column_names[0])),
-                self._get_connection().ops.max_name_length()
+            return self.shorten_name(
+                '%s_%s' % (table_name, self._digest(column_names[0]))
             )
 
         # Else generate the name for the index by South
