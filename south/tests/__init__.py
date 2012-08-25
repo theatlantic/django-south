@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 #import unittest
 import os
@@ -27,7 +28,7 @@ except AttributeError:
                     testfunc(self)
                 else:
                     # The skip exceptions are not available either...
-                    print "Skipping", testfunc.__name__,"--", message
+                    print("Skipping", testfunc.__name__,"--", message)
             return wrapper
         return decorator
 
@@ -40,7 +41,7 @@ except AttributeError:
             @wraps(testfunc)
             def wrapper(self):
                 if condition:
-                    print "Skipping", testfunc.__name__,"--", message
+                    print("Skipping", testfunc.__name__,"--", message)
                 else:
                     # Apply method
                     testfunc(self)

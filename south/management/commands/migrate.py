@@ -2,6 +2,8 @@
 Migrate management command.
 """
 
+from __future__ import print_function
+
 import os.path, re, sys
 from optparse import make_option
 
@@ -77,8 +79,8 @@ class Command(BaseCommand):
             try:
                 apps = [Migrations(app)]
             except NoMigrations:
-                print "The app '%s' does not appear to use migrations." % app
-                print "./manage.py migrate " + self.args
+                print("The app '%s' does not appear to use migrations." % app)
+                print("./manage.py migrate " + self.args)
                 return
         else:
             apps = list(migration.all_migrations())
@@ -122,17 +124,17 @@ def list_migrations(apps, database = DEFAULT_DB_ALIAS, **options):
         applied_migrations = applied_migrations.using(database)
     applied_migration_names = ['%s.%s' % (mi.app_name,mi.migration) for mi in applied_migrations]
 
-    print
+    print()
     for app in apps:
-        print " " + app.app_label()
+        print(" " + app.app_label())
         # Get the migrations object
         for migration in app:
             if migration.app_label() + "." + migration.name() in applied_migration_names:
                 applied_migration = applied_migrations.get(app_name=migration.app_label(), migration=migration.name())
-                print format_migration_list_item(migration.name(), applied=applied_migration.applied, **options)
+                print(format_migration_list_item(migration.name(), applied=applied_migration.applied, **options))
             else:
-                print format_migration_list_item(migration.name(), applied=False, **options)
-        print
+                print(format_migration_list_item(migration.name(), applied=False, **options))
+        print()
 
 def show_migration_changes(apps):
     """
@@ -143,7 +145,7 @@ def show_migration_changes(apps):
         grep "ing " migrations/*.py
     """
     for app in apps:
-        print app.app_label()
+        print(app.app_label())
         # Get the migrations objects
         migrations = [migration for migration in app]
         # we use reduce to compare models in pairs, not to generate a value
@@ -166,7 +168,7 @@ def diff_migrations(migration1, migration2):
     def field_name(models, model, field):
         return '%s.%s' % (model_name(models, model), field)
         
-    print "  " + migration2.name()
+    print("  " + migration2.name())
     
     models1 = migration1.migration_class().models
     models2 = migration2.migration_class().models
@@ -174,12 +176,12 @@ def diff_migrations(migration1, migration2):
     # find new models
     for model in models2.keys():
         if not model in models1.keys():
-            print '    added model %s' % model_name(models2, model)
+            print('    added model %s' % model_name(models2, model))
  
     # find removed models
     for model in models1.keys():
         if not model in models2.keys():
-            print '    removed model %s' % model_name(models1, model)
+            print('    removed model %s' % model_name(models1, model))
             
     # compare models
     for model in models1:
@@ -188,12 +190,12 @@ def diff_migrations(migration1, migration2):
             # find added fields
             for field in models2[model]:
                 if not field in models1[model]:
-                    print '    added field %s' % field_name(models2, model, field)
+                    print('    added field %s' % field_name(models2, model, field))
 
             # find removed fields
             for field in models1[model]:
                 if not field in models2[model]:
-                    print '    removed field %s' % field_name(models1, model, field)
+                    print('    removed field %s' % field_name(models1, model, field))
                 
             # compare fields
             for field in models1[model]:
@@ -207,8 +209,8 @@ def diff_migrations(migration1, migration2):
                     
                     # if a field has become a class, or vice versa
                     if type(field_value1) != type(field_value2):
-                        print '    type of %s changed from %s to %s' % (
-                            name, field_value1, field_value2)
+                        print('    type of %s changed from %s to %s' % (
+                            name, field_value1, field_value2))
                     
                     # if class
                     elif isinstance(field_value1, dict):
@@ -222,30 +224,30 @@ def diff_migrations(migration1, migration2):
                         type2, attr_list2, field_attrs2 = models2[model][field]
                         
                         if type1 != type2:
-                            print '    %s type changed from %s to %s' % (
-                                name, type1, type2)
+                            print('    %s type changed from %s to %s' % (
+                                name, type1, type2))
     
                         if attr_list1 != []:
-                            print '    %s list %s is not []' % (
-                                name, attr_list1)
+                            print('    %s list %s is not []' % (
+                                name, attr_list1))
                         if attr_list2 != []:
-                            print '    %s list %s is not []' % (
-                                name, attr_list2)    
+                            print('    %s list %s is not []' % (
+                                name, attr_list2))    
                         if attr_list1 != attr_list2:
-                            print '    %s list changed from %s to %s' % (
-                                name, attr_list1, attr_list2)                
+                            print('    %s list changed from %s to %s' % (
+                                name, attr_list1, attr_list2))                
                                         
                         # find added field attributes
                         for attr in field_attrs2:
                             if not attr in field_attrs1:
-                                print '    added %s attribute %s=%s' % (
-                                    name, attr, field_attrs2[attr])
+                                print('    added %s attribute %s=%s' % (
+                                    name, attr, field_attrs2[attr]))
                                 
                         # find removed field attributes
                         for attr in field_attrs1:
                             if not attr in field_attrs2:
-                                print '    removed attribute %s(%s=%s)' % (
-                                    name, attr, field_attrs1[attr])
+                                print('    removed attribute %s(%s=%s)' % (
+                                    name, attr, field_attrs1[attr]))
                             
                         # compare field attributes
                         for attr in field_attrs1:
@@ -254,7 +256,7 @@ def diff_migrations(migration1, migration2):
                                 value1 = field_attrs1[attr]
                                 value2 = field_attrs2[attr]
                                 if value1 != value2:
-                                    print '    %s attribute %s changed from %s to %s' % (
-                                        name, attr, value1, value2)
+                                    print('    %s attribute %s changed from %s to %s' % (
+                                        name, attr, value1, value2))
     
     return migration2

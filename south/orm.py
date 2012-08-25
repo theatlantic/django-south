@@ -3,6 +3,8 @@ South's fake ORM; lets you not have to write SQL inside migrations.
 Roughly emulates the real Django ORM, to a point.
 """
 
+from __future__ import print_function
+
 import inspect
 
 from django.db import models
@@ -227,7 +229,7 @@ class _FakeORM(object):
                 if name == "SouthFieldClass":
                     raise ValueError("Cannot import the required field '%s'" % value)
                 else:
-                    print "WARNING: Cannot import '%s'" % value
+                    print("WARNING: Cannot import '%s'" % value)
         
         # Use ModelsLocals to make lookups work right for CapitalisedModels
         fake_locals = ModelsLocals(fake_locals)

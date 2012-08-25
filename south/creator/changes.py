@@ -3,6 +3,8 @@ Contains things to detect changes - either using options passed in on the
 commandline, or by using autodetection, etc.
 """
 
+from __future__ import print_function
+
 from django.db import models
 from django.contrib.contenttypes.generic import GenericRelation
 from django.utils.datastructures import SortedDict
@@ -421,7 +423,7 @@ class ManualChanges(BaseChanges):
             try:
                 model_name, field_name = field_desc.split(".")
             except (TypeError, ValueError):
-                print "%r is not a valid field description." % field_desc
+                print("%r is not a valid field description." % field_desc)
             model = models.get_model(self.migrations.app_label(), model_name)
             yield ("AddIndex", {
                 "model": model,

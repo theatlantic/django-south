@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import uuid
 from django.db.backends.util import truncate_name
 from south.db import generic
@@ -52,7 +54,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             generic.DatabaseOperations.rename_table(self, old_table_name + "_id_seq", table_name + "_id_seq")
         except:
             if self.debug:
-                print "   ~ No such sequence (ignoring error)"
+                print("   ~ No such sequence (ignoring error)")
             self.rollback_transaction()
         else:
             self.commit_transaction()
@@ -65,7 +67,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             generic.DatabaseOperations.rename_table(self, old_table_name + "_pkey", table_name + "_pkey")
         except:
             if self.debug:
-                print "   ~ No such primary key (ignoring error)"
+                print("   ~ No such primary key (ignoring error)")
             self.rollback_transaction()
         else:
             self.commit_transaction()

@@ -2,6 +2,8 @@
 Overridden syncdb command
 """
 
+from __future__ import print_function
+
 import sys
 from optparse import make_option
 
@@ -74,7 +76,7 @@ class Command(NoArgsCommand):
         
         # Run syncdb on only the ones needed
         if verbosity:
-            print "Syncing..."
+            print("Syncing...")
         
         old_installed, settings.INSTALLED_APPS = settings.INSTALLED_APPS, apps_needing_sync
         old_app_store, cache.app_store = cache.app_store, SortedDict([
@@ -95,17 +97,17 @@ class Command(NoArgsCommand):
         # Migrate if needed
         if options.get('migrate', True):
             if verbosity:
-                print "Migrating..."
+                print("Migrating...")
             management.call_command('migrate', **options)
         
         # Be obvious about what we did
         if verbosity:
-            print "\nSynced:\n > %s" % "\n > ".join(apps_needing_sync)
+            print("\nSynced:\n > %s" % "\n > ".join(apps_needing_sync))
         
         if options.get('migrate', True):
             if verbosity:
-                print "\nMigrated:\n - %s" % "\n - ".join(apps_migrated)
+                print("\nMigrated:\n - %s" % "\n - ".join(apps_migrated))
         else:
             if verbosity:
-                print "\nNot synced (use migrations):\n - %s" % "\n - ".join(apps_migrated)
-                print "(use ./manage.py migrate to migrate these)"
+                print("\nNot synced (use migrations):\n - %s" % "\n - ".join(apps_migrated))
+                print("(use ./manage.py migrate to migrate these)")

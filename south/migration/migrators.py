@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from copy import copy, deepcopy
 from cStringIO import StringIO
 import datetime
@@ -27,7 +29,7 @@ class Migrator(object):
 
     def print_title(self, target):
         if self.verbosity:
-            print self.title(target)
+            print(self.title(target))
         
     @staticmethod
     def status(target):
@@ -36,7 +38,7 @@ class Migrator(object):
     def print_status(self, migration):
         status = self.status(migration)
         if self.verbosity and status:
-            print status
+            print(status)
 
     @staticmethod
     def orm(migration):
@@ -83,14 +85,14 @@ class Migrator(object):
         except:
             south.db.db.rollback_transaction()
             if not south.db.db.has_ddl_transactions:
-                print self.run_migration_error(migration)
-            print "Error in migration: %s" % migration
+                print(self.run_migration_error(migration))
+            print("Error in migration: %s" % migration)
             raise
         else:
             try:
                 south.db.db.commit_transaction()
             except:
-                print "Error during commit in migration: %s" % migration
+                print("Error during commit in migration: %s" % migration)
                 raise
                 
 
@@ -160,7 +162,7 @@ class DryRunMigrator(MigratorWrapper):
     def _run_migration(self, migration):
         if migration.no_dry_run():
             if self.verbosity:
-                print " - Migration '%s' is marked for no-dry-run." % migration
+                print(" - Migration '%s' is marked for no-dry-run." % migration)
             return
         south.db.db.dry_run = True
         # preserve the constraint cache as it can be mutated by the dry run
@@ -204,7 +206,7 @@ class DryRunMigrator(MigratorWrapper):
 class FakeMigrator(MigratorWrapper):
     def run(self, migration):
         if self.verbosity:
-            print '   (faked)'
+            print('   (faked)')
 
     def send_ran_migration(self, *args, **kwargs):
         pass
@@ -217,7 +219,7 @@ class LoadInitialDataMigrator(MigratorWrapper):
             return
         # Load initial data, if we ended up at target
         if self.verbosity:
-            print " - Loading initial data for %s." % target.app_label()
+            print(" - Loading initial data for %s." % target.app_label())
         # Override Django's get_apps call temporarily to only load from the
         # current app
         old_get_apps = models.get_apps

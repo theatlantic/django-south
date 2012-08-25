@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from traceback import format_exception
 
 class SouthError(RuntimeError):
@@ -100,7 +102,7 @@ class DependsOnUnknownMigration(SouthError):
         self.depends_on = depends_on
 
     def __str__(self):
-        print "Migration '%(migration)s' depends on unknown migration '%(depends_on)s'." % self.__dict__
+        print("Migration '%(migration)s' depends on unknown migration '%(depends_on)s'." % self.__dict__)
 
 
 class DependsOnUnmigratedApplication(SouthError):

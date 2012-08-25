@@ -1,5 +1,7 @@
 # firebird
 
+from __future__ import print_function
+
 import datetime
 
 from django.db import connection, models
@@ -260,7 +262,7 @@ class DatabaseOperations(generic.DatabaseOperations):
 
         if self.dry_run:
             if self.debug:
-                print '   - no dry run output for alter_column() due to dynamic DDL, sorry'
+                print('   - no dry run output for alter_column() due to dynamic DDL, sorry')
             return
 
 
@@ -317,7 +319,7 @@ class DatabaseOperations(generic.DatabaseOperations):
                 try:
                     self.execute("ALTER TABLE %s %s;" % (self.quote_name(table_name), sql), values)
                 except DatabaseError as e:
-                    print e
+                    print(e)
 
 
         # Execute extra sql, which don't need ALTER TABLE statement

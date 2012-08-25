@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import re
 import sys
 
@@ -262,7 +264,7 @@ class DatabaseOperations(object):
         
         cursor = self._get_connection().cursor()
         if self.debug:
-            print "   = %s" % sql, params
+            print("   = %s" % sql, params)
 
         if self.dry_run:
             return []
@@ -272,8 +274,8 @@ class DatabaseOperations(object):
         try:
             cursor.execute(sql, params)
         except DatabaseError as e:
-            print >> sys.stderr, 'FATAL ERROR - The following SQL query failed: %s' % sql
-            print >> sys.stderr, 'The error was: %s' % e
+            print('FATAL ERROR - The following SQL query failed: %s' % sql, file=sys.stderr)
+            print('The error was: %s' % e, file=sys.stderr)
             raise
 
         try:
@@ -336,7 +338,7 @@ class DatabaseOperations(object):
         """
 
         if len(table_name) > 63:
-            print "   ! WARNING: You have a table name longer than 63 characters; this will not fully work on PostgreSQL or MySQL."
+            print("   ! WARNING: You have a table name longer than 63 characters; this will not fully work on PostgreSQL or MySQL.")
 
         # avoid default values in CREATE TABLE statements (#925)
         for field_name, field in fields:
@@ -457,7 +459,7 @@ class DatabaseOperations(object):
         
         if self.dry_run:
             if self.debug:
-                print '   - no dry run output for alter_column() due to dynamic DDL, sorry'
+                print('   - no dry run output for alter_column() due to dynamic DDL, sorry')
             return
 
         # hook for the field to do any resolution prior to it's attributes being queried
@@ -618,7 +620,7 @@ class DatabaseOperations(object):
         # Dry runs mean we can't do anything.
         if self.dry_run:
             if self.debug:
-                print '   - no dry run output for delete_unique_column() due to dynamic DDL, sorry'
+                print('   - no dry run output for delete_unique_column() due to dynamic DDL, sorry')
             return
 
         constraints = list(self._constraints_affecting_columns(table_name, columns))
@@ -769,7 +771,7 @@ class DatabaseOperations(object):
         """
         if self.dry_run:
             if self.debug:
-                print '   - no dry run output for delete_foreign_key() due to dynamic DDL, sorry'
+                print('   - no dry run output for delete_foreign_key() due to dynamic DDL, sorry')
             return  # We can't look at the DB to get the constraints
         constraints = self._find_foreign_constraints(table_name, column)
         if not constraints:
@@ -835,7 +837,7 @@ class DatabaseOperations(object):
         Generates a create index statement on 'table_name' for a list of 'column_names'
         """
         if not column_names:
-            print "No column names supplied on which to create an index"
+            print("No column names supplied on which to create an index")
             return ''
 
         connection = self._get_connection()
@@ -901,7 +903,7 @@ class DatabaseOperations(object):
         # Dry runs mean we can't do anything.
         if self.dry_run:
             if self.debug:
-                print '   - no dry run output for delete_primary_key() due to dynamic DDL, sorry'
+                print('   - no dry run output for delete_primary_key() due to dynamic DDL, sorry')
             return
         
         constraints = list(self._constraints_affecting_columns(table_name, None, type="PRIMARY KEY"))
@@ -1020,7 +1022,7 @@ class DatabaseOperations(object):
         """
         
         if self.debug:
-            print " - Sending post_syncdb signal for %s: %s" % (app_label, model_names)
+            print(" - Sending post_syncdb signal for %s: %s" % (app_label, model_names))
         
         app = models.get_app(app_label)
         if not app:

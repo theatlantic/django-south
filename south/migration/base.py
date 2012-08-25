@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from collections import deque
 import datetime
 import os
@@ -94,14 +96,14 @@ class Migrations(list):
         # Make the directory if it's not already there
         if not os.path.isdir(migrations_dir):
             if verbose:
-                print "Creating migrations directory at '%s'..." % migrations_dir
+                print("Creating migrations directory at '%s'..." % migrations_dir)
             os.mkdir(migrations_dir)
         # Same for __init__.py
         init_path = os.path.join(migrations_dir, "__init__.py")
         if not os.path.isfile(init_path):
             # Touch the init py file
             if verbose:
-                print "Creating __init__.py in '%s'..." % migrations_dir
+                print("Creating __init__.py in '%s'..." % migrations_dir)
             open(init_path, "w").close()
     
     def migrations_dir(self):

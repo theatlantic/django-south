@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os.path
 import sys
 import re
@@ -127,7 +129,7 @@ END;
         
         if self.dry_run:
             if self.debug:
-                print '   - no dry run output for alter_column() due to dynamic DDL, sorry'
+                print('   - no dry run output for alter_column() due to dynamic DDL, sorry')
             return
 
         qn = self.quote_name(table_name)

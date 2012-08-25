@@ -3,6 +3,8 @@ Like the old south.modelsparser, but using introspection where possible
 rather than direct inspection of models.py.
 """
 
+from __future__ import print_function
+
 import datetime
 import re
 import decimal
@@ -401,7 +403,7 @@ def get_model_fields(model, m2m=False):
         # Does it define a south_field_triple method?
         if hasattr(field, "south_field_triple"):
             if NOISY:
-                print " ( Nativing field: %s" % field.name
+                print(" ( Nativing field: %s" % field.name)
             field_defs[field.name] = field.south_field_triple()
         # Can we introspect it?
         elif can_introspect(field):
@@ -417,7 +419,7 @@ def get_model_fields(model, m2m=False):
         # Shucks, no definition!
         else:
             if NOISY:
-                print " ( Nodefing field: %s" % field.name
+                print(" ( Nodefing field: %s" % field.name)
             field_defs[field.name] = None
     
     # If they've used the horrific hack that is order_with_respect_to, deal with

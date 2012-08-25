@@ -4,6 +4,8 @@ Each one has a class, which can take the action description and insert code
 blocks into the forwards() and backwards() methods, in the right place.
 """
 
+from __future__ import print_function
+
 import sys
 
 from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
@@ -147,16 +149,16 @@ class _NullIssuesField(object):
             field_def[2]['default'] = repr("")
             return
         # Oh dear. Ask them what to do.
-        print " ? The field '%s.%s' does not have a default specified, yet is NOT NULL." % (
+        print(" ? The field '%s.%s' does not have a default specified, yet is NOT NULL." % (
             self.model._meta.object_name,
             field.name,
-        )
-        print " ? Since you are %s, you MUST specify a default" % self.null_reason
-        print " ? value to use for existing rows. Would you like to:"
-        print " ?  1. Quit now, and add a default to the field in models.py"
-        print " ?  2. Specify a one-off value to use for existing columns now"
+        ))
+        print(" ? Since you are %s, you MUST specify a default" % self.null_reason)
+        print(" ? value to use for existing rows. Would you like to:")
+        print(" ?  1. Quit now, and add a default to the field in models.py")
+        print(" ?  2. Specify a one-off value to use for existing columns now")
         if self.allow_third_null_option:
-            print " ?  3. Disable the backwards migration by raising an exception."
+            print(" ?  3. Disable the backwards migration by raising an exception.")
         while True:
             choice = raw_input(" ? Please select a choice: ")
             if choice == "1":
@@ -166,7 +168,7 @@ class _NullIssuesField(object):
             elif choice == "3" and self.allow_third_null_option:
                 break
             else:
-                print " ! Invalid choice."
+                print(" ! Invalid choice.")
         if choice == "2":
             self.add_one_time_default(field, field_def)
         elif choice == "3":
@@ -174,19 +176,19 @@ class _NullIssuesField(object):
 
     def add_one_time_default(self, field, field_def):
         # OK, they want to pick their own one-time default. Who are we to refuse?
-        print " ? Please enter Python code for your one-off default value."
-        print " ? The datetime module is available, so you can do e.g. datetime.date.today()"
+        print(" ? Please enter Python code for your one-off default value.")
+        print(" ? The datetime module is available, so you can do e.g. datetime.date.today()")
         while True:
             code = raw_input(" >>> ")
             if not code:
-                print " ! Please enter some code, or 'exit' (with no quotes) to exit."
+                print(" ! Please enter some code, or 'exit' (with no quotes) to exit.")
             elif code == "exit":
                 sys.exit(1)
             else:
                 try:
                     result = eval(code, {}, {"datetime": datetime_utils})
                 except (SyntaxError, NameError) as e:
-                    print " ! Invalid input: %s" % e
+                    print(" ! Invalid input: %s" % e)
                 else:
                     break
         # Right, add the default in.

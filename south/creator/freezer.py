@@ -2,6 +2,8 @@
 Handles freezing of models into FakeORMs.
 """
 
+from __future__ import print_function
+
 import sys
 
 from django.db import models
@@ -42,14 +44,14 @@ def freeze_apps(apps):
                 missing_fields = True
                 model_class = model_classes[key]
                 field_class = model_class._meta.get_field_by_name(field_name)[0]
-                print " ! Cannot freeze field '%s.%s'" % (key, field_name)
-                print " ! (this field has class %s.%s)" % (field_class.__class__.__module__, field_class.__class__.__name__)
+                print(" ! Cannot freeze field '%s.%s'" % (key, field_name))
+                print(" ! (this field has class %s.%s)" % (field_class.__class__.__module__, field_class.__class__.__name__))
     if missing_fields:
-        print ""
-        print " ! South cannot introspect some fields; this is probably because they are custom"
-        print " ! fields. If they worked in 0.6 or below, this is because we have removed the"
-        print " ! models parser (it often broke things)."
-        print " ! To fix this, read http://south.aeracode.org/wiki/MyFieldsDontWork"
+        print("")
+        print(" ! South cannot introspect some fields; this is probably because they are custom")
+        print(" ! fields. If they worked in 0.6 or below, this is because we have removed the")
+        print(" ! models parser (it often broke things).")
+        print(" ! To fix this, read http://south.aeracode.org/wiki/MyFieldsDontWork")
         sys.exit(1)
     
     return model_defs
