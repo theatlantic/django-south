@@ -316,7 +316,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             for sql, values in sqls:
                 try:
                     self.execute("ALTER TABLE %s %s;" % (self.quote_name(table_name), sql), values)
-                except DatabaseError, e:
+                except DatabaseError as e:
                     print e
 
 

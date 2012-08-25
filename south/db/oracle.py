@@ -176,7 +176,7 @@ END;
         for sql_template, params in sql_templates:
             try:
                 self.execute(sql_template % params)
-            except DatabaseError, exc:
+            except DatabaseError as exc:
                 description = str(exc)
                 # Oracle complains if a column is already NULL/NOT NULL
                 if 'ORA-01442' in description or 'ORA-01451' in description:

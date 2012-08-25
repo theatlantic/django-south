@@ -61,7 +61,7 @@ class Command(BaseCommand):
         for app_name in settings.INSTALLED_APPS:
             try:
                 import_module('.management', app_name)
-            except ImportError, exc:
+            except ImportError as exc:
                 msg = exc.args[0]
                 if not msg.startswith('No module named') or 'management' not in msg:
                     raise

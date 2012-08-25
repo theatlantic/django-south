@@ -571,7 +571,7 @@ class TestMigrationLogic(Monkeypatcher):
                           migrations, target_name='zero', fake=False)
         try:
             migrate_app(migrations, target_name=None, fake=False)
-        except exceptions.InconsistentMigrationHistory, e:
+        except exceptions.InconsistentMigrationHistory as e:
             self.assertEqual(
                 [
                     (
@@ -583,7 +583,7 @@ class TestMigrationLogic(Monkeypatcher):
             )
         try:
             migrate_app(migrations, target_name="zero", fake=False)
-        except exceptions.InconsistentMigrationHistory, e:
+        except exceptions.InconsistentMigrationHistory as e:
             self.assertEqual(
                 [
                     (
@@ -810,7 +810,7 @@ class TestUtils(unittest.TestCase):
         )
         try:
             depends(target, lambda n: graph[n])
-        except exceptions.CircularDependency, e:
+        except exceptions.CircularDependency as e:
             self.assertEqual(trace, e.trace)
 
     def test_depends_cycle(self):

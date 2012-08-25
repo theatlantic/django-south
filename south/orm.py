@@ -248,7 +248,7 @@ class _FakeORM(object):
             # OK, add it.
             try:
                 results[key] = self.eval_in_context(code, app)
-            except (NameError, AttributeError), e:
+            except (NameError, AttributeError) as e:
                 raise ValueError("Cannot successfully create meta field '%s' for model '%s.%s': %s." % (
                     key, app, model, e
                 ))
@@ -364,7 +364,7 @@ class _FakeORM(object):
                 for fname, (code, extra_imports) in model._failed_fields.items():
                     try:
                         field = self.eval_in_context(code, app, extra_imports)
-                    except (NameError, AttributeError, AssertionError, KeyError), e:
+                    except (NameError, AttributeError, AssertionError, KeyError) as e:
                         # It's failed again. Complain.
                         raise ValueError("Cannot successfully create field '%s' for model '%s': %s." % (
                             fname, modelname, e

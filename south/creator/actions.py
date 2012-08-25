@@ -185,7 +185,7 @@ class _NullIssuesField(object):
             else:
                 try:
                     result = eval(code, {}, {"datetime": datetime_utils})
-                except (SyntaxError, NameError), e:
+                except (SyntaxError, NameError) as e:
                     print " ! Invalid input: %s" % e
                 else:
                     break

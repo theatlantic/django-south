@@ -299,9 +299,9 @@ class Migration(object):
         except KeyError:
             try:
                 migration = __import__(full_name, {}, {}, ['Migration'])
-            except ImportError, e:
+            except ImportError as e:
                 raise exceptions.UnknownMigration(self, sys.exc_info())
-            except Exception, e:
+            except Exception as e:
                 raise exceptions.BrokenMigration(self, sys.exc_info())
         # Override some imports
         migration._ = lambda x: x  # Fake i18n

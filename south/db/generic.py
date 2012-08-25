@@ -271,7 +271,7 @@ class DatabaseOperations(object):
 
         try:
             cursor.execute(sql, params)
-        except DatabaseError, e:
+        except DatabaseError as e:
             print >> sys.stderr, 'FATAL ERROR - The following SQL query failed: %s' % sql
             print >> sys.stderr, 'The error was: %s' % e
             raise
