@@ -134,7 +134,7 @@ class AutoChanges(BaseChanges):
                     unique_together = eval(old_meta.get("unique_together", "[]"))
                     if unique_together:
                         # If it's only a single tuple, make it into the longer one
-                        if isinstance(unique_together[0], basestring):
+                        if isinstance(unique_together[0], string_types):
                             unique_together = [unique_together]
                         # For each combination, make an action for it
                         for fields in unique_together:
@@ -165,7 +165,7 @@ class AutoChanges(BaseChanges):
                     unique_together = eval(new_meta.get("unique_together", "[]"))
                     if unique_together:
                         # If it's only a single tuple, make it into the longer one
-                        if isinstance(unique_together[0], basestring):
+                        if isinstance(unique_together[0], string_types):
                             unique_together = [unique_together]
                         # For each combination, make an action for it
                         for fields in unique_together:
@@ -292,9 +292,9 @@ class AutoChanges(BaseChanges):
                 # First, normalise them into lists of sets.
                 old_unique_together = eval(old_meta.get("unique_together", "[]"))
                 new_unique_together = eval(new_meta.get("unique_together", "[]"))
-                if old_unique_together and isinstance(old_unique_together[0], basestring):
+                if old_unique_together and isinstance(old_unique_together[0], string_types):
                     old_unique_together = [old_unique_together]
-                if new_unique_together and isinstance(new_unique_together[0], basestring):
+                if new_unique_together and isinstance(new_unique_together[0], string_types):
                     new_unique_together = [new_unique_together]
                 old_unique_together = map(set, old_unique_together)
                 new_unique_together = map(set, new_unique_together)
@@ -465,7 +465,7 @@ class InitialChanges(BaseChanges):
                 unique_together = eval(meta.get("unique_together", "[]"))
                 if unique_together:
                     # If it's only a single tuple, make it into the longer one
-                    if isinstance(unique_together[0], basestring):
+                    if isinstance(unique_together[0], string_types):
                         unique_together = [unique_together]
                     # For each combination, make an action for it
                     for fields in unique_together:

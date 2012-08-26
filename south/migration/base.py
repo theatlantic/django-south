@@ -16,7 +16,7 @@ from south.migration.utils import depends, dfs, flatten, get_app_label
 from south.orm import FakeORM
 from south.utils import memoize, ask_for_it_by_name, datetime_utils
 from south.migration.utils import app_label_to_app_module
-
+from south.utils.py3 import string_types
 
 def all_migrations(applications=None):
     """
@@ -36,7 +36,7 @@ def all_migrations(applications=None):
 
 def application_to_app_label(application):
     "Works out the app label from either the app label, the app name, or the module"
-    if isinstance(application, basestring):
+    if isinstance(application, string_types):
         app_label = application.split('.')[-1]
     else:
         app_label = application.__name__.split('.')[-1]
@@ -192,7 +192,7 @@ class Migrations(list):
         return self._cache[name]
 
     def __getitem__(self, value):
-        if isinstance(value, basestring):
+        if isinstance(value, string_types):
             return self.migration(value)
         return super(Migrations, self).__getitem__(value)
 

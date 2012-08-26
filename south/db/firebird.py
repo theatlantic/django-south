@@ -9,6 +9,7 @@ from django.core.management.color import no_style
 from django.db.utils import DatabaseError
 
 from south.db import generic
+from south.utils.py3 import string_types
 
 class DatabaseOperations(generic.DatabaseOperations):
     backend_name = 'firebird'
@@ -171,14 +172,14 @@ class DatabaseOperations(generic.DatabaseOperations):
                         if callable(default):
                             default = default()
                         # Now do some very cheap quoting. TODO: Redesign return values to avoid this.
-                        if isinstance(default, basestring):
+                        if isinstance(default, string_types):
                             default = "'%s'" % default.replace("'", "''")
                         elif isinstance(default, (datetime.date, datetime.time, datetime.datetime)):
                             default = "'%s'" % default
                         elif isinstance(default, bool):
                             default = int(default)
                         # Escape any % signs in the output (bug #317)
-                        if isinstance(default, basestring):
+                        if isinstance(default, string_types):
                             default = default.replace("%", "%%")
                         # Add it in
                         sql += " DEFAULT %s"

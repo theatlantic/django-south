@@ -268,7 +268,7 @@ class _FakeORM(object):
                 key = key.lower()
                 if key not in self.models:
                     raise ORMBaseNotIncluded("Cannot find ORM base %s" % key)
-                elif isinstance(self.models[key], basestring):
+                elif isinstance(self.models[key], string_types):
                     # Then the other model hasn't been unfrozen yet.
                     # We postpone ourselves; the situation will eventually resolve.
                     raise UnfreezeMeLater()

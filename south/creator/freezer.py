@@ -13,12 +13,13 @@ from django.contrib.contenttypes.generic import GenericRelation
 from south.orm import FakeORM
 from south.utils import get_attribute, auto_through
 from south import modelsinspector
+from south.utils.py3 import string_types
 
 def freeze_apps(apps):
     """
     Takes a list of app labels, and returns a string of their frozen form.
     """
-    if isinstance(apps, basestring):
+    if isinstance(apps, string_types):
         apps = [apps]
     frozen_models = set()
     # For each app, add in all its models

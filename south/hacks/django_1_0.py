@@ -9,6 +9,8 @@ from django.core import management
 from django.core.management.commands.flush import Command as FlushCommand
 from django.utils.datastructures import SortedDict
 
+from south.utils.py3 import string_types
+
 class SkipFlushCommand(FlushCommand):
     def handle_noargs(self, **options):
         # no-op to avoid calling flush
@@ -26,7 +28,7 @@ class Hacks:
         
         # Make sure it contains strings
         if apps:
-            assert isinstance(apps[0], basestring), "The argument to set_installed_apps must be a list of strings."
+            assert isinstance(apps[0], string_types), "The argument to set_installed_apps must be a list of strings."
         
         # Monkeypatch in!
         settings.INSTALLED_APPS, settings.OLD_INSTALLED_APPS = (

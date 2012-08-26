@@ -5,6 +5,7 @@ from django.db.models import fields
 from south.db import generic
 from south.db.generic import delete_column_constraints, invalidate_table_constraints, copy_column_constraints
 from south.exceptions import ConstraintDropped
+from south.utils.py3 import string_types
 try:
     from django.utils.encoding import smart_text                    # Django >= 1.5
 except ImportError:
@@ -250,7 +251,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         conn = self._get_connection()
         value = field.get_db_prep_save(value, connection=conn)
         # This is still a Python object -- nobody expects to need a literal.
-        if isinstance(value, basestring):
+        if isinstance(value, string_types):
             return smart_text(value)
         elif isinstance(value, (date,time,datetime)):
             return value.isoformat()

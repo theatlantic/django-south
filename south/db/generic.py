@@ -691,10 +691,10 @@ class DatabaseOperations(object):
                         default = field.get_db_prep_save(default, connection=self._get_connection())
                         default = self._default_value_workaround(default)
                         # Now do some very cheap quoting. TODO: Redesign return values to avoid this.
-                        if isinstance(default, basestring):
+                        if isinstance(default, string_types):
                             default = "'%s'" % default.replace("'", "''")
                         # Escape any % signs in the output (bug #317)
-                        if isinstance(default, basestring):
+                        if isinstance(default, string_types):
                             default = default.replace("%", "%%")
                         # Add it in
                         sql += " DEFAULT %s"
