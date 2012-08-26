@@ -272,7 +272,7 @@ class Migration(object):
         return self.app_label() + ':' + self.name()
 
     def __repr__(self):
-        return u'<Migration: %s>' % unicode(self)
+        return '<Migration: %s>' % str(self)
 
     def __eq__(self, other):
         return self.app_label() == other.app_label() and self.name() == other.name()

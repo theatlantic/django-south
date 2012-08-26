@@ -5,7 +5,10 @@ from django.db.models import fields
 from south.db import generic
 from south.db.generic import delete_column_constraints, invalidate_table_constraints, copy_column_constraints
 from south.exceptions import ConstraintDropped
-from django.utils.encoding import smart_unicode
+try:
+    from django.utils.encoding import smart_text                    # Django >= 1.5
+except ImportError:
+    from django.utils.encoding import smart_unicode as smart_text   # Django < 1.5
 from django.core.management.color import no_style
 
 class DatabaseOperations(generic.DatabaseOperations):
@@ -248,7 +251,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         value = field.get_db_prep_save(value, connection=conn)
         # This is still a Python object -- nobody expects to need a literal.
         if isinstance(value, basestring):
-            return smart_unicode(value)
+            return smart_text(value)
         elif isinstance(value, (date,time,datetime)):
             return value.isoformat()
         else:

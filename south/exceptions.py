@@ -49,7 +49,7 @@ class MultiplePrefixMatches(SouthError):
         self.matches = matches
 
     def __str__(self):
-        self.matches_list = "\n    ".join([unicode(m) for m in self.matches])
+        self.matches_list = "\n    ".join([str(m) for m in self.matches])
         return ("Prefix '%(prefix)s' matches more than one migration:\n"
                 "    %(matches_list)s") % self.__dict__
 
@@ -59,7 +59,7 @@ class GhostMigrations(SouthError):
         self.ghosts = ghosts
 
     def __str__(self):
-        self.ghosts_list = "\n    ".join([unicode(m) for m in self.ghosts])
+        self.ghosts_list = "\n    ".join([str(m) for m in self.ghosts])
         return ("\n\n ! These migrations are in the database but not on disk:\n"
                 "    %(ghosts_list)s\n"
                 " ! I'm not trusting myself; either fix this yourself by fiddling\n"
@@ -72,7 +72,7 @@ class CircularDependency(SouthError):
         self.trace = trace
 
     def __str__(self):
-        trace = " -> ".join([unicode(s) for s in self.trace])
+        trace = " -> ".join([str(s) for s in self.trace])
         return ("Found circular dependency:\n"
                 "    %s") % trace
 

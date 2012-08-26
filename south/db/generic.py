@@ -28,6 +28,7 @@ except ImportError:
             return res
 
 from south.logger import get_logger
+from south.utils.py3 import string_types
 
 
 def alias(attrname):
@@ -868,7 +869,7 @@ class DatabaseOperations(object):
         This is possible using only columns due to the deterministic
         index naming function which relies on column names.
         """
-        if isinstance(column_names, (str, unicode)):
+        if isinstance(column_names, string_types):
             column_names = [column_names]
         name = self.create_index_name(table_name, column_names)
         sql = self.drop_index_string % {

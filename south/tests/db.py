@@ -4,6 +4,7 @@ from south.db import db, generic
 from django.db import connection, models, IntegrityError
 
 from south.tests import unittest, skipIf, skipUnless
+from south.utils.py3 import text_type
 
 # Create a list of error classes from the various database libraries
 errors = []
@@ -558,7 +559,7 @@ class TestOperations(unittest.TestCase):
         db.alter_column("test_char_to_text", "textcol", models.TextField())
         db.execute_deferred_sql()
         after = db.execute("select * from test_char_to_text")[0][0]
-        after = unicode(after) # Oracle text fields return a sort of lazy string -- force evaluation
+        after = text_type(after) # Oracle text fields return a sort of lazy string -- force evaluation
         self.assertEqual(value, after, "Change from char to text altered value [ %r != %r ]" % (value, after))
 
     def test_datetime_default(self):

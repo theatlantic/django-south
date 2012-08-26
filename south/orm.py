@@ -15,6 +15,7 @@ from south.db import db
 from south.utils import ask_for_it_by_name, datetime_utils
 from south.hacks import hacks
 from south.exceptions import UnfreezeMeLater, ORMBaseNotIncluded, ImpossibleORMUnfreeze
+from south.utils.py3 import string_types
 
 
 class ModelsLocals(object):
@@ -296,7 +297,7 @@ class _FakeORM(object):
                 continue
             elif not params:
                 raise ValueError("Field '%s' on model '%s.%s' has no definition." % (fname, app, name))
-            elif isinstance(params, (str, unicode)):
+            elif isinstance(params, string_types):
                 # It's a premade definition string! Let's hope it works...
                 code = params
                 extra_imports = {}

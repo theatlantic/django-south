@@ -10,6 +10,7 @@ import re
 import decimal
 
 from south.utils import get_attribute, auto_through
+from south.utils.py3 import text_type
 
 from django.db import models
 from django.db.models.base import ModelBase, Model
@@ -265,7 +266,7 @@ def get_value(field, descriptor):
             
     # Lazy-eval functions get eval'd.
     if isinstance(value, Promise):
-        value = unicode(value)
+        value = text_type(value)
     # If the value is the same as the default, omit it for clarity
     if "default" in options and value == options['default']:
         raise IsDefault
@@ -296,7 +297,7 @@ def value_clean(value, options={}):
     "Takes a value and cleans it up (so e.g. it has timezone working right)"
     # Lazy-eval functions get eval'd.
     if isinstance(value, Promise):
-        value = unicode(value)
+        value = text_type(value)
     # Callables get called.
     if not options.get('is_django_function', False) and callable(value) and not isinstance(value, ModelBase):
         # Datetime.datetime.now is special, as we can access it from the eval

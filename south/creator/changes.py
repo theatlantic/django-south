@@ -11,6 +11,7 @@ from django.utils.datastructures import SortedDict
 
 from south.creator.freezer import remove_useless_attributes, freeze_apps, model_key
 from south.utils import auto_through
+from south.utils.py3 import string_types
 
 class BaseChanges(object):
     """
@@ -315,7 +316,7 @@ class AutoChanges(BaseChanges):
     def is_triple(cls, triple):
         "Returns whether the argument is a triple."
         return isinstance(triple, (list, tuple)) and len(triple) == 3 and \
-            isinstance(triple[0], (str, unicode)) and \
+            isinstance(triple[0], string_types) and \
             isinstance(triple[1], (list, tuple)) and \
             isinstance(triple[2], dict)
 
