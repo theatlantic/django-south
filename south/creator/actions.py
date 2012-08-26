@@ -14,6 +14,7 @@ from django.db.models.fields import FieldDoesNotExist, NOT_PROVIDED, CharField, 
 from south.modelsinspector import value_clean
 from south.creator.freezer import remove_useless_attributes, model_key
 from south.utils import datetime_utils
+from south.utils.py3 import raw_input
 
 
 class Action(object):

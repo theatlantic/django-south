@@ -1,9 +1,9 @@
 from __future__ import print_function
 
 from copy import copy, deepcopy
-from cStringIO import StringIO
 import datetime
 import inspect
+import io
 import sys
 import traceback
 
@@ -145,7 +145,7 @@ class MigratorWrapper(object):
     def __init__(self, migrator, *args, **kwargs):
         self._migrator = copy(migrator)
         attributes = dict([(k, getattr(self, k))
-                           for k in self.__class__.__dict__.iterkeys()
+                           for k in self.__class__.__dict__
                            if not k.startswith('__')])
         self._migrator.__dict__.update(attributes)
         self._migrator.__dict__['_wrapper'] = self
@@ -287,7 +287,7 @@ class Forwards(Migrator):
         old_debug, old_dry_run = south.db.db.debug, south.db.db.dry_run
         south.db.db.debug = south.db.db.dry_run = True
         stdout = sys.stdout
-        sys.stdout = StringIO()
+        sys.stdout = io.StringIO()
         try:
             try:
                 self.backwards(migration)()

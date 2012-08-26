@@ -16,7 +16,7 @@ class TestMySQLOperations(unittest.TestCase):
     def __metaclass__(name, bases, dict_):
         decorator = skipUnless(db.backend_name == "mysql", 'MySQL-specific tests')
 
-        for key, method in dict_.iteritems():
+        for key, method in dict_.items():
             if key.startswith('test'):
                 dict_[key] = decorator(method)
 

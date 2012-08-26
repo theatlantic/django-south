@@ -42,7 +42,7 @@ def convert_on_delete_handler(value):
             func_name = getattr(value, '__name__', None)
             if func_name == 'set_on_delete':
                 # we must inspect the function closure to see what parameters were passed in
-                closure_contents = value.func_closure[0].cell_contents
+                closure_contents = value.__closure__[0].cell_contents
                 if closure_contents is None:
                     return "%s.SET_NULL" % (django_db_models_module)
                 # simple function we can perhaps cope with:
@@ -180,9 +180,6 @@ meta_details = {
     "ordering": ["ordering", {"default": []}],
     "proxy": ["proxy", {"default": False, "ignore_missing": True}],
 }
-
-# 2.4 compatability
-any = lambda x: reduce(lambda y, z: y or z, x, False)
 
 
 def add_introspection_rules(rules=[], patterns=[]):

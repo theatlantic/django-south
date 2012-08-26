@@ -5,6 +5,7 @@ Migrate management command.
 from __future__ import print_function
 
 import os.path, re, sys
+from functools import reduce
 from optparse import make_option
 
 from django.core.management.base import BaseCommand

@@ -309,7 +309,7 @@ class DatabaseOperations(generic.DatabaseOperations):
 
         # Finally, actually change the column
         if self.allows_combined_alters:
-            sqls, values = zip(*sqls)
+            sqls, values = list(zip(*sqls))
             self.execute(
                 "ALTER TABLE %s %s;" % (self.quote_name(table_name), ", ".join(sqls)),
                 generic.flatten(values),

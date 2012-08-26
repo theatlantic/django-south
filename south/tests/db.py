@@ -683,7 +683,7 @@ class TestOperations(unittest.TestCase):
             def to_python(self, value):
                 if not value or isinstance(value, list):
                     return value
-                return map(int, value.split(','))
+                return list(map(int, value.split(',')))
 
         false_value = db.has_booleans and 'False' or '0'
         defaults = (

@@ -153,7 +153,7 @@ class DatabaseOperations(object):
             if table is INVALID:
                 raise INVALID
             elif column_name is None:
-                return table.items()
+                return list(table.items())
             else:
                 return table[column_name]
 
@@ -1002,7 +1002,7 @@ class DatabaseOperations(object):
             except KeyError:
                 signals[app_label] = list(model_names)
         # Send only one signal per app.
-        for (app_label, model_names) in signals.iteritems():
+        for (app_label, model_names) in signals.items():
             self.really_send_create_signal(app_label, list(set(model_names)),
                                            verbosity=verbosity,
                                            interactive=interactive)

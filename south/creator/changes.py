@@ -296,8 +296,8 @@ class AutoChanges(BaseChanges):
                     old_unique_together = [old_unique_together]
                 if new_unique_together and isinstance(new_unique_together[0], string_types):
                     new_unique_together = [new_unique_together]
-                old_unique_together = map(set, old_unique_together)
-                new_unique_together = map(set, new_unique_together)
+                old_unique_together = list(map(set, old_unique_together))
+                new_unique_together = list(map(set, new_unique_together))
                 # See if any appeared or disappeared
                 for item in old_unique_together:
                     if item not in new_unique_together:
