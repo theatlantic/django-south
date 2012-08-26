@@ -16,7 +16,7 @@ from south.migration.utils import depends, dfs, flatten, get_app_label
 from south.orm import FakeORM
 from south.utils import memoize, ask_for_it_by_name, datetime_utils
 from south.migration.utils import app_label_to_app_module
-from south.utils.py3 import string_types
+from south.utils.py3 import string_types, with_metaclass
 
 def all_migrations(applications=None):
     """
@@ -69,12 +69,10 @@ class MigrationsMetaclass(type):
         self.instances = {}
 
 
-class Migrations(list):
+class Migrations(with_metaclass(MigrationsMetaclass, list)):
     """
     Holds a list of Migration objects for a particular app.
     """
-    
-    __metaclass__ = MigrationsMetaclass
     
     if getattr(settings, "SOUTH_USE_PYC", False):
         MIGRATION_FILENAME = re.compile(r'(?!__init__)' # Don't match __init__.py

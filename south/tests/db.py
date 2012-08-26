@@ -4,7 +4,7 @@ from south.db import db, generic
 from django.db import connection, models, IntegrityError
 
 from south.tests import unittest, skipIf, skipUnless
-from south.utils.py3 import text_type
+from south.utils.py3 import text_type, with_metaclass
 
 # Create a list of error classes from the various database libraries
 errors = []
@@ -667,8 +667,7 @@ class TestOperations(unittest.TestCase):
         Datetimes are handled in test_datetime_default.
         """
 
-        class CustomField(models.CharField):
-            __metaclass__ = models.SubfieldBase
+        class CustomField(with_metaclass(models.SubfieldBase, models.CharField)):
             description = 'CustomField'
             def get_default(self):
                 if self.has_default():

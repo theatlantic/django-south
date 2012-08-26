@@ -7,20 +7,24 @@ from south.tests import unittest, skipUnless
 from south.db import db, generic, mysql
 from django.db import connection, models
 
+from south.utils.py3 import with_metaclass
 
-class TestMySQLOperations(unittest.TestCase):
-    """MySQL-specific tests"""
 
-    # A class decoration may be used in lieu of this when Python 2.5 is the
-    # minimum.
-    def __metaclass__(name, bases, dict_):
+# A class decoration may be used in lieu of this when Python 2.5 is the
+# minimum.
+class TestMySQLOperationsMeta(type):
+
+    def __new__(mcs, name, bases, dict_):
         decorator = skipUnless(db.backend_name == "mysql", 'MySQL-specific tests')
 
         for key, method in dict_.items():
             if key.startswith('test'):
                 dict_[key] = decorator(method)
 
-        return type(name, bases, dict_)
+        return type.__new__(mcs, name, bases, dict_)
+
+class TestMySQLOperations(with_metaclass(TestMySQLOperationsMeta, unittest.TestCase)):
+    """MySQL-specific tests"""
 
     def setUp(self):
         db.debug = False

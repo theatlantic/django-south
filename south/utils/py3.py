@@ -15,3 +15,7 @@ else:
     string_types = basestring,
     text_type = unicode
     raw_input = raw_input
+
+def with_metaclass(meta, base=object):
+    """Create a base class with a metaclass."""
+    return meta("NewBase", (base,), {})
