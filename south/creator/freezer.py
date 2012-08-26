@@ -119,7 +119,7 @@ def field_dependencies(field, checked_models=None):
     checked_models = checked_models or set()
     depends = set()
     arg_defs, kwarg_defs = modelsinspector.matching_details(field)
-    for attrname, options in arg_defs + kwarg_defs.values():
+    for attrname, options in arg_defs + list(kwarg_defs.values()):
         if options.get("ignore_if_auto_through", False) and auto_through(field):
             continue
         if options.get("is_value", False):

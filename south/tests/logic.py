@@ -511,8 +511,13 @@ class TestMigrationLogic(Monkeypatcher):
     def assertListEqual(self, list1, list2, msg=None):
         list1 = list(list1)
         list2 = list(list2)
-        list1.sort()
-        list2.sort()
+        try:
+            list1.sort()
+            list2.sort()
+        except TypeError:
+            # emulate Python 2 behavior in Python 3
+            list1 = sorted(list1, key=id)
+            list2 = sorted(list2, key=id)
         return self.assert_(list1 == list2, "%s is not equal to %s" % (list1, list2))
 
     def test_find_ghost_migrations(self):
