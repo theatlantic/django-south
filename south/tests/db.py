@@ -543,7 +543,7 @@ class TestOperations(unittest.TestCase):
         db.alter_column("test_text_to_char", "textcol", models.CharField(max_length=100))
         db.execute_deferred_sql()
         after = db.execute("select * from test_text_to_char")[0][0]
-        self.assertEqual(value, after, "Change from text to char altered value [ %s != %s ]" % (`value`,`after`))
+        self.assertEqual(value, after, "Change from text to char altered value [ %r != %r ]" % (value, after))
 
     def test_char_to_text(self):
         """
@@ -559,7 +559,7 @@ class TestOperations(unittest.TestCase):
         db.execute_deferred_sql()
         after = db.execute("select * from test_char_to_text")[0][0]
         after = unicode(after) # Oracle text fields return a sort of lazy string -- force evaluation
-        self.assertEqual(value, after, "Change from char to text altered value [ %s != %s ]" % (`value`,`after`))
+        self.assertEqual(value, after, "Change from char to text altered value [ %r != %r ]" % (value, after))
 
     def test_datetime_default(self):
         """
