@@ -8,7 +8,6 @@ from django.db import models
 from django.db.models.base import ModelBase, Model
 from django.contrib.contenttypes.generic import GenericRelation
 
-from south.orm import FakeORM
 from south.utils import get_attribute, auto_through
 from south import modelsinspector
 
