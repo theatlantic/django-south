@@ -1,5 +1,7 @@
 # firebird
 
+from __future__ import print_function
+
 import datetime
 
 from django.db import connection, models
@@ -7,6 +9,7 @@ from django.core.management.color import no_style
 from django.db.utils import DatabaseError
 
 from south.db import generic
+from south.utils.py3 import string_types
 
 class DatabaseOperations(generic.DatabaseOperations):
     backend_name = 'firebird'
@@ -169,14 +172,14 @@ class DatabaseOperations(generic.DatabaseOperations):
                         if callable(default):
                             default = default()
                         # Now do some very cheap quoting. TODO: Redesign return values to avoid this.
-                        if isinstance(default, basestring):
+                        if isinstance(default, string_types):
                             default = "'%s'" % default.replace("'", "''")
                         elif isinstance(default, (datetime.date, datetime.time, datetime.datetime)):
                             default = "'%s'" % default
                         elif isinstance(default, bool):
                             default = int(default)
                         # Escape any % signs in the output (bug #317)
-                        if isinstance(default, basestring):
+                        if isinstance(default, string_types):
                             default = default.replace("%", "%%")
                         # Add it in
                         sql += " DEFAULT %s"
@@ -260,7 +263,7 @@ class DatabaseOperations(generic.DatabaseOperations):
 
         if self.dry_run:
             if self.debug:
-                print '   - no dry run output for alter_column() due to dynamic DDL, sorry'
+                print('   - no dry run output for alter_column() due to dynamic DDL, sorry')
             return
 
 
@@ -306,7 +309,7 @@ class DatabaseOperations(generic.DatabaseOperations):
 
         # Finally, actually change the column
         if self.allows_combined_alters:
-            sqls, values = zip(*sqls)
+            sqls, values = list(zip(*sqls))
             self.execute(
                 "ALTER TABLE %s %s;" % (self.quote_name(table_name), ", ".join(sqls)),
                 generic.flatten(values),
@@ -316,8 +319,8 @@ class DatabaseOperations(generic.DatabaseOperations):
             for sql, values in sqls:
                 try:
                     self.execute("ALTER TABLE %s %s;" % (self.quote_name(table_name), sql), values)
-                except DatabaseError, e:
-                    print e
+                except DatabaseError as e:
+                    print(e)
 
 
         # Execute extra sql, which don't need ALTER TABLE statement

@@ -2,6 +2,8 @@
 Startmigration command, version 2.
 """
 
+from __future__ import print_function
+
 import sys
 import os
 import re
@@ -117,7 +119,7 @@ class Command(DataCommand):
             elif empty:
                 change_source = None
             else:
-                print >>sys.stderr, "You have not passed any of --initial, --auto, --empty, --add-model, --add-field or --add-index."
+                print("You have not passed any of --initial, --auto, --empty, --add-model, --add-field or --add-index.", file=sys.stderr)
                 sys.exit(1)
 
         # Validate this so we can access the last migration without worrying
@@ -147,7 +149,7 @@ class Command(DataCommand):
                     action = action_class(**params)
                     action.add_forwards(forwards_actions)
                     action.add_backwards(backwards_actions)
-                    print >>sys.stderr, action.console_line()
+                    print(action.console_line(), file=sys.stderr)
         
         # Nowt happen? That's not good for --auto.
         if auto and not forwards_actions:
@@ -169,7 +171,7 @@ class Command(DataCommand):
         if update:
             last_migration = migrations[-1]
             if MigrationHistory.objects.filter(applied__isnull=False, app_name=app, migration=last_migration.name()):
-                print >>sys.stderr, "Migration to be updated, %s, is already applied, rolling it back now..." % last_migration.name()
+                print("Migration to be updated, %s, is already applied, rolling it back now..." % last_migration.name(), file=sys.stderr)
                 migrate_app(migrations, 'current-1', verbosity=verbosity)
             for ext in ('py', 'pyc'):
                 old_filename = "%s.%s" % (os.path.join(migrations.migrations_dir(), last_migration.filename), ext)
@@ -182,7 +184,7 @@ class Command(DataCommand):
 
         # - is a special name which means 'print to stdout'
         if name == "-":
-            print file_contents
+            print(file_contents)
         # Write the migration file if the name isn't -
         else:
             fp = open(os.path.join(migrations.migrations_dir(), new_filename), "w")
@@ -190,9 +192,9 @@ class Command(DataCommand):
             fp.close()
             verb = 'Updated' if update else 'Created'
             if empty:
-                print >>sys.stderr, "%s %s. You must now edit this migration and add the code for each direction." % (verb, new_filename)
+                print("%s %s. You must now edit this migration and add the code for each direction." % (verb, new_filename), file=sys.stderr)
             else:
-                print >>sys.stderr, "%s %s. You can now apply this migration with: ./manage.py migrate %s" % (verb, new_filename, app)
+                print("%s %s. You can now apply this migration with: ./manage.py migrate %s" % (verb, new_filename, app), file=sys.stderr)
 
 
 MIGRATION_TEMPLATE = """# -*- coding: utf-8 -*-

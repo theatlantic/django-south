@@ -52,14 +52,14 @@ def flatten(*stack):
     stack = deque(stack)
     while stack:
         try:
-            x = stack[0].next()
-        except AttributeError:
+            x = next(stack[0])
+        except TypeError:
             stack[0] = iter(stack[0])
-            x = stack[0].next()
+            x = next(stack[0])
         except StopIteration:
             stack.popleft()
             continue
-        if hasattr(x, '__iter__'):
+        if hasattr(x, '__iter__') and not isinstance(x, str):
             stack.appendleft(x)
         else:
             yield x

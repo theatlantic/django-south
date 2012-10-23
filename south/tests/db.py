@@ -4,6 +4,7 @@ from south.db import db, generic
 from django.db import connection, models, IntegrityError
 
 from south.tests import unittest, skipIf, skipUnless
+from south.utils.py3 import text_type, with_metaclass
 
 # Create a list of error classes from the various database libraries
 errors = []
@@ -543,7 +544,7 @@ class TestOperations(unittest.TestCase):
         db.alter_column("test_text_to_char", "textcol", models.CharField(max_length=100))
         db.execute_deferred_sql()
         after = db.execute("select * from test_text_to_char")[0][0]
-        self.assertEqual(value, after, "Change from text to char altered value [ %s != %s ]" % (`value`,`after`))
+        self.assertEqual(value, after, "Change from text to char altered value [ %r != %r ]" % (value, after))
 
     def test_char_to_text(self):
         """
@@ -558,8 +559,8 @@ class TestOperations(unittest.TestCase):
         db.alter_column("test_char_to_text", "textcol", models.TextField())
         db.execute_deferred_sql()
         after = db.execute("select * from test_char_to_text")[0][0]
-        after = unicode(after) # Oracle text fields return a sort of lazy string -- force evaluation
-        self.assertEqual(value, after, "Change from char to text altered value [ %s != %s ]" % (`value`,`after`))
+        after = text_type(after) # Oracle text fields return a sort of lazy string -- force evaluation
+        self.assertEqual(value, after, "Change from char to text altered value [ %r != %r ]" % (value, after))
 
     def test_datetime_default(self):
         """
@@ -666,8 +667,7 @@ class TestOperations(unittest.TestCase):
         Datetimes are handled in test_datetime_default.
         """
 
-        class CustomField(models.CharField):
-            __metaclass__ = models.SubfieldBase
+        class CustomField(with_metaclass(models.SubfieldBase, models.CharField)):
             description = 'CustomField'
             def get_default(self):
                 if self.has_default():
@@ -682,7 +682,7 @@ class TestOperations(unittest.TestCase):
             def to_python(self, value):
                 if not value or isinstance(value, list):
                     return value
-                return map(int, value.split(','))
+                return list(map(int, value.split(',')))
 
         false_value = db.has_booleans and 'False' or '0'
         defaults = (

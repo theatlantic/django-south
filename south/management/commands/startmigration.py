@@ -2,6 +2,8 @@
 Now-obsolete startmigration command.
 """
 
+from __future__ import print_function
+
 from optparse import make_option
 
 from django.core.management.base import BaseCommand
@@ -28,4 +30,4 @@ class Command(BaseCommand):
     
     def handle(self, app=None, name="", added_model_list=None, added_field_list=None, initial=False, freeze_list=None, auto=False, stdout=False, added_index_list=None, **options):
         
-        print "The 'startmigration' command is now deprecated; please use the new 'schemamigration' and 'datamigration' commands."
+        print("The 'startmigration' command is now deprecated; please use the new 'schemamigration' and 'datamigration' commands.")
