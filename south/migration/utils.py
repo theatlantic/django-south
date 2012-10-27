@@ -64,19 +64,31 @@ def flatten(*stack):
         else:
             yield x
 
+dependency_cache = {}
+
 def _dfs(start, get_children, path):
+    if (start, get_children) in dependency_cache:
+        return dependency_cache[(start, get_children)]
+
+    results = []
     if start in path:
         raise exceptions.CircularDependency(path[path.index(start):] + [start])
     path.append(start)
-    yield start
+    results.append(start)
     children = sorted(get_children(start), key=lambda x: str(x))
-    if children:
-        # We need to apply all the migrations this one depends on
-            yield (_dfs(n, get_children, path) for n in children)
+    
+    # We need to apply all the migrations this one depends on
+    for n in children:
+        for result in _dfs(n, get_children, path):
+            results.append(result)
+
     path.pop()
 
+    dependency_cache[(start, get_children)] = results
+    return results
+
 def dfs(start, get_children):
-    return flatten(_dfs(start, get_children, []))
+    return _dfs(start, get_children, [])
 
 def depends(start, get_children):
     result = SortedSet(reversed(list(dfs(start, get_children))))
