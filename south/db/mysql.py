@@ -134,7 +134,6 @@ class DatabaseOperations(generic.DatabaseOperations):
                 kc.constraint_name = c.constraint_name
             WHERE
                 kc.table_schema = %s AND
-                kc.table_catalog IS NULL AND
                 kc.table_name = %s AND
                 c.constraint_type = %s
         """, [db_name, table_name, type])
