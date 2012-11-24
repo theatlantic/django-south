@@ -84,6 +84,7 @@ def _dfs(start, get_children, path):
 
     path.pop()
 
+    results = list(SortedSet(results))
     dependency_cache[(start, get_children)] = results
     return results
 
@@ -91,5 +92,4 @@ def dfs(start, get_children):
     return _dfs(start, get_children, [])
 
 def depends(start, get_children):
-    result = SortedSet(reversed(list(dfs(start, get_children))))
-    return list(result)
+    return reversed(dfs(start, get_children))
