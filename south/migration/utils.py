@@ -92,4 +92,4 @@ def dfs(start, get_children):
     return _dfs(start, get_children, [])
 
 def depends(start, get_children):
-    return reversed(dfs(start, get_children))
+    return list(reversed(dfs(start, get_children)))
