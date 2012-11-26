@@ -79,8 +79,7 @@ def _dfs(start, get_children, path):
     
     # We need to apply all the migrations this one depends on
     for n in children:
-        for result in _dfs(n, get_children, path):
-            results.append(result)
+        results = _dfs(n, get_children, path) + results
 
     path.pop()
 
@@ -92,4 +91,4 @@ def dfs(start, get_children):
     return _dfs(start, get_children, [])
 
 def depends(start, get_children):
-    return list(reversed(dfs(start, get_children)))
+    return dfs(start, get_children)
