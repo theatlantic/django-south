@@ -255,7 +255,11 @@ class DatabaseOperations(object):
         """
         return self._get_connection().ops.quote_name(name)
 
-    def execute(self, sql, params=[]):
+    def _print_sql_error(self, e, sql, params=[]):
+        print('FATAL ERROR - The following SQL query failed: %s' % sql, file=sys.stderr)
+        print('The error was: %s' % e, file=sys.stderr)
+        
+    def execute(self, sql, params=[], print_all_errors=True):
         """
         Executes the given SQL statement, with optional parameters.
         If the instance's debug attribute is True, prints out what it executes.
@@ -275,8 +279,8 @@ class DatabaseOperations(object):
         try:
             cursor.execute(sql, params)
         except DatabaseError as e:
-            print('FATAL ERROR - The following SQL query failed: %s' % sql, file=sys.stderr)
-            print('The error was: %s' % e, file=sys.stderr)
+            if print_all_errors:
+                self._print_sql_error(e, sql, params)
             raise
 
         try:
