@@ -24,9 +24,6 @@ except ImportError:
 
 from south.db import generic
 
-warnings.warn("! WARNING: South's Oracle support is still alpha. "
-              "Be wary of possible bugs.")
-
 class DatabaseOperations(generic.DatabaseOperations):    
     """
     Oracle implementation of database operations.    
