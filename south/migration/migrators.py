@@ -82,8 +82,10 @@ class Migrator(object):
         try:
             migration_function()
             south.db.db.execute_deferred_sql()
-            # record us as having done this in the same transaction
-            self.record(migration, database)
+            if not isinstance(getattr(self, '_wrapper', self), DryRunMigrator):
+                # record us as having done this in the same transaction,
+                # since we're not in a dry run
+                self.record(migration, database)
         except:
             south.db.db.rollback_transaction()
             if not south.db.db.has_ddl_transactions:
@@ -108,18 +110,8 @@ class Migrator(object):
             if not south.db.db.has_ddl_transactions:
                 dry_run = DryRunMigrator(migrator=self, ignore_fail=False)
                 dry_run.run_migration(migration, database)
-        return self.run_migration(migration)
+        return self.run_migration(migration, database)
 
-    def done_migrate(self, migration, database):
-        south.db.db.start_transaction()
-        try:
-            # Record us as having done this
-            self.record(migration, database)
-        except:
-            south.db.db.rollback_transaction()
-            raise
-        else:
-            south.db.db.commit_transaction()
 
     def send_ran_migration(self, migration):
         ran_migration.send(None,
@@ -196,9 +188,6 @@ class DryRunMigrator(MigratorWrapper):
             if self._ignore_fail:
                 return False
             raise
-
-    def done_migrate(self, *args, **kwargs):
-        pass
 
     def send_ran_migration(self, *args, **kwargs):
         pass
