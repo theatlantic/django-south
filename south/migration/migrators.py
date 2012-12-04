@@ -76,12 +76,14 @@ class Migrator(object):
             ' ! NOTE: The error which caused the migration to fail is further up.'
         ) % extra_info
 
-    def run_migration(self, migration):
+    def run_migration(self, migration, database):
         migration_function = self.direction(migration)
         south.db.db.start_transaction()
         try:
             migration_function()
             south.db.db.execute_deferred_sql()
+            # record us as having done this in the same transaction
+            self.record(migration, database)
         except:
             south.db.db.rollback_transaction()
             if not south.db.db.has_ddl_transactions:
@@ -96,7 +98,7 @@ class Migrator(object):
                 raise
                 
 
-    def run(self, migration):
+    def run(self, migration, database):
         # Get the correct ORM.
         south.db.db.current_orm = self.orm(migration)
         # If we're not already in a dry run, and the database doesn't support
@@ -105,7 +107,7 @@ class Migrator(object):
         if not isinstance(getattr(self, '_wrapper', self), DryRunMigrator):
             if not south.db.db.has_ddl_transactions:
                 dry_run = DryRunMigrator(migrator=self, ignore_fail=False)
-                dry_run.run_migration(migration)
+                dry_run.run_migration(migration, database)
         return self.run_migration(migration)
 
     def done_migrate(self, migration, database):
@@ -132,8 +134,7 @@ class Migrator(object):
         app = migration.migrations._migrations
         migration_name = migration.name()
         self.print_status(migration)
-        result = self.run(migration)
-        self.done_migrate(migration, database)
+        result = self.run(migration, database)
         self.send_ran_migration(migration)
         return result
 
