@@ -181,7 +181,7 @@ class DryRunMigrator(MigratorWrapper):
             # executed
             south.db.db._constraint_cache = constraint_cache
 
-    def run_migration(self, migration):
+    def run_migration(self, migration, database):
         try:
             self._run_migration(migration)
         except exceptions.FailedDryRun:
