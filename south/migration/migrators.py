@@ -76,12 +76,16 @@ class Migrator(object):
             ' ! NOTE: The error which caused the migration to fail is further up.'
         ) % extra_info
 
-    def run_migration(self, migration):
+    def run_migration(self, migration, database):
         migration_function = self.direction(migration)
         south.db.db.start_transaction()
         try:
             migration_function()
             south.db.db.execute_deferred_sql()
+            if not isinstance(getattr(self, '_wrapper', self), DryRunMigrator):
+                # record us as having done this in the same transaction,
+                # since we're not in a dry run
+                self.record(migration, database)
         except:
             south.db.db.rollback_transaction()
             if not south.db.db.has_ddl_transactions:
@@ -96,7 +100,7 @@ class Migrator(object):
                 raise
                 
 
-    def run(self, migration):
+    def run(self, migration, database):
         # Get the correct ORM.
         south.db.db.current_orm = self.orm(migration)
         # If we're not already in a dry run, and the database doesn't support
@@ -105,19 +109,9 @@ class Migrator(object):
         if not isinstance(getattr(self, '_wrapper', self), DryRunMigrator):
             if not south.db.db.has_ddl_transactions:
                 dry_run = DryRunMigrator(migrator=self, ignore_fail=False)
-                dry_run.run_migration(migration)
-        return self.run_migration(migration)
+                dry_run.run_migration(migration, database)
+        return self.run_migration(migration, database)
 
-    def done_migrate(self, migration, database):
-        south.db.db.start_transaction()
-        try:
-            # Record us as having done this
-            self.record(migration, database)
-        except:
-            south.db.db.rollback_transaction()
-            raise
-        else:
-            south.db.db.commit_transaction()
 
     def send_ran_migration(self, migration):
         ran_migration.send(None,
@@ -132,8 +126,7 @@ class Migrator(object):
         app = migration.migrations._migrations
         migration_name = migration.name()
         self.print_status(migration)
-        result = self.run(migration)
-        self.done_migrate(migration, database)
+        result = self.run(migration, database)
         self.send_ran_migration(migration)
         return result
 
@@ -188,7 +181,7 @@ class DryRunMigrator(MigratorWrapper):
             # executed
             south.db.db._constraint_cache = constraint_cache
 
-    def run_migration(self, migration):
+    def run_migration(self, migration, database):
         try:
             self._run_migration(migration)
         except exceptions.FailedDryRun:
@@ -196,15 +189,12 @@ class DryRunMigrator(MigratorWrapper):
                 return False
             raise
 
-    def done_migrate(self, *args, **kwargs):
-        pass
-
     def send_ran_migration(self, *args, **kwargs):
         pass
 
 
 class FakeMigrator(MigratorWrapper):
-    def run(self, migration):
+    def run(self, migration, database):
         if self.verbosity:
             print('   (faked)')
 
