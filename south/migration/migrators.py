@@ -3,9 +3,12 @@ from __future__ import print_function
 from copy import copy, deepcopy
 import datetime
 import inspect
-import io
 import sys
 import traceback
+try:
+    from cStringIO import StringIO # python 2
+except ImportError:
+    from io import StringIO # python 3
 
 from django.core.management import call_command
 from django.core.management.commands import loaddata
@@ -277,7 +280,7 @@ class Forwards(Migrator):
         old_debug, old_dry_run = south.db.db.debug, south.db.db.dry_run
         south.db.db.debug = south.db.db.dry_run = True
         stdout = sys.stdout
-        sys.stdout = io.StringIO()
+        sys.stdout = StringIO()
         try:
             try:
                 self.backwards(migration)()
