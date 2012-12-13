@@ -176,7 +176,7 @@ class DatabaseOperations(generic.DatabaseOperations):
                     name = renames[name]
                 columns.append(name)
 
-            if columns and columns != uniques_deleted:
+            if columns and set(columns) != set(uniques_deleted):
                 self._create_unique(table_name, columns)
     
     def _column_sql_for_create(self, table_name, name, field, explicit_name=True):
