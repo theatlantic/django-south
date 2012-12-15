@@ -2,6 +2,10 @@ from south.tests import unittest
 
 import datetime
 import sys
+try:
+    set # builtin, python >=2.6
+except NameError:
+    from sets import Set as set # in stdlib, python >=2.3
 
 from south import exceptions
 from south.migration import migrate_app
@@ -508,23 +512,19 @@ class TestMigrationLogic(Monkeypatcher):
     
     installed_apps = ["fakeapp", "otherfakeapp"]
 
+    def setUp(self):
+        super(TestMigrationLogic, self).setUp()
+        MigrationHistory.objects.all().delete()
+        
     def assertListEqual(self, list1, list2, msg=None):
-        list1 = list(list1)
-        list2 = list(list2)
-        try:
-            list1.sort()
-            list2.sort()
-        except TypeError:
-            # emulate Python 2 behavior in Python 3
-            list1 = sorted(list1, key=id)
-            list2 = sorted(list2, key=id)
+        list1 = set(list1)
+        list2 = set(list2)
         return self.assert_(list1 == list2, "%s is not equal to %s" % (list1, list2))
 
     def test_find_ghost_migrations(self):
         pass
     
     def test_apply_migrations(self):
-        MigrationHistory.objects.all().delete()
         migrations = Migrations("fakeapp")
         
         # We should start with no migrations
@@ -550,7 +550,6 @@ class TestMigrationLogic(Monkeypatcher):
     
     
     def test_migration_merge_forwards(self):
-        MigrationHistory.objects.all().delete()
         migrations = Migrations("fakeapp")
         
         # We should start with no migrations
