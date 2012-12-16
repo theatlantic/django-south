@@ -80,6 +80,8 @@ class Monkeypatcher(unittest.TestCase):
         if hasattr(self, 'installed_apps'):
             hacks.store_app_cache_state()
             hacks.set_installed_apps(self.installed_apps)
+            # Make sure dependencies are calculated for new apps
+            Migrations._dependencies_done = False
 
     def tearDown(self):
         """
