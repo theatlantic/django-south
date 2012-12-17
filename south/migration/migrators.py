@@ -198,6 +198,8 @@ class DryRunMigrator(MigratorWrapper):
 
 class FakeMigrator(MigratorWrapper):
     def run(self, migration, database):
+        # Don't actually run, just record as if ran
+        self.record(migration, database)
         if self.verbosity:
             print('   (faked)')
 
