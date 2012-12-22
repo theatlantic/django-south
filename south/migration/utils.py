@@ -79,11 +79,11 @@ def _dfs(start, get_children, path):
     
     # We need to apply all the migrations this one depends on
     for n in children:
-        for result in _dfs(n, get_children, path):
-            results.append(result)
+        results = _dfs(n, get_children, path) + results
 
     path.pop()
 
+    results = list(SortedSet(results))
     dependency_cache[(start, get_children)] = results
     return results
 
@@ -91,5 +91,4 @@ def dfs(start, get_children):
     return _dfs(start, get_children, [])
 
 def depends(start, get_children):
-    result = SortedSet(reversed(list(dfs(start, get_children))))
-    return list(result)
+    return dfs(start, get_children)

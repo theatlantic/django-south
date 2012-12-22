@@ -1,7 +1,7 @@
 import datetime
 
 from south.db import db, generic
-from django.db import connection, models, IntegrityError
+from django.db import connection, models, IntegrityError as DjangoIntegrityError
 
 from south.tests import unittest, skipIf, skipUnless
 from south.utils.py3 import text_type, with_metaclass
@@ -14,6 +14,13 @@ try:
 except ImportError:
     pass
 errors = tuple(errors)
+
+# On SQL Server, the backend's IntegrityError is not (a subclass of) Django's.
+try:
+    from sql_server.pyodbc.base import IntegrityError as SQLServerIntegrityError
+    IntegrityError = (DjangoIntegrityError, SQLServerIntegrityError)
+except ImportError:
+    IntegrityError = DjangoIntegrityError
 
 try:
     from south.db import mysql

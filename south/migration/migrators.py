@@ -3,9 +3,12 @@ from __future__ import print_function
 from copy import copy, deepcopy
 import datetime
 import inspect
-import io
 import sys
 import traceback
+try:
+    from cStringIO import StringIO # python 2
+except ImportError:
+    from io import StringIO # python 3
 
 from django.core.management import call_command
 from django.core.management.commands import loaddata
@@ -181,7 +184,7 @@ class DryRunMigrator(MigratorWrapper):
             # executed
             south.db.db._constraint_cache = constraint_cache
 
-    def run_migration(self, migration):
+    def run_migration(self, migration, database):
         try:
             self._run_migration(migration)
         except exceptions.FailedDryRun:
@@ -195,6 +198,8 @@ class DryRunMigrator(MigratorWrapper):
 
 class FakeMigrator(MigratorWrapper):
     def run(self, migration, database):
+        # Don't actually run, just record as if ran
+        self.record(migration, database)
         if self.verbosity:
             print('   (faked)')
 
@@ -277,7 +282,7 @@ class Forwards(Migrator):
         old_debug, old_dry_run = south.db.db.debug, south.db.db.dry_run
         south.db.db.debug = south.db.db.dry_run = True
         stdout = sys.stdout
-        sys.stdout = io.StringIO()
+        sys.stdout = StringIO()
         try:
             try:
                 self.backwards(migration)()

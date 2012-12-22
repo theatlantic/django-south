@@ -24,9 +24,6 @@ except ImportError:
 
 from south.db import generic
 
-warnings.warn("! WARNING: South's Oracle support is still alpha. "
-              "Be wary of possible bugs.")
-
 class DatabaseOperations(generic.DatabaseOperations):    
     """
     Oracle implementation of database operations.    
@@ -177,7 +174,7 @@ END;
 
         for sql_template, params in sql_templates:
             try:
-                self.execute(sql_template % params)
+                self.execute(sql_template % params, print_all_errors=False)
             except DatabaseError as exc:
                 description = str(exc)
                 # Oracle complains if a column is already NULL/NOT NULL
@@ -192,6 +189,7 @@ END;
                 elif 'ORA-22858' in description or 'ORA-22859' in description:
                     self._alter_column_lob_workaround(table_name, name, field)
                 else:
+                    self._print_sql_error(exc, sql_template % params)
                     raise
 
     def _alter_column_lob_workaround(self, table_name, name, field):
