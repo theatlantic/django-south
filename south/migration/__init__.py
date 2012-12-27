@@ -51,8 +51,8 @@ def backwards_problems(pending, done, verbosity):
 def inner_problem_check(problems, done, verbosity):
     "Takes a set of possible problems and gets the actual issues out of it."
     result = []
-    checked = set([])
     for last, migration in problems:
+        checked = set([])
         # 'Last' is the last applied migration. Step back from it until we
         # either find nothing wrong, or we find something.
         to_check = list(last.dependencies)
