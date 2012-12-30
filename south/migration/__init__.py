@@ -52,11 +52,16 @@ def inner_problem_check(problems, done, verbosity):
     "Takes a set of possible problems and gets the actual issues out of it."
     result = []
     for last, migration in problems:
+        checked = set([])
         # 'Last' is the last applied migration. Step back from it until we
         # either find nothing wrong, or we find something.
         to_check = list(last.dependencies)
         while to_check:
             checking = to_check.pop()
+            if checking in checked:
+                continue
+            checked.add(checking)
+
             if checking not in done:
                 # That's bad. Error.
                 if verbosity:
