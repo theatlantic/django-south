@@ -759,7 +759,7 @@ class DatabaseOperations(object):
         """
         Generates a full SQL statement to add a foreign key constraint
         """
-        constraint_name = '%s_refs_%s_%x' % (from_column_name, to_column_name, abs(hash((from_table_name, to_table_name))))
+        constraint_name = '%s_refs_%s_%x' % (from_column_name, to_column_name, self._digest(from_table_name, to_table_name))
         return 'ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)%s;' % (
             self.quote_name(from_table_name),
             self.quote_name(self.shorten_name(constraint_name)),
