@@ -335,7 +335,7 @@ class TestOperations(unittest.TestCase):
             ('eggs', models.IntegerField()),
         ])
         # Change spam default
-        db.alter_column("test_altercd", "spam", models.CharField(max_length=30, default="loof"))
+        db.alter_column("test_altercd", "spam", models.CharField(max_length=30, default="loof", null=True))
         # Assert the default is not in the database
         db.execute("INSERT INTO test_altercd (eggs) values (12)")
         null = db.execute("SELECT spam FROM test_altercd")[0][0]
@@ -622,9 +622,11 @@ class TestOperations(unittest.TestCase):
             statement = "insert into test_datetime_def (col0,%s) values (null,%%s,%%s)" % cols
             self.assertRaises(
                 IntegrityError,
-                db.execute, statement, [None, end_of_world, end_of_world]
+                db.execute, statement, [end_of_world, end_of_world]
             )
             db.rollback_transaction()
+        
+        db.start_transaction() # To preserve the sanity and semantics of this test class
         
     def test_add_unique_fk(self):
         """
