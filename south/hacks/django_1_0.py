@@ -99,7 +99,7 @@ class Hacks:
                 try:
                     management._commands['flush'] = SkipFlushCommand()
                     # run create_test_db
-                    f(*args, **kwargs)
+                    return f(*args, **kwargs)
                 finally:
                     # unpatch flush back to the original
                     management._commands['flush'] = original_flush_command
