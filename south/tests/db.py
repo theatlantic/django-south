@@ -63,6 +63,15 @@ class TestOperations(unittest.TestCase):
         else:
             self.fail("Non-existent table could be selected!")
     
+    def test_create_default(self):
+        """
+        Test creation of tables, make sure defaults are not left in the database
+        """
+        db.create_table("test_create_default", [('a', models.IntegerField()),
+                                                ('b', models.IntegerField(default=17))])
+        cursor = connection.cursor()
+        self.assertRaises(IntegrityError, cursor.execute, "INSERT INTO test_create_default(a) VALUES (17)")
+        
     def test_delete(self):
         """
         Test deletion of tables.
