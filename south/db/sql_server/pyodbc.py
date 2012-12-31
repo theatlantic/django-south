@@ -293,7 +293,7 @@ class DatabaseOperations(generic.DatabaseOperations):
     # 1) The sql-server-specific call to _fix_field_definition
     # 2) Removing a default, when needed, by calling drop_default and not the more general alter_column
     @invalidate_table_constraints
-    def add_column(self, table_name, name, field, keep_default=True):
+    def add_column(self, table_name, name, field, keep_default=False):
         """
         Adds the column 'name' to the table 'table_name'.
         Uses the 'field' paramater, a django.db.models.fields.Field instance,
@@ -335,7 +335,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             self._fix_field_definition(f)
 
         # Run
-        generic.DatabaseOperations.create_table(self, table_name, field_defs)
+        super(DatabaseOperations, self).create_table(table_name, field_defs)
 
     def _find_referencing_fks(self, table_name):
         "MSSQL does not support cascading FKs when dropping tables, we need to implement."
