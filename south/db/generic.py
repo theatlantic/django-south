@@ -28,7 +28,7 @@ except ImportError:
             return res
 
 from south.logger import get_logger
-from south.utils.py3 import string_types
+from south.utils.py3 import string_types, text_type
 
 
 def alias(attrname):
@@ -274,7 +274,7 @@ class DatabaseOperations(object):
         if self.dry_run:
             return []
 
-        get_logger().debug(u'execute "%s" with params "%s"' % (sql, params))
+        get_logger().debug(text_type('execute "%s" with params "%s"' % (sql, params)))
 
         try:
             cursor.execute(sql, params)
