@@ -30,6 +30,9 @@ class DatabaseOperations(generic.DatabaseOperations):
         self._remake_table(table_name, added={
             field.column: self._column_sql_for_create(table_name, name, field, False),
         })
+        # Now, remove any defaults
+        field._suppress_default = True
+        self.alter_column(table_name, name, field)
 
     def _get_full_table_description(self, connection, cursor, table_name):
         cursor.execute('PRAGMA table_info(%s)' % connection.ops.quote_name(table_name))
@@ -200,7 +203,15 @@ class DatabaseOperations(generic.DatabaseOperations):
         The argument is accepted for API compatibility with the generic
         DatabaseOperations.alter_column() method.
         """
+        # Change nulls to default if needed
+        if not field.null and field.has_default():
+            params = {
+                "column": self.quote_name(name),
+                "table_name": self.quote_name(table_name)
+            }            
+            self._update_nulls_to_default(params, field)
         # Remake the table correctly
+        field._suppress_default = True
         self._remake_table(table_name, altered={
             name: self._column_sql_for_create(table_name, name, field, explicit_name),
         })
