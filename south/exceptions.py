@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from traceback import format_exception
+from traceback import format_exception, format_exc
 
 class SouthError(RuntimeError):
     pass
@@ -22,6 +22,7 @@ class BrokenMigration(SouthError):
 
 class UnknownMigration(BrokenMigration):
     def __str__(self):
+        self.traceback = format_exc()
         return ("Migration '%(migration)s' probably doesn't exist.\n"
                 '%(traceback)s' % self.__dict__)
 
