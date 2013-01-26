@@ -444,14 +444,14 @@ class DatabaseOperations(object):
         "Subcommand of alter_column that sets default values (overrideable)"
         # Next, set any default
         if not field.null and field.has_default():
-            default = field.get_default()
+            default = field.get_db_prep_save(field.get_default(), connection=self._get_connection())
             sqls.append(('ALTER COLUMN %s SET DEFAULT %%s ' % (self.quote_name(name),), [default]))
         else:
             sqls.append(('ALTER COLUMN %s DROP DEFAULT' % (self.quote_name(name),), []))
 
     def _update_nulls_to_default(self, params, field):
         "Subcommand of alter_column that updates nulls to default value (overrideable)"
-        default = field.get_default()
+        default = field.get_db_prep_save(field.get_default(), connection=self._get_connection())
         self.execute('UPDATE %(table_name)s SET %(column)s=%%s WHERE %(column)s IS NULL' % params, [default])
 
     @invalidate_table_constraints
