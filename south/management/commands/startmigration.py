@@ -12,7 +12,7 @@ from django.core.management.color import no_style
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
         make_option('--model', action='append', dest='added_model_list', type='string',
-            help='Generate a Create Table migration for the specified model.  Add multiple models to this migration with subsequent --model parameters.'),
+            help='Generate a Create Table migration for the specified model.  Add multiple models to this migration with subsequent --add-model parameters.'),
         make_option('--add-field', action='append', dest='added_field_list', type='string',
             help='Generate an Add Column migration for the specified modelname.fieldname - you can use this multiple times to add more than one column.'),
         make_option('--add-index', action='append', dest='added_index_list', type='string',
