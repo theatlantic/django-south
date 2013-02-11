@@ -12,10 +12,11 @@ your migrations are taking way too long to apply - simply set
 South's own unit tests
 ----------------------
 
-South has its own set of unit tests; these will also be run when you run
-./manage.py test. They do some fiddling with Django internals to set up a
-proper test environment; it's non-destructive, but if it's fouling up your own
-tests please submit a ticket about it.
+South has its own set of unit tests, however, these will not be run by default
+when you run ``./manage.py test``. This is mainly because the test suite is
+meant to be run in isolation (the test framework continually changes
+``INSTALLED_APPS`` and fiddles with the ORM as it runs, among other things),
+and can cause compatability problems with other applications.
 
-You can also set ``SKIP_SOUTH_TESTS=True`` in settings.py to stop South's tests
-running, should they be causing issues.
+You can run South's test suite by setting ``SKIP_SOUTH_TESTS = False``
+in settings.py, then running ``./manage.py test south``.
