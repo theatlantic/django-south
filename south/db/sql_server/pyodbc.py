@@ -72,16 +72,16 @@ class DatabaseOperations(generic.DatabaseOperations):
 
         sql = """
         SELECT si.name, si.id, sik.colid, sc.name
-        FROM dbo.sysindexes SI WITH (NOLOCK)
-        INNER JOIN dbo.sysindexkeys SIK WITH (NOLOCK)
-            ON  SIK.id = Si.id
-            AND SIK.indid = SI.indid
-        INNER JOIN dbo.syscolumns SC WITH (NOLOCK)
-            ON  SI.id = SC.id
-            AND SIK.colid = SC.colid
-        WHERE SI.indid !=0
-            AND Si.id = OBJECT_ID('%s')
-            AND SC.name = '%s'
+        FROM dbo.sysindexes si WITH (NOLOCK)
+        INNER JOIN dbo.sysindexkeys sik WITH (NOLOCK)
+            ON  sik.id = si.id
+            AND sik.indid = si.indid
+        INNER JOIN dbo.syscolumns sc WITH (NOLOCK)
+            ON  si.id = sc.id
+            AND sik.colid = sc.colid
+        WHERE si.indid !=0
+            AND si.id = OBJECT_ID('%s')
+            AND sc.name = '%s'
         """
         idx = self.execute(sql % (table_name, name), [])
         return [i[0] for i in idx]
