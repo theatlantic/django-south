@@ -142,7 +142,16 @@ class DatabaseOperations(generic.DatabaseOperations):
             cons_name, type = r[:2]
             if type=='PRIMARY KEY' or type=='UNIQUE':
                 cons = all.setdefault(cons_name, (type,[]))
-                cons[1].append(r[7])
+                sql = '''
+                SELECT COLUMN_NAME
+                FROM INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE RFD
+                WHERE RFD.CONSTRAINT_CATALOG = %s
+                  AND RFD.CONSTRAINT_SCHEMA = %s
+                  AND RFD.TABLE_NAME = %s
+                  AND RFD.CONSTRAINT_NAME = %s
+                '''
+                columns = self.execute(sql, [db_name, schema_name, table_name, cons_name])
+                cons[1].extend(col for col, in columns)
             elif type=='CHECK':
                 cons = (type, r[2])
             elif type=='FOREIGN KEY':

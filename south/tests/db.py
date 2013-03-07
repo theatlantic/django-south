@@ -543,6 +543,61 @@ class TestOperations(unittest.TestCase):
         db.delete_table("test_alter_unique")
         db.start_transaction()
 
+        # Test multi-field constraint
+        db.create_table("test_alter_unique2", [
+            ('spam', models.IntegerField()),
+            ('eggs', models.IntegerField()),
+        ])
+        db.create_unique('test_alter_unique2', ('spam', 'eggs'))
+        db.execute_deferred_sql()
+        db.execute('INSERT INTO test_alter_unique2 (spam, eggs) VALUES (0, 42)')
+        db.commit_transaction()
+        # Verify that constraint works
+        db.start_transaction()
+        try:
+            db.execute("INSERT INTO test_alter_unique2 (spam, eggs) VALUES (1, 42)")
+        except:
+            self.fail("Looks like multi-field unique constraint applied to only one field.")
+        db.start_transaction()
+        db.rollback_transaction()
+        try:
+            db.execute("INSERT INTO test_alter_unique2 (spam, eggs) VALUES (0, 43)")
+        except:
+            self.fail("Looks like multi-field unique constraint applied to only one field.")
+        db.rollback_transaction()
+        db.start_transaction()
+        try:
+            db.execute("INSERT INTO test_alter_unique2 (spam, eggs) VALUES (0, 42)")
+        except:
+            pass
+        else:
+            self.fail("Could insert the same integer twice into a unique field.")
+        db.rollback_transaction()
+        # Altering one column should not drop or modify multi-column constraint
+        db.alter_column("test_alter_unique2", "eggs", models.CharField(max_length=10))
+        db.start_transaction()
+        try:
+            db.execute("INSERT INTO test_alter_unique2 (spam, eggs) VALUES (1, 42)")
+        except:
+            self.fail("Altering one column broken multi-column unique constraint.")
+        db.start_transaction()
+        db.rollback_transaction()
+        try:
+            db.execute("INSERT INTO test_alter_unique2 (spam, eggs) VALUES (0, 43)")
+        except:
+            self.fail("Altering one column broken multi-column unique constraint.")
+        db.rollback_transaction()
+        db.start_transaction()
+        try:
+            db.execute("INSERT INTO test_alter_unique2 (spam, eggs) VALUES (0, 42)")
+        except:
+            pass
+        else:
+            self.fail("Could insert the same integer twice into a unique field after alter_column with unique=False.")
+        db.rollback_transaction()
+        db.delete_table("test_alter_unique2")
+        db.start_transaction()
+
     def test_capitalised_constraints(self):
         """
         Under PostgreSQL at least, capitalised constraints must be quoted.
