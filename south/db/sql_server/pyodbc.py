@@ -46,16 +46,16 @@ class DatabaseOperations(generic.DatabaseOperations):
     def delete_column(self, table_name, name):
         q_table_name, q_name = (self.quote_name(table_name), self.quote_name(name))
 
-        # Zap the indexes
-        for ind in self._find_indexes_for_column(table_name,name):
-            params = {'table_name':q_table_name, 'index_name': ind}
-            sql = self.drop_index_string % params
-            self.execute(sql, [])
-
         # Zap the constraints
         for const in self._find_constraints_for_column(table_name,name):
             params = {'table_name':q_table_name, 'constraint_name': const}
             sql = self.drop_constraint_string % params
+            self.execute(sql, [])
+
+        # Zap the indexes
+        for ind in self._find_indexes_for_column(table_name,name):
+            params = {'table_name':q_table_name, 'index_name': ind}
+            sql = self.drop_index_string % params
             self.execute(sql, [])
 
         # Zap default if exists

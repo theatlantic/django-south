@@ -290,6 +290,16 @@ class TestOperations(unittest.TestCase):
         db.delete_column("test_addc", "add1")
         db.delete_table("test_addc")
 
+    def test_delete_columns(self):
+        """
+        Test deleting columns
+        """
+        db.create_table("test_delc", [
+            ('spam', models.BooleanField(default=False)),
+            ('eggs', models.IntegerField(db_index=True, unique=True)),
+        ])
+        db.delete_column("test_delc", "eggs")
+
     def test_add_nullbool_column(self):
         """
         Test adding NullBoolean columns
