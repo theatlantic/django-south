@@ -107,6 +107,8 @@ class DatabaseOperations(generic.DatabaseOperations):
         self._constraint_references = {}
         self._reverse_cache = {}
         super(DatabaseOperations, self).__init__(db_alias)
+        if self._has_setting('STORAGE_ENGINE') and self._get_setting('STORAGE_ENGINE'):
+            self.create_table_sql += ' ENGINE=%s' % self._get_setting('STORAGE_ENGINE')
 
     def _is_valid_cache(self, db_name, table_name):
         cache = self._constraint_cache
@@ -215,6 +217,10 @@ class DatabaseOperations(generic.DatabaseOperations):
     @delete_column_constraints
     def delete_column(self, table_name, name):
         super(DatabaseOperations, self).delete_column(table_name, name)
+
+    @invalidate_table_constraints
+    def create_table(self, table_name, fields):
+        super(DatabaseOperations, self).create_table(table_name, fields)
 
     @invalidate_table_constraints
     def rename_table(self, old_table_name, table_name):
