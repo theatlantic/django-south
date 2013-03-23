@@ -19,6 +19,7 @@ except NameError:
 
 from django.core.management.base import BaseCommand
 from django.core.management.color import no_style
+from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.conf import settings
 
