@@ -123,15 +123,16 @@ def list_migrations(apps, database = DEFAULT_DB_ALIAS, **options):
     applied_migrations = MigrationHistory.objects.filter(app_name__in=[app.app_label() for app in apps])
     if database != DEFAULT_DB_ALIAS:
         applied_migrations = applied_migrations.using(database)
-    applied_migration_names = ['%s.%s' % (mi.app_name,mi.migration) for mi in applied_migrations]
+    applied_migrations_lookup = dict(('%s.%s' % (mi.app_name, mi.migration), mi) for mi in applied_migrations)
 
     print()
     for app in apps:
         print(" " + app.app_label())
         # Get the migrations object
         for migration in app:
-            if migration.app_label() + "." + migration.name() in applied_migration_names:
-                applied_migration = applied_migrations.get(app_name=migration.app_label(), migration=migration.name())
+            full_name = migration.app_label() + "." + migration.name()
+            if full_name in applied_migrations_lookup:
+                applied_migration = applied_migrations_lookup[full_name]
                 print(format_migration_list_item(migration.name(), applied=applied_migration.applied, **options))
             else:
                 print(format_migration_list_item(migration.name(), applied=False, **options))
