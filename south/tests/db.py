@@ -288,6 +288,9 @@ class TestOperations(unittest.TestCase):
         val = db.execute("SELECT user_id FROM test_addc")[0][0]
         self.assertEquals(val, None)
         db.delete_column("test_addc", "add1")
+        # make sure adding an indexed field works
+        db.add_column("test_addc", "add2", models.CharField(max_length=15, db_index=True, default='pi'))
+        db.execute_deferred_sql()
         db.delete_table("test_addc")
 
     def test_delete_columns(self):

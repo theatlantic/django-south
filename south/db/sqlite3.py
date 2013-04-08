@@ -27,12 +27,16 @@ class DatabaseOperations(generic.DatabaseOperations):
         field.set_attributes_from_name(name)
         # We add columns by remaking the table; even though SQLite supports
         # adding columns, it doesn't support adding PRIMARY KEY or UNIQUE cols.
-        self._remake_table(table_name, added={
-            field.column: self._column_sql_for_create(table_name, name, field, False),
-        })
-        # Now, remove any defaults
+        # We define fields with no default; a default will be used, though, to fill up the remade table
+        field_default = None
+        if not getattr(field, '_suppress_default', False):
+            default = field.get_default()
+            if default is not None and default!='':
+                field_default = "'%s'" % field.get_db_prep_save(default, connection=self._get_connection())
         field._suppress_default = True
-        self.alter_column(table_name, name, field)
+        self._remake_table(table_name, added={
+            field.column: (self._column_sql_for_create(table_name, name, field, False), field_default)
+        })
 
     def _get_full_table_description(self, connection, cursor, table_name):
         cursor.execute('PRAGMA table_info(%s)' % connection.ops.quote_name(table_name))
@@ -96,7 +100,7 @@ class DatabaseOperations(generic.DatabaseOperations):
                 type += " UNIQUE"
             definitions[name] = type
         # Add on the new columns
-        for name, type in added.items():
+        for name, (type,_) in added.items():
             if (primary_key_override and primary_key_override == name):
                 type += " PRIMARY KEY"
             definitions[name] = type
@@ -106,7 +110,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             ", ".join(["%s %s" % (self.quote_name(cname), ctype) for cname, ctype in definitions.items()]),
         ))
         # Copy over the data
-        self._copy_data(table_name, temp_name, renames)
+        self._copy_data(table_name, temp_name, renames, added)
         # Delete the old table, move our new one over it
         self.delete_table(table_name)
         self.rename_table(temp_name, table_name)
@@ -115,7 +119,7 @@ class DatabaseOperations(generic.DatabaseOperations):
         # and index name scope is global
         self._make_multi_indexes(table_name, multi_indexes, renames=renames, deleted=deleted, uniques_deleted=uniques_deleted)
     
-    def _copy_data(self, src, dst, field_renames={}):
+    def _copy_data(self, src, dst, field_renames={}, added={}):
         "Used to copy data into a new table"
         # Make a list of all the fields to select
         cursor = self._get_connection().cursor()
@@ -131,6 +135,11 @@ class DatabaseOperations(generic.DatabaseOperations):
             else:
                 continue
             src_fields_new.append(self.quote_name(field))
+        for field, (_,default) in added.items():
+            if default is not None and default!='':
+                field = self.quote_name(field)
+                src_fields_new.append("%s as %s" % (default, field))
+                dst_fields_new.append(field)
         # Copy over the data
         self.execute("INSERT INTO %s (%s) SELECT %s FROM %s;" % (
             self.quote_name(dst),
