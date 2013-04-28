@@ -81,6 +81,7 @@ Currently, South freezes::
  db_table
  db_tablespace
  unique_together
+ index_together
  ordering
 
 If there's something else you think should be frozen in the Meta, but which
