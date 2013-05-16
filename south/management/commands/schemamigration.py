@@ -19,6 +19,7 @@ except NameError:
 
 from django.core.management.base import BaseCommand
 from django.core.management.color import no_style
+from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.conf import settings
 
@@ -73,7 +74,15 @@ class Command(DataCommand):
         
         if not app:
             self.error("You must provide an app to create a migration for.\n" + self.usage_str)
-        
+	    
+        # See if the app exists
+        app = app.split(".")[-1]
+        try:
+            app_module = models.get_app(app)
+        except ImproperlyConfigured:
+            print("There is no enabled application matching '%s'." % app)
+            return
+	
         # Get the Migrations for this app (creating the migrations dir if needed)
         migrations = Migrations(app, force_creation=True, verbose_creation=int(verbosity) > 0)
         

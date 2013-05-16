@@ -78,4 +78,9 @@ accordingly (except on SQLite, where we don't yet have the code to edit UNIQUE
 constraints).
 
 
+Multicolumn index changes
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Django 1.5 introduced ``index_together`` in a model's Meta, allowing you to
+specify multicolumn indexes. South will detect and change the indexes on the
+database accordingly.

@@ -85,6 +85,7 @@ class DatabaseOperations(object):
     add_column_string = 'ALTER TABLE %s ADD COLUMN %s;'
     delete_unique_sql = "ALTER TABLE %s DROP CONSTRAINT %s"
     delete_foreign_key_sql = 'ALTER TABLE %(table)s DROP CONSTRAINT %(constraint)s'
+    create_table_sql = 'CREATE TABLE %(table)s (%(columns)s)'
     max_index_name_length = 63
     drop_index_string = 'DROP INDEX %(index_name)s'
     delete_column_string = 'ALTER TABLE %s DROP COLUMN %s CASCADE;'
@@ -354,10 +355,10 @@ class DatabaseOperations(object):
             for field_name, field in fields
         ]
 
-        self.execute('CREATE TABLE %s (%s);' % (
-            self.quote_name(table_name),
-            ', '.join([col for col in columns if col]),
-        ))
+        self.execute(self.create_table_sql % {
+            "table": self.quote_name(table_name),
+            "columns": ', '.join([col for col in columns if col]),
+        })
 
     add_table = alias('create_table')  # Alias for consistency's sake
 
@@ -444,10 +445,15 @@ class DatabaseOperations(object):
         "Subcommand of alter_column that sets default values (overrideable)"
         # Next, set any default
         if not field.null and field.has_default():
-            default = field.get_default()
+            default = field.get_db_prep_save(field.get_default(), connection=self._get_connection())
             sqls.append(('ALTER COLUMN %s SET DEFAULT %%s ' % (self.quote_name(name),), [default]))
         else:
             sqls.append(('ALTER COLUMN %s DROP DEFAULT' % (self.quote_name(name),), []))
+
+    def _update_nulls_to_default(self, params, field):
+        "Subcommand of alter_column that updates nulls to default value (overrideable)"
+        default = field.get_db_prep_save(field.get_default(), connection=self._get_connection())
+        self.execute('UPDATE %(table_name)s SET %(column)s=%%s WHERE %(column)s IS NULL' % params, [default])
 
     @invalidate_table_constraints
     def alter_column(self, table_name, name, field, explicit_name=True, ignore_constraints=False):
@@ -500,7 +506,7 @@ class DatabaseOperations(object):
         params = {
             "column": self.quote_name(name),
             "type": self._db_type_for_alter_column(field),
-            "table_name": table_name
+            "table_name": self.quote_name(table_name)
         }
 
         # SQLs is a list of (SQL, values) pairs.
@@ -513,15 +519,12 @@ class DatabaseOperations(object):
         # Add any field- and backend- specific modifications
         self._alter_add_column_mods(field, name, params, sqls)
         # Next, nullity
-        if field.null:
+        if field.null or field.has_default():
             sqls.append((self.alter_string_set_null % params, []))
         else:
             sqls.append((self.alter_string_drop_null % params, []))
 
-        # Next, set any default
-        self._alter_set_defaults(field, name, params, sqls)
-
-        # Finally, actually change the column
+        # Actually change the column (step 1 -- Nullity may need to be fixed)
         if self.allows_combined_alters:
             sqls, values = zip(*sqls)
             self.execute(
@@ -532,7 +535,12 @@ class DatabaseOperations(object):
             # Databases like e.g. MySQL don't like more than one alter at once.
             for sql, values in sqls:
                 self.execute("ALTER TABLE %s %s;" % (self.quote_name(table_name), sql), values)
-        
+
+        if not field.null and field.has_default():
+            # Final fixes
+            self._update_nulls_to_default(params, field)
+            self.execute("ALTER TABLE %s %s;" % (self.quote_name(table_name), self.alter_string_drop_null % params), [])
+
         if not ignore_constraints:
             # Add back FK constraints if needed
             if field.rel and self.supports_foreign_keys:
