@@ -173,7 +173,7 @@ you)::
  
 If you open up the file, you'll see that South has made the shell of a migration;
 the models definitions are there, the forwards() and backwards() functions are
-these, but there's no code in either. We'll write some code to port the
+there, but there's no code in either. We'll write some code to port the
 passwords over in the forwards function::
 
  def forwards(self, orm):
