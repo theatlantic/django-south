@@ -14,6 +14,8 @@ class BrokenMigration(SouthError):
         self.exc_info = exc_info
         if self.exc_info:
             self.traceback = ''.join(format_exception(*self.exc_info))
+        else:
+            self.traceback = format_exc()
 
     def __str__(self):
         return ("While loading migration '%(migration)s':\n"
@@ -22,7 +24,6 @@ class BrokenMigration(SouthError):
 
 class UnknownMigration(BrokenMigration):
     def __str__(self):
-        self.traceback = format_exc()
         return ("Migration '%(migration)s' probably doesn't exist.\n"
                 '%(traceback)s' % self.__dict__)
 
