@@ -314,7 +314,7 @@ class TestOperations(unittest.TestCase):
         # Add a column
         db.add_column("test_addnbc", "add1", models.NullBooleanField())
         # Add a column with a default
-        db.add_column("test_addnbc", "add2", models.NullBooleanField(default=True))
+        db.add_column("test_addnbc", "add2", models.NullBooleanField(default=True), keep_default=False)
         # insert some data so we can test the default values of the added column
         db.execute("INSERT INTO test_addnbc (spam, eggs) VALUES (%s, 1)", [False])
         # try selecting from the new columns to make sure they were properly created
