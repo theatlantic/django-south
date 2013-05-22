@@ -674,7 +674,7 @@ class TestOperations(unittest.TestCase):
         # insert a row
         db.execute("INSERT INTO test_datetime_def (col0, col1, col2) values (null,%s,null)", [end_of_world])
         db.alter_column("test_datetime_def", "col2", models.DateTimeField(default=end_of_world))
-        db.add_column("test_datetime_def", "col3", models.DateTimeField(default=end_of_world))
+        db.add_column("test_datetime_def", "col3", models.DateTimeField(default=end_of_world), keep_default=False)
         db.execute_deferred_sql()
         db.commit_transaction()
         # In the single existing row, we now expect col1=col2=col3=end_of_world...
@@ -684,8 +684,8 @@ class TestOperations(unittest.TestCase):
         for e in ends:
             self.failUnlessEqual(e, end_of_world)
         db.commit_transaction()
-        # ...but there should not be a default in the database for any column (other than the 'null' for col0)
-        for cols in ["col1,col2", "col1,col3","col2,col3"]:
+        # ...but there should not be a default in the database for col1 or col3
+        for cols in ["col1,col2", "col2,col3"]:
             db.start_transaction()
             statement = "insert into test_datetime_def (col0,%s) values (null,%%s,%%s)" % cols
             self.assertRaises(
