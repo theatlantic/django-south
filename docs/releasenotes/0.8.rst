@@ -1,0 +1,43 @@
+
+.. _0-8-release-notes:
+
+=========
+South 0.8
+=========
+
+This is a new major release of South, and probably the last major release
+before work begins on South 2 as part of the ongoing work with schema alterations
+in Django. Don't worry - an upgrade path will be provided.
+
+Major changes are outlined below. A full list of changes can be found on
+`the repository <https://bitbucket.org/andrewgodwin/south/commits/all/>`_.
+
+
+Backwards incompatible changes
+==============================
+
+None
+
+
+Python 2.x support
+==================
+
+South is now only compatable with Python 2.6 and higher. If you are still
+on 2.5 on below, you will have to use the 0.7.x releases of South - do not
+expect those to be maintained any further, however.
+
+
+Python 3
+========
+
+South now has alpha support for Python 3, thanks to the `six` library
+and the work of Aymeric Augustin. This is intended to complement the
+support in Django 1.5 and up; please report any issues you come across
+when using it.
+
+
+index_together
+==============
+
+South now supports the index_together option for models found in
+Django 1.5 and up.
