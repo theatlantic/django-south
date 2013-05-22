@@ -9,6 +9,9 @@ This is a new major release of South, and probably the last major release
 before work begins on South 2 as part of the ongoing work with schema alterations
 in Django. Don't worry - an upgrade path will be provided.
 
+We recommend that you pin your South requirement in your requirements file
+to `south < 2.0`, however, so you will not be auto-upgraded when the time comes.
+
 Major changes are outlined below. A full list of changes can be found on
 `the repository <https://bitbucket.org/andrewgodwin/south/commits/all/>`_.
 
