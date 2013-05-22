@@ -57,9 +57,6 @@ class TestMySQLOperations(with_metaclass(TestMySQLOperationsMeta, unittest.TestC
         self._create_foreign_tables(main_table, reference_table)
         db.execute_deferred_sql()
         constraint = db._find_foreign_constraints(main_table, 'foreign_id')[0]
-        constraint_name = 'foreign_id_refs_id_%x' % (abs(hash((main_table,
-            reference_table))))
-        self.assertEquals(constraint_name, constraint)
         references = db._lookup_constraint_references(main_table, constraint)
         self.assertEquals((reference_table, 'id'), references)
         db.delete_table(main_table)
