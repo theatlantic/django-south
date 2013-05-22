@@ -101,6 +101,7 @@ class DatabaseOperations(object):
     supports_foreign_keys = True
     has_check_constraints = True
     has_booleans = True
+    raises_default_errors = True
 
     @cached_property
     def has_ddl_transactions(self):

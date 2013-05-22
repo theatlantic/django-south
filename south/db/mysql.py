@@ -99,6 +99,7 @@ class DatabaseOperations(generic.DatabaseOperations):
 
     allows_combined_alters = False
     has_check_constraints = False
+    raises_default_errors = False
 
     geom_types = ['geometry', 'point', 'linestring', 'polygon']
     text_types = ['text', 'blob']

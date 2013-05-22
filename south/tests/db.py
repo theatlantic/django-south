@@ -1,4 +1,5 @@
 import datetime
+from warnings import filterwarnings
 
 from south.db import db, generic
 from django.db import connection, models, IntegrityError as DjangoIntegrityError
@@ -37,6 +38,12 @@ class TestOperations(unittest.TestCase):
 
     def setUp(self):
         db.debug = False
+        try:
+            import MySQLdb
+        except ImportError:
+            pass
+        else:
+            filterwarnings('ignore', category=MySQLdb.Warning)
         db.clear_deferred_sql()
         db.start_transaction()
     
@@ -63,6 +70,7 @@ class TestOperations(unittest.TestCase):
         else:
             self.fail("Non-existent table could be selected!")
     
+    @skipUnless(db.raises_default_errors, 'This database does not raise errors on missing defaults.')
     def test_create_default(self):
         """
         Test creation of tables, make sure defaults are not left in the database
@@ -650,6 +658,7 @@ class TestOperations(unittest.TestCase):
         after = text_type(after) # Oracle text fields return a sort of lazy string -- force evaluation
         self.assertEqual(value, after, "Change from char to text altered value [ %r != %r ]" % (value, after))
 
+    @skipUnless(db.raises_default_errors, 'This database does not raise errors on missing defaults.')
     def test_datetime_default(self):
         """
         Test that defaults are correctly not created for datetime columns
