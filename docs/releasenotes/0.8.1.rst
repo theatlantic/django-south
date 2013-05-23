@@ -1,0 +1,33 @@
+
+.. _0-8-1-release-notes:
+
+===========
+South 0.8.1
+===========
+
+This is the first bugfix release in the 0.8 series, to address a critical
+regression on older versions of Django.
+
+Major changes are outlined below. A full list of changes can be found on
+`the repository <https://bitbucket.org/andrewgodwin/south/commits/all/>`_.
+
+
+Backwards incompatible changes
+==============================
+
+None
+
+
+Django 1.4 regression
+=====================
+
+There was a critical regression with South 0.8 and any version of
+Django below 1.5 due to a misimplementation of the index_together code -
+this has now been fixed.
+
+keep_default fully deprecated
+=============================
+
+The keep_default argument to add_column has been working differently
+in different backends for a while, so it is now ignored everywhere
+and defaults are never kept in the database.
