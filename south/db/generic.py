@@ -418,7 +418,7 @@ class DatabaseOperations(object):
             self.execute(sql)
 
             # Now, drop the default if we need to
-            if not keep_default and field.default is not None:
+            if field.default is not None:
                 field.default = NOT_PROVIDED
                 self.alter_column(table_name, name, field, explicit_name=False, ignore_constraints=True)
 

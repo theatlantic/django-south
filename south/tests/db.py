@@ -285,12 +285,11 @@ class TestOperations(unittest.TestCase):
             ('eggs', models.IntegerField()),
         ])
         # Add a column
-        db.add_column("test_addc", "add1", models.IntegerField(default=3), keep_default=False)
-        # Add a FK with keep_default=False (#69)
+        db.add_column("test_addc", "add1", models.IntegerField(default=3))
         User = db.mock_model(model_name='User', db_table='auth_user', db_tablespace='', pk_field_name='id', pk_field_type=models.AutoField, pk_field_args=[], pk_field_kwargs={})
         # insert some data so we can test the default value of the added fkey
         db.execute("INSERT INTO test_addc (spam, eggs, add1) VALUES (%s, 1, 2)", [False])
-        db.add_column("test_addc", "user", models.ForeignKey(User, null=True), keep_default=False)
+        db.add_column("test_addc", "user", models.ForeignKey(User, null=True))
         db.execute_deferred_sql()
         # try selecting from the user_id column to make sure it was actually created
         val = db.execute("SELECT user_id FROM test_addc")[0][0]
@@ -322,7 +321,7 @@ class TestOperations(unittest.TestCase):
         # Add a column
         db.add_column("test_addnbc", "add1", models.NullBooleanField())
         # Add a column with a default
-        db.add_column("test_addnbc", "add2", models.NullBooleanField(default=True), keep_default=False)
+        db.add_column("test_addnbc", "add2", models.NullBooleanField(default=True))
         # insert some data so we can test the default values of the added column
         db.execute("INSERT INTO test_addnbc (spam, eggs) VALUES (%s, 1)", [False])
         # try selecting from the new columns to make sure they were properly created
@@ -683,7 +682,7 @@ class TestOperations(unittest.TestCase):
         # insert a row
         db.execute("INSERT INTO test_datetime_def (col0, col1, col2) values (null,%s,null)", [end_of_world])
         db.alter_column("test_datetime_def", "col2", models.DateTimeField(default=end_of_world))
-        db.add_column("test_datetime_def", "col3", models.DateTimeField(default=end_of_world), keep_default=False)
+        db.add_column("test_datetime_def", "col3", models.DateTimeField(default=end_of_world))
         db.execute_deferred_sql()
         db.commit_transaction()
         # In the single existing row, we now expect col1=col2=col3=end_of_world...
@@ -809,8 +808,7 @@ class TestOperations(unittest.TestCase):
         db.execute_deferred_sql()
         
         # Add foreign key
-        db.add_column("test_fk", 'foreik', models.ForeignKey(User, null=True),
-                      keep_default = False)
+        db.add_column("test_fk", 'foreik', models.ForeignKey(User, null=True))
         db.execute_deferred_sql()
         
         # Make the FK null
