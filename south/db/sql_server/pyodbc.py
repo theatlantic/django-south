@@ -432,6 +432,7 @@ class DatabaseOperations(generic.DatabaseOperations):
             INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
             INNER JOIN sys.indexes i ON i.object_id = t.object_id
             INNER JOIN sys.index_columns ic ON ic.object_id = t.object_id
+                                            AND ic.index_id = i.index_id
             INNER JOIN sys.columns c ON c.object_id = t.object_id 
                                      AND ic.column_id = c.column_id
             WHERE i.is_unique=0 AND i.is_primary_key=0 AND i.is_unique_constraint=0

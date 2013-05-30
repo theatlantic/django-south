@@ -811,8 +811,37 @@ class TestOperations(unittest.TestCase):
         db.add_column("test_fk", 'foreik', models.ForeignKey(User, null=True))
         db.execute_deferred_sql()
         
-        # Make the FK null
+        # Make the FK not null
         db.alter_column("test_fk", "foreik_id", models.ForeignKey(User))
+        db.execute_deferred_sql()
+
+    def test_make_foreign_key_null(self):
+        # Table for FK to target
+        User = db.mock_model(model_name='User', db_table='auth_user', db_tablespace='', pk_field_name='id', pk_field_type=models.AutoField, pk_field_args=[], pk_field_kwargs={})
+        # Table with no foreign key
+        db.create_table("test_make_fk_null", [
+            ('eggs', models.IntegerField()),
+            ('foreik', models.ForeignKey(User))
+        ])
+        db.execute_deferred_sql()
+        
+        # Make the FK null
+        db.alter_column("test_make_fk_null", "foreik_id", models.ForeignKey(User, null=True))
+        db.execute_deferred_sql()
+
+    def test_alter_double_indexed_column(self):
+        # Table for FK to target
+        User = db.mock_model(model_name='User', db_table='auth_user', db_tablespace='', pk_field_name='id', pk_field_type=models.AutoField, pk_field_args=[], pk_field_kwargs={})
+        # Table with no foreign key
+        db.create_table("test_2indexed", [
+            ('eggs', models.IntegerField()),
+            ('foreik', models.ForeignKey(User))
+        ])
+        db.create_unique("test_2indexed", ["eggs", "foreik_id"])
+        db.execute_deferred_sql()
+        
+        # Make the FK null
+        db.alter_column("test_2indexed", "foreik_id", models.ForeignKey(User, null=True))
         db.execute_deferred_sql()
 
 class TestCacheGeneric(unittest.TestCase):
