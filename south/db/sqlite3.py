@@ -263,10 +263,3 @@ class DatabaseOperations(generic.DatabaseOperations):
     # No cascades on deletes
     def delete_table(self, table_name, cascade=True):
         generic.DatabaseOperations.delete_table(self, table_name, False)
-
-    def _default_value_workaround(self, default):
-        if default == True:
-            default = 1
-        elif default == False:
-            default = 0
-        return default
