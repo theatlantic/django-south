@@ -585,8 +585,8 @@ class TestOperations(unittest.TestCase):
             db.execute("INSERT INTO test_alter_unique2 (spam, eggs) VALUES (1, 42)")
         except:
             self.fail("Looks like multi-field unique constraint applied to only one field.")
-        db.start_transaction()
         db.rollback_transaction()
+        db.start_transaction()
         try:
             db.execute("INSERT INTO test_alter_unique2 (spam, eggs) VALUES (0, 43)")
         except:
@@ -598,17 +598,17 @@ class TestOperations(unittest.TestCase):
         except:
             pass
         else:
-            self.fail("Could insert the same integer twice into a unique field.")
+            self.fail("Could insert the same pair twice into unique-together fields.")
         db.rollback_transaction()
         # Altering one column should not drop or modify multi-column constraint
-        db.alter_column("test_alter_unique2", "eggs", models.CharField(max_length=10))
+        db.alter_column("test_alter_unique2", "eggs", models.PositiveIntegerField())
         db.start_transaction()
         try:
             db.execute("INSERT INTO test_alter_unique2 (spam, eggs) VALUES (1, 42)")
         except:
             self.fail("Altering one column broken multi-column unique constraint.")
-        db.start_transaction()
         db.rollback_transaction()
+        db.start_transaction()
         try:
             db.execute("INSERT INTO test_alter_unique2 (spam, eggs) VALUES (0, 43)")
         except:
@@ -620,7 +620,7 @@ class TestOperations(unittest.TestCase):
         except:
             pass
         else:
-            self.fail("Could insert the same integer twice into a unique field after alter_column with unique=False.")
+            self.fail("Could insert the same pair twice into unique-together fields after alter_column with unique=False.")
         db.rollback_transaction()
         db.delete_table("test_alter_unique2")
         db.start_transaction()
