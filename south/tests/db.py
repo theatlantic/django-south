@@ -360,6 +360,23 @@ class TestOperations(unittest.TestCase):
         db.execute("INSERT INTO test_altercd (eggs) values (12)")
         null = db.execute("SELECT spam FROM test_altercd")[0][0]
         self.assertFalse(null, "Default for char field was installed into database")
+
+    @skipIf('oracle' in db.backend_name, "Oracle does not differentiate empty trings from null")
+    def test_default_empty_string(self):
+        """
+        Test altering column defaults with char fields
+        """
+        db.create_table("test_cd_empty", [
+            ('spam', models.CharField(max_length=30, default='')),
+            ('eggs', models.CharField(max_length=30)),
+        ])
+        # Create a record
+        db.execute("INSERT INTO test_cd_empty (spam, eggs) values ('1','2')")
+        # Add a column
+        db.add_column("test_cd_empty", "ham", models.CharField(max_length=30, default=''))
+        
+        empty = db.execute("SELECT ham FROM test_cd_empty")[0][0]
+        self.assertEquals(empty, "", "Empty Default for char field isn't empty string")
         
     def test_mysql_defaults(self):
         """
