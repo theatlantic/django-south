@@ -526,7 +526,7 @@ class DatabaseOperations(object):
             sqls.append((self.alter_string_drop_null % params, []))
 
         # Do defaults
-        self._alter_set_defaults(field, name, params, sqls)
+        #self._alter_set_defaults(field, name, params, sqls)
 
         # Actually change the column (step 1 -- Nullity may need to be fixed)
         if self.allows_combined_alters:
