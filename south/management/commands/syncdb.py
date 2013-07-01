@@ -36,6 +36,11 @@ class Command(NoArgsCommand):
             type='choice', choices=['0', '1', '2'],
             help='Verbosity level; 0=minimal output, 1=normal output, 2=all output'),
         )
+    if '--no-initial-data' not in [opt.get_opt_string() for opt in syncdb.Command.option_list]:
+        option_list += (
+            make_option('--no-initial-data', action='store_false', dest='load_initial_data', default=True,
+            help='Tells Django not to load any initial data after database synchronization.'),
+        )
     help = "Create the database tables for all apps in INSTALLED_APPS whose tables haven't already been created, except those which use migrations."
 
     def handle_noargs(self, migrate_all=False, **options):
@@ -99,7 +104,7 @@ class Command(NoArgsCommand):
             if verbosity:
                 print("Migrating...")
             # convert from store_true to store_false
-            options['no_initial_data'] = not options['load_initial_data']
+            options['no_initial_data'] = not options.get('load_initial_data', True)
             management.call_command('migrate', **options)
         
         # Be obvious about what we did
