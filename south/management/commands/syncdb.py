@@ -99,7 +99,7 @@ class Command(NoArgsCommand):
             if verbosity:
                 print("Migrating...")
             # convert from store_true to store_false
-            options['no_initial_data'] = not options['load_initial_data']
+            options['no_initial_data'] = not options.get('load_initial_data', True)
             management.call_command('migrate', **options)
         
         # Be obvious about what we did
