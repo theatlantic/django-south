@@ -29,30 +29,7 @@ from south.exceptions import NoMigrations
 from south.creator import changes, actions, freezer
 from south.management.commands.datamigration import Command as DataCommand
 
-
-MIGRATION_TEMPLATE = """# -*- coding: utf-8 -*-
-import datetime
-from south.db import db
-from south.v2 import SchemaMigration
-from django.db import models
-
-
-class Migration(SchemaMigration):
-
-    def forwards(self, orm):
-%(forwards)s
-
-    def backwards(self, orm):
-%(backwards)s
-
-    models = %(frozen_models)s
-
-    %(complete_apps)s"""
-
-
 class Command(DataCommand):
-    MIGRATION_TEMPLATE = MIGRATION_TEMPLATE
-
     option_list = DataCommand.option_list + (
         make_option('--add-model', action='append', dest='added_model_list', type='string',
             help='Generate a Create Table migration for the specified model.  Add multiple models to this migration with subsequent --add-model parameters.'),
@@ -191,7 +168,7 @@ class Command(DataCommand):
         apps_to_freeze = self.calc_frozen_apps(migrations, freeze_list)
         
         # So, what's in this file, then?
-        file_contents = self.MIGRATION_TEMPLATE % {
+        file_contents = self.get_migration_template() % {
             "forwards": "\n".join(forwards_actions or ["        pass"]),
             "backwards": "\n".join(backwards_actions or ["        pass"]),
             "frozen_models":  freezer.freeze_apps_to_string(apps_to_freeze),
@@ -227,3 +204,26 @@ class Command(DataCommand):
                 print("%s %s. You must now edit this migration and add the code for each direction." % (verb, new_filename), file=sys.stderr)
             else:
                 print("%s %s. You can now apply this migration with: ./manage.py migrate %s" % (verb, new_filename, app), file=sys.stderr)
+
+    def get_migration_template(self):
+        return MIGRATION_TEMPLATE
+
+
+MIGRATION_TEMPLATE = """# -*- coding: utf-8 -*-
+import datetime
+from south.db import db
+from south.v2 import SchemaMigration
+from django.db import models
+
+
+class Migration(SchemaMigration):
+
+    def forwards(self, orm):
+%(forwards)s
+
+    def backwards(self, orm):
+%(backwards)s
+
+    models = %(frozen_models)s
+
+    %(complete_apps)s"""
