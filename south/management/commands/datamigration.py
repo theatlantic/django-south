@@ -63,7 +63,7 @@ class Command(BaseCommand):
         apps_to_freeze = self.calc_frozen_apps(migrations, freeze_list)
         
         # So, what's in this file, then?
-        file_contents = MIGRATION_TEMPLATE % {
+        file_contents = self.get_migration_template() % {
             "frozen_models":  freezer.freeze_apps_to_string(apps_to_freeze),
             "complete_apps": apps_to_freeze and "complete_apps = [%s]" % (", ".join(map(repr, apps_to_freeze))) or ""
         }
@@ -102,6 +102,9 @@ class Command(BaseCommand):
         """
         print(message, file=sys.stderr)
         sys.exit(code)
+
+    def get_migration_template(self):
+        return MIGRATION_TEMPLATE
 
 
 MIGRATION_TEMPLATE = """# -*- coding: utf-8 -*-
