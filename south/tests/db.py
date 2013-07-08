@@ -393,6 +393,24 @@ class TestOperations(unittest.TestCase):
         empty = db.execute("SELECT ham FROM test_cd_empty")[0][0]
         self.assertEquals(empty, "", "Empty Default for char field isn't empty string")
         
+    @skipUnless('oracle' in db.backend_name, "Oracle does not differentiate empty trings from null")
+    def test_oracle_strings_null(self):
+        """
+        Test that under Oracle, CherFields are created as null even when specified not-null,
+        because otherwise they would not be able to hold empty strings (which Oracle equates
+        with nulls).
+        Verify fix of #1269.
+        """
+        db.create_table("test_ora_char_nulls", [
+            ('spam', models.CharField(max_length=30, null=True)),
+            ('eggs', models.CharField(max_length=30)),
+        ])
+        db.add_column("test_ora_char_nulls", "ham", models.CharField(max_length=30))
+        db.alter_column("test_ora_char_nulls", "spam", models.CharField(max_length=30, null=False))
+        # So, by the look of it, we should now have three not-null columns
+        db.execute("INSERT INTO test_ora_char_nulls VALUES (NULL, NULL, NULL)")
+        
+
     def test_mysql_defaults(self):
         """
         Test MySQL default handling for BLOB and TEXT.

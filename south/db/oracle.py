@@ -11,7 +11,6 @@ from django.db import connection, models
 from django.db.backends.util import truncate_name
 from django.core.management.color import no_style
 from django.db.models.fields import NOT_PROVIDED
-from django.db.models import CharField, TextField
 from django.db.utils import DatabaseError
 
 # In revision r16016 function get_sequence_name has been transformed into
@@ -87,8 +86,11 @@ class DatabaseOperations(generic.DatabaseOperations):
 
         for field_name, field in fields:
             
+            field = self._field_sanity(field)
+
             # avoid default values in CREATE TABLE statements (#925)
             field._suppress_default = True
+
 
             col = self.column_sql(table_name, field_name, field)
             if not col:
@@ -160,7 +162,7 @@ END;
             'nullity': 'NOT NULL',
             'default': 'NULL'
         }
-        if field.null or (isinstance(field, (CharField,TextField)) and field.empty_strings_allowed):
+        if field.null:
             params['nullity'] = 'NULL'
 
         sql_templates = [
@@ -225,8 +227,6 @@ END;
         """
         renamed = self._generate_temp_name(name)
         self.rename_column(table_name, name, renamed)
-        if isinstance(field, TextField):
-            field.null = True # not-null not supported on LOBs
         self.add_column(table_name, name, field, keep_default=False)
         self.execute("UPDATE %s set %s=%s" % (
             self.quote_name(table_name),
@@ -253,6 +253,7 @@ END;
 
     @generic.invalidate_table_constraints
     def add_column(self, table_name, name, field, keep_default=False):
+        field = self._field_sanity(field)
         sql = self.column_sql(table_name, name, field)
         sql = self.adj_column_sql(sql)
 
@@ -291,7 +292,11 @@ END;
         """
         if isinstance(field, models.BooleanField) and field.has_default():
             field.default = int(field.to_python(field.get_default()))
+        # On Oracle, empty strings are null
+        if isinstance(field, (models.CharField, models.TextField)):
+            field.null = field.empty_strings_allowed
         return field
+
 
     def _default_value_workaround(self, value):
         from datetime import date,time,datetime
