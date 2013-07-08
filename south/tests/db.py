@@ -361,6 +361,20 @@ class TestOperations(unittest.TestCase):
         null = db.execute("SELECT spam FROM test_altercd")[0][0]
         self.assertFalse(null, "Default for char field was installed into database")
 
+        # Change again to a column with default and not null
+        db.alter_column("test_altercd", "spam", models.CharField(max_length=30, default="loof", null=False))
+        # Assert the default is not in the database
+        if 'oracle' in db.backend_name:
+            # Oracle special treatment -- nulls are always allowed in char columns, so 
+            # inserting doesn't raise an integrity error; so we check again as above
+            db.execute("INSERT INTO test_altercd (eggs) values (12)")
+            null = db.execute("SELECT spam FROM test_altercd")[0][0]
+            self.assertFalse(null, "Default for char field was installed into database")
+        else:
+            # For other backends, insert should now just fail
+            self.assertRaises(IntegrityError,
+                              db.execute, "INSERT INTO test_altercd (eggs) values (12)")
+
     @skipIf('oracle' in db.backend_name, "Oracle does not differentiate empty trings from null")
     def test_default_empty_string(self):
         """

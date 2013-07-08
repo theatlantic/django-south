@@ -444,12 +444,11 @@ class DatabaseOperations(object):
 
     def _alter_set_defaults(self, field, name, params, sqls):
         "Subcommand of alter_column that sets default values (overrideable)"
-        # Next, set any default
-        if not field.null and field.has_default():
-            default = field.get_db_prep_save(field.get_default(), connection=self._get_connection())
-            sqls.append(('ALTER COLUMN %s SET DEFAULT %%s ' % (self.quote_name(name),), [default]))
-        else:
-            sqls.append(('ALTER COLUMN %s DROP DEFAULT' % (self.quote_name(name),), []))
+        # Historically, we used to set defaults here.
+        # But since South 0.8, we don't ever set defaults on alter-column -- we only
+        # use database-level defaults as scaffolding when adding columns.
+        # However, we still sometimes need to remove defaults in alter-column.
+        sqls.append(('ALTER COLUMN %s DROP DEFAULT' % (self.quote_name(name),), []))
 
     def _update_nulls_to_default(self, params, field):
         "Subcommand of alter_column that updates nulls to default value (overrideable)"
@@ -526,7 +525,7 @@ class DatabaseOperations(object):
             sqls.append((self.alter_string_drop_null % params, []))
 
         # Do defaults
-        #self._alter_set_defaults(field, name, params, sqls)
+        self._alter_set_defaults(field, name, params, sqls)
 
         # Actually change the column (step 1 -- Nullity may need to be fixed)
         if self.allows_combined_alters:
