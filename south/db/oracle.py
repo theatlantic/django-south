@@ -11,6 +11,7 @@ from django.db import connection, models
 from django.db.backends.util import truncate_name
 from django.core.management.color import no_style
 from django.db.models.fields import NOT_PROVIDED
+from django.db.models import CharField, TextField
 from django.db.utils import DatabaseError
 
 # In revision r16016 function get_sequence_name has been transformed into
@@ -159,12 +160,12 @@ END;
             'nullity': 'NOT NULL',
             'default': 'NULL'
         }
-        if field.null:
+        if field.null or (isinstance(field, (CharField,TextField)) and field.empty_strings_allowed):
             params['nullity'] = 'NULL'
 
         sql_templates = [
-            (self.alter_string_set_type, params),
-            (self.alter_string_set_default, params),
+            (self.alter_string_set_type, params, []),
+            (self.alter_string_set_default, params, []),
         ]
         if not field.null and field.has_default():
             # Use default for rows that had nulls. To support the case where
@@ -177,8 +178,8 @@ END;
                 p.update(kw)
                 return p
             sql_templates[:0] = [
-                (self.alter_string_set_type, change_params(nullity='NULL')),
-                (self.alter_string_update_nulls_to_default, change_params(default=self._default_value_workaround(field.get_default()))),
+                (self.alter_string_set_type, change_params(nullity='NULL'),[]),
+                (self.alter_string_update_nulls_to_default, change_params(default="%s"), [field.get_default()]),
             ]
 
 
@@ -191,9 +192,9 @@ END;
                 'constraint': self.quote_name(constraint),
             })
 
-        for sql_template, params in sql_templates:
+        for sql_template, params, args in sql_templates:
             try:
-                self.execute(sql_template % params, print_all_errors=False)
+                self.execute(sql_template % params, args, print_all_errors=False)
             except DatabaseError as exc:
                 description = str(exc)
                 # Oracle complains if a column is already NULL/NOT NULL
@@ -224,6 +225,8 @@ END;
         """
         renamed = self._generate_temp_name(name)
         self.rename_column(table_name, name, renamed)
+        if isinstance(field, TextField):
+            field.null = True # not-null not supported on LOBs
         self.add_column(table_name, name, field, keep_default=False)
         self.execute("UPDATE %s set %s=%s" % (
             self.quote_name(table_name),
