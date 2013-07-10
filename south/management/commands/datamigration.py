@@ -46,13 +46,19 @@ class Command(BaseCommand):
         if re.search('[^_\w]', name) and name != "-":
             self.error("Migration names should contain only alphanumeric characters and underscores.")
         
-        # if not name, there's an error
+        # If not name, there's an error
         if not name:
-            self.error("You must provide a name for this migration\n" + self.usage_str)
+            self.error("You must provide a name for this migration.\n" + self.usage_str)
         
         if not app:
             self.error("You must provide an app to create a migration for.\n" + self.usage_str)
-        
+
+        # Ensure that verbosity is not a string (Python 3)
+        try:
+            verbosity = int(verbosity)
+        except ValueError:
+            self.error("Verbosity must be an number.\n" + self.usage_str)
+            
         # Get the Migrations for this app (creating the migrations dir if needed)
         migrations = Migrations(app, force_creation=True, verbose_creation=verbosity > 0)
         
