@@ -361,6 +361,21 @@ class TestOperations(unittest.TestCase):
         null = db.execute("SELECT spam FROM test_altercd")[0][0]
         self.assertFalse(null, "Default for char field was installed into database")
 
+        # Change again to a column with default and not null
+        db.alter_column("test_altercd", "spam", models.CharField(max_length=30, default="loof", null=False))
+        # Assert the default is not in the database
+        if 'oracle' in db.backend_name:
+            # Oracle special treatment -- nulls are always allowed in char columns, so 
+            # inserting doesn't raise an integrity error; so we check again as above
+            db.execute("DELETE FROM test_altercd")
+            db.execute("INSERT INTO test_altercd (eggs) values (12)")
+            null = db.execute("SELECT spam FROM test_altercd")[0][0]
+            self.assertFalse(null, "Default for char field was installed into database")
+        else:
+            # For other backends, insert should now just fail
+            self.assertRaises(IntegrityError,
+                              db.execute, "INSERT INTO test_altercd (eggs) values (12)")
+
     @skipIf('oracle' in db.backend_name, "Oracle does not differentiate empty trings from null")
     def test_default_empty_string(self):
         """
@@ -378,6 +393,24 @@ class TestOperations(unittest.TestCase):
         empty = db.execute("SELECT ham FROM test_cd_empty")[0][0]
         self.assertEquals(empty, "", "Empty Default for char field isn't empty string")
         
+    @skipUnless('oracle' in db.backend_name, "Oracle does not differentiate empty trings from null")
+    def test_oracle_strings_null(self):
+        """
+        Test that under Oracle, CherFields are created as null even when specified not-null,
+        because otherwise they would not be able to hold empty strings (which Oracle equates
+        with nulls).
+        Verify fix of #1269.
+        """
+        db.create_table("test_ora_char_nulls", [
+            ('spam', models.CharField(max_length=30, null=True)),
+            ('eggs', models.CharField(max_length=30)),
+        ])
+        db.add_column("test_ora_char_nulls", "ham", models.CharField(max_length=30))
+        db.alter_column("test_ora_char_nulls", "spam", models.CharField(max_length=30, null=False))
+        # So, by the look of it, we should now have three not-null columns
+        db.execute("INSERT INTO test_ora_char_nulls VALUES (NULL, NULL, NULL)")
+        
+
     def test_mysql_defaults(self):
         """
         Test MySQL default handling for BLOB and TEXT.
