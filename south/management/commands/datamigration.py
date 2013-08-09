@@ -34,6 +34,8 @@ class Command(BaseCommand):
     usage_str = "Usage: ./manage.py datamigration appname migrationname [--stdout] [--freeze appname]"
     
     def handle(self, app=None, name="", freeze_list=None, stdout=False, verbosity=1, **options):
+
+        verbosity = int(verbosity)
         
         # Any supposed lists that are None become empty lists
         freeze_list = freeze_list or []
