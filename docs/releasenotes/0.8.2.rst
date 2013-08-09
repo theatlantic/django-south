@@ -18,7 +18,7 @@ An issue with SQLite and default values that caused some migrations to
 fail has been fixed.
 
 
-Microsost SQL Server fixes
+Microsoft SQL Server fixes
 ==========================
 
 South now recognises more Django MSSQL backends, and no longer fails
