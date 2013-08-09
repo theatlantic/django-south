@@ -1,0 +1,38 @@
+
+.. _0-8-2-release-notes:
+
+===========
+South 0.8.2
+===========
+
+This is the second bugfix release in the 0.8 series.
+
+Major changes are outlined below. A full list of changes can be found on
+`the repository <https://bitbucket.org/andrewgodwin/south/commits/all/>`_.
+
+
+SQLite fixes
+============
+
+An issue with SQLite and default values that caused some migrations to
+fail has been fixed.
+
+
+Microsost SQL Server fixes
+==========================
+
+South now recognises more Django MSSQL backends, and no longer fails
+to alter ForeignKeys that are in composite indexes.
+
+
+Django 1.6
+==========
+
+A small issue with the app cache on Django 1.6 has been fixed.
+
+
+Inheritable commands
+====================
+
+The ``schemamigration`` and ``datamigration`` commands can now be properly
+inherited and their templates easily changed.
