@@ -113,11 +113,14 @@ class Migrator(object):
         return self.run_migration(migration, database)
 
 
-    def send_ran_migration(self, migration):
+    def send_ran_migration(self, migration, database):
         ran_migration.send(None,
                            app=migration.app_label(),
                            migration=migration,
-                           method=self.__class__.__name__.lower())
+                           method=self.__class__.__name__.lower(),
+                           verbosity=self.verbosity,
+                           interactive=self.interactive,
+                           db=database)
 
     def migrate(self, migration, database):
         """
@@ -127,7 +130,7 @@ class Migrator(object):
         migration_name = migration.name()
         self.print_status(migration)
         result = self.run(migration, database)
-        self.send_ran_migration(migration)
+        self.send_ran_migration(migration, database)
         return result
 
     def migrate_many(self, target, migrations, database):
