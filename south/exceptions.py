@@ -24,6 +24,8 @@ class BrokenMigration(SouthError):
 
 class UnknownMigration(BrokenMigration):
     def __str__(self):
+        if not hasattr(self, "traceback"):
+            self.traceback = ""
         return ("Migration '%(migration)s' probably doesn't exist.\n"
                 '%(traceback)s' % self.__dict__)
 
