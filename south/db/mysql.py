@@ -148,7 +148,17 @@ class DatabaseOperations(generic.DatabaseOperations):
         for constraint, itscols in mapping.items():
             if itscols == columns or columns is None:
                 yield constraint
-    
+
+
+    def _alter_set_defaults(self, field, name, params, sqls):
+        """
+        MySQL does not support defaults on text or blob columns.
+        """
+        type = params['type']
+
+        if not (type.endswith('text') or type.endswith('blob')):
+            super(DatabaseOperations, self)._alter_set_defaults(field, name, params, sqls)
+
     
     def _field_sanity(self, field):
         """

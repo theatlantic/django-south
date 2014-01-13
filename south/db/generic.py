@@ -283,6 +283,16 @@ class DatabaseOperations(object):
         except TypeError:
             return field.db_type()
 
+
+    def _alter_set_defaults(self, field, name, params, sqls):
+        # Next, set any default
+        if not field.null and field.has_default():
+            default = field.get_default()
+            sqls.append(('ALTER COLUMN %s SET DEFAULT %%s ' % (self.quote_name(name),), [default]))
+        else:
+            sqls.append(('ALTER COLUMN %s DROP DEFAULT' % (self.quote_name(name),), []))
+
+
     def alter_column(self, table_name, name, field, explicit_name=True, ignore_constraints=False):
         """
         Alters the given column name so it will match the given field.
@@ -332,12 +342,7 @@ class DatabaseOperations(object):
         # SQLs is a list of (SQL, values) pairs.
         sqls = [(self.alter_string_set_type % params, [])]
 
-        # Next, set any default
-        if not field.null and field.has_default():
-            default = field.get_default()
-            sqls.append(('ALTER COLUMN %s SET DEFAULT %%s ' % (self.quote_name(name),), [default]))
-        else:
-            sqls.append(('ALTER COLUMN %s DROP DEFAULT' % (self.quote_name(name),), []))
+        self._alter_set_defaults(field, name, params, sqls)
 
 
         # Next, nullity
